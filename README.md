@@ -1,4 +1,3 @@
-# HelloMac 📞
 <p align="center">
   <img src="banner1.png" alt="HelloMac Banner" width="100%">
 </p>
@@ -8,6 +7,17 @@
 </p>
 
 <h1 align="center">HelloMac</h1>
+
+<p align="center">
+  <!-- Badge: Έκδοση -->
+  <img src="https://img.shields.io/github/v/release/Konstantinos2106/HelloMac?label=%F0%9F%9A%80%20Latest%20Release&color=2ea44f" alt="Latest Release Badge">
+  &nbsp;
+  <!-- Badge: Downloads (Συνολικά) -->
+  <img src="https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total?label=%F0%9F%A4%99%20Downloads&color=0366d6" alt="Total Downloads Badge">
+  &nbsp;
+  <!-- Badge: Άδεια -->
+  <img src="https://img.shields.io/github/license/Konstantinos2106/HelloMac?label=%F0%9F%93%9C%20License&color=6e7681" alt="MIT License Badge">
+</p>
 
 <p align="center">
   <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας. Αξιόπιστη και ελαφριά εφαρμογή Τηλεφώνου για παλαιότερες εκδόσεις macOS.</strong><br><br>
@@ -26,7 +36,7 @@
 
 ---
 
-## Σχετικά με το HelloMac
+## 🇬🇷 Σχετικά με το HelloMac
 
 Στις παλαιότερες εκδόσεις του macOS δεν υπάρχει αυτόνομη εφαρμογή "Τηλέφωνο", με αποτέλεσμα οι χρήστες να πρέπει να ανοίγουν το FaceTime ή τις Επαφές τους για μια απλή κλήση.<br>
 Το **HelloMac** έρχεται να λύσει αυτό το πρόβλημα, προσφέροντας ένα καθαρό, ελαφρύ και γνώριμο περιβάλλον τηλεφώνου.
@@ -52,7 +62,7 @@
 
 ---
 
-## About HelloMac
+## 🇬🇧 About HelloMac
 
 Older versions of macOS lack a dedicated, standalone "Phone" application, forcing users to rely on the bulky FaceTime interface for simple audio calls. <br>
 **HelloMac** bridges this gap by providing a clean, native, and lightweight dialer.
