@@ -58,7 +58,8 @@
 Μπορείτε να επικοινωνήσετε μαζί μου για νέες ιδέες και προβλήματα μέσω email [εδώ](mailto:78wc433vq@mozmail.com).
 
 ### ✏️ Σημειώσεις
-Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη. Παρακαλώ να ελέγχετε για νέες εκδόσεις καθώς ακόμη δεν υπάρχει η δυνατότητα αυτόματου ελέγχου και ενημέρωσης.
+* Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη. Παρακαλώ να ελέγχετε για νέες εκδόσεις καθώς ακόμη δεν υπάρχει η δυνατότητα αυτόματου ελέγχου και ενημέρωσης.
+* Σε περίπτωση που στην πρώτη εκκίνηση εμφανιστεί μήνυμα "Μη Αναγνωρισμένου Δημιουργού", ακολουθήστε τον οδηγό [εδώ](Unrecognized_Creator.pdf).
 
 ---
 
@@ -84,7 +85,8 @@ HelloMac uses a clever background mechanism to process calls. It routes the audi
 Feel free to reach out with new ideas or issues via email [here](mailto:78wc433vq@mozmail.com).
 
 ### ✏️ Notes
-HelloMac is continuously updated and evolving, and it may contain bugs. Please check back for new releases, as an automatic update feature is not yet available.
+* HelloMac is continuously updated and evolving, and it may contain bugs. Please check back for new releases, as an automatic update feature is not yet available.
+* In case you see an "Unidentified Developer" message on the first launch, please follow the guide [here](Unrecognized_Creator.pdf).
 
 ***(Note: The app interface is currently in Greek. English localization will be added in a future update).***
 
