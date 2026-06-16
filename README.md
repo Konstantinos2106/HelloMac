@@ -9,17 +9,6 @@
 <h1 align="center">HelloMac</h1>
 
 <p align="center">
-  <!-- Badge: Έκδοση -->
-  <img src="https://img.shields.io/github/v/release/Konstantinos2106/HelloMac?style=flat-square&label=%F0%9F%9A%80%20Latest%20Release&color=2ea44f" alt="Latest Release Badge">
-  &nbsp;
-  <!-- Badge: Downloads (Συνολικά) -->
-  <img src="https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total?style=flat-square&label=%F0%9F%93%A5%20Downloads&color=0366d6" alt="Total Downloads Badge">
-  &nbsp;
-  <!-- Badge: Άδεια -->
-  <img src="https://img.shields.io/github/license/Konstantinos2106/HelloMac?style=flat-square&label=%F0%9F%93%9C%20License&color=6e7681" alt="MIT License Badge">
-</p>
-
-<p align="center">
   <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας. Αξιόπιστη και ελαφριά εφαρμογή Τηλεφώνου για παλαιότερες εκδόσεις macOS.</strong><br><br>
   <strong>Make phone calls directly from your Mac. A reliable, standalone calling utility built for older macOS versions.</strong>
 </p>
