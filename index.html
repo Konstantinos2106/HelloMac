@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HelloMac</title>
+  <meta name="description" id="meta-desc" content="Make phone calls directly from your Mac." />
+  <style>
+    :root {
+      --bg:#0d0d0f; --surface:#161618; --surface2:#1c1c1e;
+      --border:rgba(255,255,255,0.08); --green:#30d158;
+      --green-dim:rgba(48,209,88,0.12); --text:#f5f5f7;
+      --text-secondary:#86868b; --text-tertiary:#48484a;
+      --radius:18px; --radius-sm:10px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+
+    /* LANG */
+    #lang-switch{position:fixed;top:18px;right:20px;z-index:200;display:flex;gap:2px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:3px;backdrop-filter:blur(12px);}
+    #lang-switch button{background:none;border:none;color:var(--text-secondary);font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .2s;}
+    #lang-switch button.active{background:var(--green);color:#000;}
+    span[data-lang],div[data-lang]{display:none;}
+    body.lang-el [data-lang="el"],body.lang-en [data-lang="en"]{display:revert;}
+    span[data-lang]{display:none;}
+    body.lang-el span[data-lang="el"],body.lang-en span[data-lang="en"]{display:inline;}
+
+    /* NAV */
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;padding:0 32px;height:60px;background:rgba(13,13,15,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+    .nav-logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;text-decoration:none;color:var(--text);}
+    .logo-icon{width:28px;height:28px;border-radius:7px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+    .logo-icon img{width:100%;height:100%;object-fit:cover;}
+    .logo-icon-fallback{width:28px;height:28px;background:var(--green);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+    .nav-links{margin-left:auto;display:flex;gap:28px;list-style:none;align-items:center;}
+    .nav-links a{color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:500;transition:color .2s;}
+    .nav-links a:hover{color:var(--text);}
+    .nav-stars{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--text-secondary);text-decoration:none;transition:border-color .2s;}
+    .nav-stars:hover{border-color:rgba(255,255,255,.2);}
+
+    /* HERO */
+    .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 80px;position:relative;overflow:hidden;}
+    .hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(48,209,88,.12) 0%,transparent 65%);pointer-events:none;}
+    .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--green-dim);border:1px solid rgba(48,209,88,.25);border-radius:100px;padding:6px 14px;font-size:13px;font-weight:500;color:var(--green);margin-bottom:28px;min-height:34px;}
+    .hero h1{font-size:clamp(42px,8vw,80px);font-weight:700;letter-spacing:-2.5px;line-height:1.05;margin-bottom:22px;}
+    .hero h1 .accent{color:var(--green);}
+    .hero-sub{font-size:clamp(16px,2.5vw,20px);color:var(--text-secondary);max-width:580px;margin:0 auto 42px;line-height:1.55;}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+
+    .btn-primary{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#000;font-weight:600;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none;transition:all .2s;}
+    .btn-primary:hover{background:#34e05a;transform:translateY(-1px);box-shadow:0 8px 30px rgba(48,209,88,.3);}
+    .btn-secondary{display:inline-flex;align-items:center;gap:8px;background:var(--surface2);color:var(--text);font-weight:500;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none;border:1px solid var(--border);transition:all .2s;}
+    .btn-secondary:hover{background:var(--surface);border-color:rgba(255,255,255,.15);}
+
+    .spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    .banner-wrap{width:100%;max-width:900px;margin:64px auto 0;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);box-shadow:0 40px 100px rgba(0,0,0,.6);}
+    .banner-wrap img{width:100%;display:block;}
+
+    /* SECTIONS */
+    section{padding:100px 24px;}
+    .container{max-width:1000px;margin:0 auto;}
+    .section-label{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:14px;}
+    .section-title{font-size:clamp(28px,4vw,42px);font-weight:700;letter-spacing:-1px;line-height:1.15;margin-bottom:16px;}
+    .section-sub{font-size:17px;color:var(--text-secondary);max-width:520px;line-height:1.6;}
+
+    /* FEATURES */
+    .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:56px;}
+    .feature-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;transition:border-color .2s,transform .2s;}
+    .feature-card:hover{border-color:rgba(48,209,88,.3);transform:translateY(-2px);}
+    .feature-icon{width:44px;height:44px;background:var(--green-dim);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:18px;}
+    .feature-card h3{font-size:17px;font-weight:600;margin-bottom:8px;}
+    .feature-card p{font-size:14px;color:var(--text-secondary);line-height:1.6;}
+
+    /* SCREENSHOTS */
+    .screenshots-section{background:var(--surface);}
+    .screenshots-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:56px;}
+    .screenshot-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);background:var(--surface2);}
+    .screenshot-card img{width:100%;display:block;object-fit:cover;}
+    .screenshot-label{padding:14px 18px;font-size:13px;color:var(--text-secondary);font-weight:500;}
+
+    /* STEPS */
+    .steps{margin-top:56px;display:flex;flex-direction:column;}
+    .step{display:flex;gap:28px;align-items:flex-start;padding:32px 0;border-bottom:1px solid var(--border);}
+    .step:last-child{border-bottom:none;}
+    .step-num{flex-shrink:0;width:36px;height:36px;border-radius:50%;background:var(--green-dim);border:1px solid rgba(48,209,88,.3);color:var(--green);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+    .step-content h3{font-size:17px;font-weight:600;margin-bottom:6px;}
+    .step-content p{font-size:14px;color:var(--text-secondary);line-height:1.65;}
+    .step-content code{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-family:'SF Mono',monospace;font-size:13px;color:var(--green);}
+
+    /* RELEASE BOX */
+    .release-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 32px;margin-top:56px;display:none;}
+    .release-box-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+    .release-tag{background:var(--green-dim);border:1px solid rgba(48,209,88,.3);color:var(--green);font-size:12px;font-weight:700;padding:3px 10px;border-radius:100px;}
+    .release-date{font-size:13px;color:var(--text-tertiary);}
+    .release-body{font-size:14px;color:var(--text-secondary);line-height:1.7;white-space:pre-wrap;max-height:200px;overflow-y:auto;}
+
+    .notice{background:rgba(48,209,88,.07);border:1px solid rgba(48,209,88,.2);border-radius:var(--radius-sm);padding:18px 22px;font-size:14px;color:var(--text-secondary);margin-top:56px;line-height:1.65;}
+    .notice strong{color:var(--text);}
+
+    /* DOWNLOAD */
+    .download-section{text-align:center;padding:100px 24px;}
+    .download-card{max-width:620px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:56px 48px;position:relative;overflow:hidden;}
+    .download-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(48,209,88,.08) 0%,transparent 60%);pointer-events:none;}
+    .download-card h2{font-size:32px;font-weight:700;letter-spacing:-.8px;margin-bottom:12px;}
+    .download-card>p{color:var(--text-secondary);font-size:15px;margin-bottom:32px;}
+    .req-list{margin-top:24px;display:flex;flex-direction:column;gap:6px;text-align:left;}
+    .req-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);}
+    .req-item::before{content:'✓';color:var(--green);font-weight:700;}
+
+    /* LICENSE BADGE */
+    .license-badge{display:inline-flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text-secondary);margin-top:20px;text-decoration:none;transition:border-color .2s;}
+    .license-badge:hover{border-color:rgba(255,255,255,.2);}
+    .license-name{color:var(--text);font-weight:600;}
+
+    /* FOOTER */
+    footer{border-top:1px solid var(--border);padding:40px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;}
+    .footer-left{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--text-secondary);}
+    .footer-links{display:flex;gap:24px;flex-wrap:wrap;}
+    .footer-links a{font-size:13px;color:var(--text-tertiary);text-decoration:none;transition:color .2s;}
+    .footer-links a:hover{color:var(--text-secondary);}
+
+    @media(max-width:640px){
+      nav{padding:0 18px;}
+      .nav-links{display:none;}
+      .screenshots-grid{grid-template-columns:1fr;}
+      .download-card{padding:36px 24px;}
+      footer{flex-direction:column;text-align:center;}
+    }
+  </style>
+</head>
+<body class="lang-el">
+
+<div id="lang-switch">
+  <button class="active" onclick="setLang('el')">ΕΛ</button>
+  <button onclick="setLang('en')">EN</button>
+</div>
+
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="logo-icon" id="nav-logo-wrap">
+      <div class="logo-icon-fallback">📞</div>
+    </div>
+    HelloMac
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features"><span data-lang="el">Χαρακτηριστικά</span><span data-lang="en">Features</span></a></li>
+    <li><a href="#screenshots"><span data-lang="el">Στιγμιότυπα</span><span data-lang="en">Screenshots</span></a></li>
+    <li><a href="#how-it-works"><span data-lang="el">Πώς λειτουργεί</span><span data-lang="en">How it works</span></a></li>
+    <li>
+      <a class="nav-stars" href="https://github.com/Konstantinos2106/HelloMac" target="_blank">
+        ★ <span id="stars-count">–</span>
+      </a>
+    </li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow" id="hero-badge"><span class="spinner"></span></div>
+  <h1>
+    <span data-lang="el">Τηλέφωνο για<br><span class="accent">παλαιότερο macOS</span></span>
+    <span data-lang="en">Phone app for<br><span class="accent">older macOS</span></span>
+  </h1>
+  <p class="hero-sub" id="hero-desc">
+    <span data-lang="el">Πραγματοποιήστε κλήσεις απευθείας από το Mac σας. Ελαφρύ, native και με οικείο περιβάλλον τηλεφώνου.</span>
+    <span data-lang="en">Make phone calls directly from your Mac. Lightweight, native, and with a familiar phone interface.</span>
+  </p>
+  <div class="hero-actions">
+    <a class="btn-primary" id="download-btn-hero" href="https://github.com/Konstantinos2106/HelloMac/releases/latest">
+      ↓ <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
+    </a>
+    <a class="btn-secondary" href="https://github.com/Konstantinos2106/HelloMac" target="_blank">
+    <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;vertical-align:middle"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+    <span data-lang="el">GitHub</span><span data-lang="en">GitHub</span>
+    </a>
+  </div>
+  <div class="banner-wrap">
+    <img id="hero-banner" src="" alt="HelloMac Banner" style="display:none" />
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container">
+    <div class="section-label"><span data-lang="el">Χαρακτηριστικά</span><span data-lang="en">Features</span></div>
+    <h2 class="section-title">
+      <span data-lang="el">Όλα όσα χρειάζεσαι για μια κλήση</span>
+      <span data-lang="en">Everything you need to make a call</span>
+    </h2>
+    <p class="section-sub">
+      <span data-lang="el">Σχεδιασμένο για macOS Ventura και παλαιότερα.</span>
+      <span data-lang="en">Built for macOS Ventura and older.</span>
+    </p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <h3>Native macOS UI</h3>
+        <p><span data-lang="el">Πλήρης Dark Mode, οικεία αίσθηση iPhone.</span><span data-lang="en">Full Dark Mode, familiar iPhone feel.</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h3><span data-lang="el">Λίστα Επαφών</span><span data-lang="en">Contacts List</span></h3>
+        <p><span data-lang="el">Προσθήκη, αφαίρεση, γρήγορη πρόσβαση με ένα κλικ.</span><span data-lang="en">Add, remove, quick access with one click.</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⌨️</div>
+        <h3><span data-lang="el">Κλασικό Πληκτρολόγιο</span><span data-lang="en">Classic Keypad</span></h3>
+        <p><span data-lang="el">Καντράν για γρήγορη πληκτρολόγηση αριθμών.</span><span data-lang="en">Dialpad for quick number entry.</span></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🪶</div>
+        <h3><span data-lang="el">Ελαφρύ & Γρήγορο</span><span data-lang="en">Lightweight & Fast</span></h3>
+        <p><span data-lang="el">Minimal αποτύπωμα, ανοίγει σε δευτερόλεπτα.</span><span data-lang="en">Minimal footprint, opens in seconds.</span></p>
+      </div>
+      <!-- Κάρτα άδειας — γεμίζει από API -->
+      <div class="feature-card" id="license-card">
+        <div class="feature-icon">🔒</div>
+        <h3 id="license-card-title"><span class="spinner"></span></h3>
+        <p id="license-card-body"><span data-lang="el">Φόρτωση από GitHub…</span><span data-lang="en">Loading from GitHub…</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS — γεμίζουν από API -->
+<section id="screenshots" class="screenshots-section">
+  <div class="container">
+    <div class="section-label"><span data-lang="el">Στιγμιότυπα</span><span data-lang="en">Screenshots</span></div>
+    <h2 class="section-title">
+      <span data-lang="el">Δείτε το HelloMac σε δράση</span>
+      <span data-lang="en">See HelloMac in action</span>
+    </h2>
+    <div class="screenshots-grid" id="screenshots-grid">
+      <!-- Γεμίζει δυναμικά -->
+      <div class="screenshot-card" style="min-height:200px;display:flex;align-items:center;justify-content:center;">
+        <span class="spinner"></span>
+      </div>
+      <div class="screenshot-card" style="min-height:200px;display:flex;align-items:center;justify-content:center;">
+        <span class="spinner"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-label"><span data-lang="el">Πώς λειτουργεί</span><span data-lang="en">How it works</span></div>
+    <h2 class="section-title">
+      <span data-lang="el">Εγκατάσταση σε 3 βήματα</span>
+      <span data-lang="en">Install in 3 steps</span>
+    </h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3><span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span></h3>
+          <p><span data-lang="el">Κατεβάστε την τελευταία έκδοση από το κουμπί Download ή από τη σελίδα Releases.</span><span data-lang="en">Download the latest release from the Download button or from the Releases page.</span></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3><span data-lang="el">Σύρετε στις Εφαρμογές</span><span data-lang="en">Drag to Applications</span></h3>
+          <p><span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>. Αν εμφανιστεί "Μη Αναγνωρισμένος Δημιουργός", ακολουθήστε τον οδηγό στο repo.</span><span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>. If you see "Unidentified Developer", follow the guide in the repo.</span></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3><span data-lang="el">Ενεργοποιήστε το iPhone Handoff</span><span data-lang="en">Enable iPhone Handoff</span></h3>
+          <p><span data-lang="el">Στο iPhone: <code>Ρυθμίσεις → Τηλέφωνο → Κλήσεις σε άλλες συσκευές</code>. Mac και iPhone στο ίδιο Wi-Fi και Apple ID.</span><span data-lang="en">On iPhone: <code>Settings → Phone → Calls on Other Devices</code>. Mac and iPhone on same Wi-Fi and Apple ID.</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="release-box" id="release-box">
+      <div class="release-box-header">
+        <span class="release-tag" id="release-tag"></span>
+        <span class="release-date" id="release-date"></span>
+      </div>
+      <div class="release-body" id="release-body"></div>
+    </div>
+
+    <div class="notice">
+      <strong><span data-lang="el">Πώς λειτουργεί το FaceTime workaround:</span><span data-lang="en">How the FaceTime workaround works:</span></strong><br>
+      <span data-lang="el">Το HelloMac προωθεί την κλήση μέσω <code>tel://</code> χρησιμοποιώντας το FaceTime στο παρασκήνιο. Κρύβει αυτόματα το παράθυρο του FaceTime.</span>
+      <span data-lang="en">HelloMac routes calls through <code>tel://</code> using FaceTime in the background. It automatically hides the FaceTime window.</span>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="download-section" id="download">
+  <div class="download-card">
+    <h2><span data-lang="el">Ξεκινήστε σήμερα</span><span data-lang="en">Get started today</span></h2>
+    <p><span data-lang="el">Δωρεάν, ανοιχτού κώδικα, για macOS Ventura και παλαιότερα.</span><span data-lang="en">Free, open source, for macOS Ventura and older.</span></p>
+    <a class="btn-primary" id="download-btn-main" href="https://github.com/Konstantinos2106/HelloMac/releases/latest">
+      ↓ <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
+    </a>
+    <div style="margin-top:20px;">
+      <a class="license-badge" id="license-badge-link" href="https://github.com/Konstantinos2106/HelloMac/blob/main/LICENSE" target="_blank">
+        🔒 <span data-lang="el">Άδεια:</span><span data-lang="en">License:</span>
+        <span class="license-name" id="license-name"><span class="spinner"></span></span>
+      </a>
+    </div>
+    <div class="req-list">
+      <!-- <div class="req-item"><span data-lang="el">macOS Ventura ή παλαιότερο</span><span data-lang="en">macOS Ventura or older</span></div> -->
+      <div class="req-item"><span data-lang="el">iPhone στο ίδιο Apple ID</span><span data-lang="en">iPhone on the same Apple ID</span></div>
+      <div class="req-item"><span data-lang="el">Ίδιο Wi-Fi δίκτυο</span><span data-lang="en">Same Wi-Fi network</span></div>
+      <div class="req-item"><span data-lang="el">Δωρεάν & Ανοιχτού Κώδικα</span><span data-lang="en">Free & Open Source</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-left">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;">
+      <div id="footer-logo" class="logo-icon-fallback" style="width:22px;height:22px;font-size:12px;">📞</div>
+      HelloMac
+    </div>
+    <span style="color:var(--text-tertiary)">·</span>
+    <span><span data-lang="el">Φτιαγμένο για παλαιότερα Mac</span><span data-lang="en">Made for older Macs</span></span>
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/Konstantinos2106/HelloMac" target="_blank">GitHub</a>
+    <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank">Releases</a>
+    <a id="footer-license-link" href="https://github.com/Konstantinos2106/HelloMac/blob/main/LICENSE" target="_blank">
+      <span id="footer-license-name">License</span>
+    </a>
+    <a href="mailto:78wc433vq@mozmail.com"><span data-lang="el">Επικοινωνία</span><span data-lang="en">Contact</span></a>
+    <a href="https://github.com/Konstantinos2106" target="_blank">Konstantinos2106</a>
+  </div>
+  
+</footer>
+
+<script>
+const REPO = 'Konstantinos2106/HelloMac';
+const RAW  = `https://raw.githubusercontent.com/${REPO}/main`;
+const API  = `https://api.github.com/repos/${REPO}`;
+
+// ── γλώσσα ──
+function setLang(lang) {
+  document.body.className = 'lang-' + lang;
+  document.querySelectorAll('#lang-switch button').forEach(b => b.classList.remove('active'));
+  document.querySelector('#lang-switch button:' + (lang==='el'?'first-child':'last-child')).classList.add('active');
+  document.documentElement.lang = lang;
+}
+
+// ── Βοηθός: δοκιμάζει αν URL εικόνας υπάρχει ──
+async function imgExists(url) {
+  try {
+    const r = await fetch(url, {method:'HEAD'});
+    return r.ok;
+  } catch { return false; }
+}
+
+// ── Βοηθός: επιστρέφει raw URL εικόνας αν υπάρχει ──
+async function findImg(names) {
+  for (const n of names) {
+    const url = `${RAW}/${n}`;
+    if (await imgExists(url)) return url;
+  }
+  return null;
+}
+
+async function loadAll() {
+  // ── 1. Repo info (description, stars, forks, logo) ──
+  try {
+    const repo = await (await fetch(API)).json();
+
+    // Stars
+    document.getElementById('stars-count').textContent = repo.stargazers_count ?? '–';
+
+    // Description στο hero
+    if (repo.description) {
+      document.getElementById('hero-desc').innerHTML =
+        `<span>${repo.description}</span>`;
+    }
+  } catch {}
+
+  // ── 2. Logo από repo ──
+  const logoUrl = await findImg(['logo.png','logo.jpg','logo.svg','icon.png','icon.jpg','AppIcon.png']);
+  if (logoUrl) {
+    const logoWrap = document.getElementById('nav-logo-wrap');
+    logoWrap.innerHTML = `<img src="${logoUrl}" alt="HelloMac logo" style="width:28px;height:28px;border-radius:7px;object-fit:cover;">`;
+    const footerLogo = document.getElementById('footer-logo');
+    footerLogo.innerHTML = `<img src="${logoUrl}" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover;">`;
+    footerLogo.style.background = 'none';
+  }
+
+  // ── 3. Banner από repo ──
+  const bannerUrl = await findImg(['banner1.png','banner.png','banner1.jpg','banner.jpg','header.png','preview.png']);
+  if (bannerUrl) {
+    const img = document.getElementById('hero-banner');
+    img.src = bannerUrl;
+    img.style.display = 'block';
+  }
+
+  // ── 4. Screenshots — βρίσκει ΟΛΕΣ τις εικόνες του repo ──
+  try {
+    const contents = await (await fetch(`${API}/contents`)).json();
+    const imgFiles = contents.filter(f =>
+      /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name) &&
+      !/(logo|banner|icon|header|preview)/i.test(f.name)
+    );
+
+    const grid = document.getElementById('screenshots-grid');
+    if (imgFiles.length > 0) {
+      grid.innerHTML = imgFiles.slice(0, 4).map(f => `
+        <div class="screenshot-card">
+          <img src="${RAW}/${f.name}" alt="${f.name}" loading="lazy" />
+          <div class="screenshot-label">${f.name.replace(/\.[^.]+$/, '')}</div>
+        </div>
+      `).join('');
+    } else {
+      grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:40px 0;">Δεν βρέθηκαν screenshots στο repo.</p>';
+    }
+  } catch {
+    document.getElementById('screenshots-grid').innerHTML =
+      '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;">Σφάλμα φόρτωσης εικόνων.</p>';
+  }
+
+  // ── 5. Τελευταίο Release (έκδοση + download + notes) ──
+  try {
+    const rel = await (await fetch(`${API}/releases/latest`)).json();
+    const tag  = rel.tag_name || rel.name || '';
+    const date = new Date(rel.published_at).toLocaleDateString('el-GR',{year:'numeric',month:'long',day:'numeric'});
+
+    // Hero badge
+    document.getElementById('hero-badge').innerHTML =
+      `● <span data-lang="el">Νέο — ${tag}</span><span data-lang="en">New — ${tag}</span>`;
+    setLang(document.body.classList.contains('lang-en') ? 'en' : 'el');
+
+    // Download links — πρώτο .dmg asset, fallback στο release page
+    const dmg = rel.assets?.find(a => /\.dmg$/i.test(a.name));
+    const dlUrl = dmg ? dmg.browser_download_url : rel.html_url;
+    document.getElementById('download-btn-hero').href = dlUrl;
+    document.getElementById('download-btn-main').href = dlUrl;
+
+    // Release notes
+    if (rel.body?.trim()) {
+      document.getElementById('release-tag').textContent  = tag;
+      document.getElementById('release-date').textContent = date;
+      document.getElementById('release-body').textContent = rel.body.replace(/#{1,6} /g,'').trim();
+      document.getElementById('release-box').style.display = 'block';
+    }
+  } catch {
+    document.getElementById('hero-badge').innerHTML = '● HelloMac';
+  }
+
+  // ── 6. Άδεια χρήσης — από GitHub API ──
+  try {
+    const lic = await (await fetch(`${API}/license`)).json();
+    const name = lic.license?.spdx_id || lic.license?.name || 'Open Source';
+    const url  = lic.html_url || `https://github.com/${REPO}/blob/main/LICENSE`;
+
+    // Feature card
+    document.getElementById('license-card-title').textContent = name + ' License';
+    document.getElementById('license-card-body').innerHTML =
+      `<span data-lang="el">Ανοιχτός κώδικας υπό άδεια ${name}. Διαθέσιμος στο GitHub.</span>`+
+      `<span data-lang="en">Open source under ${name} license. Available on GitHub.</span>`;
+    setLang(document.body.classList.contains('lang-en') ? 'en' : 'el');
+
+    // Download section badge
+    document.getElementById('license-name').textContent = name;
+    document.getElementById('license-badge-link').href  = url;
+
+    // Footer
+    document.getElementById('footer-license-name').textContent = name + ' License';
+    document.getElementById('footer-license-link').href = url;
+  } catch {
+    document.getElementById('license-name').textContent = 'Open Source';
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
