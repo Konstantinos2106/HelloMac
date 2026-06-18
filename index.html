@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HelloMac</title>
   <meta name="description" id="meta-desc" content="Make phone calls directly from your Mac." />
+  <link rel="icon" id="site-favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2330d158'/%3E%3Cpath d='M30 20h15l7 16-9 5c4 9 11 15 19 19l5-9 16 7v15c0 4-3 7-7 7C44 78 22 56 22 30c0-4 3-8 8-10z' fill='white'/%3E%3C/svg%3E">
   <style>
     :root {
       --bg:#0d0d0f; --surface:#161618; --surface2:#1c1c1e;
@@ -195,7 +196,9 @@
     </p>
     <div class="features-grid">
       <div class="feature-card">
-        <div class="feature-icon">📱</div>
+        <div class="feature-icon" style="font-size:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
         <h3>Native macOS UI</h3>
         <p><span data-lang="el">Πλήρης Dark Mode, οικεία αίσθηση iPhone.</span><span data-lang="en">Full Dark Mode, familiar iPhone feel.</span></p>
       </div>
@@ -207,18 +210,24 @@
         <p><span data-lang="el">Προσθήκη, αφαίρεση, γρήγορη πρόσβαση με ένα κλικ.</span><span data-lang="en">Add, remove, quick access with one click.</span></p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">⌨️</div>
+        <div class="feature-icon" style="font-size:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="7" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="7" cy="10" r="1.5" fill="var(--green)"/><circle cx="12" cy="10" r="1.5" fill="var(--green)"/><circle cx="17" cy="10" r="1.5" fill="var(--green)"/><circle cx="7" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="21" r="1.5" fill="var(--green)"/></svg>
+        </div>
         <h3><span data-lang="el">Κλασικό Πληκτρολόγιο</span><span data-lang="en">Classic Keypad</span></h3>
         <p><span data-lang="el">Καντράν για γρήγορη πληκτρολόγηση αριθμών.</span><span data-lang="en">Dialpad for quick number entry.</span></p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🪶</div>
+        <div class="feature-icon" style="font-size:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+        </div>
         <h3><span data-lang="el">Ελαφρύ & Γρήγορο</span><span data-lang="en">Lightweight & Fast</span></h3>
         <p><span data-lang="el">Minimal αποτύπωμα, ανοίγει σε δευτερόλεπτα.</span><span data-lang="en">Minimal footprint, opens in seconds.</span></p>
       </div>
       <!-- Κάρτα άδειας — γεμίζει από API -->
       <div class="feature-card" id="license-card">
-        <div class="feature-icon">🔒</div>
+        <div class="feature-icon" style="font-size:0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
         <h3 id="license-card-title"><span class="spinner"></span></h3>
         <p id="license-card-body"><span data-lang="el">Φόρτωση από GitHub…</span><span data-lang="en">Loading from GitHub…</span></p>
       </div>
@@ -385,6 +394,13 @@ async function loadAll() {
     const footerLogo = document.getElementById('footer-logo');
     footerLogo.innerHTML = `<img src="${logoUrl}" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover;">`;
     footerLogo.style.background = 'none';
+
+    // Ορισμός favicon από το λογότυπο του repo
+    const favicon = document.getElementById('site-favicon');
+    if (favicon) {
+      favicon.type = 'image/png';
+      favicon.href = logoUrl;
+    }
   }
 
   // ── 3. Banner από repo ──
