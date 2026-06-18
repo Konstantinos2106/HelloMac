@@ -190,8 +190,8 @@
       <span data-lang="en">Everything you need to make a call</span>
     </h2>
     <p class="section-sub">
-      <span data-lang="el">Σχεδιασμένο για macOS Ventura και παλαιότερα.</span>
-      <span data-lang="en">Built for macOS Ventura and older.</span>
+      <span data-lang="el">Σχεδιασμένο για παλαιότερα macOS.</span>
+      <span data-lang="en">Built for older macOS.</span>
     </p>
     <div class="features-grid">
       <div class="feature-card">
@@ -259,21 +259,21 @@
         <div class="step-num">1</div>
         <div class="step-content">
           <h3><span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span></h3>
-          <p><span data-lang="el">Κατεβάστε την τελευταία έκδοση από το κουμπί Download ή από τη σελίδα Releases.</span><span data-lang="en">Download the latest release from the Download button or from the Releases page.</span></p>
+          <p><span data-lang="el">Κατεβάστε την τελευταία έκδοση από εδώ ή από τη σελίδα Releases.</span><span data-lang="en">Download the latest release from here or from the Releases page.</span></p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-content">
           <h3><span data-lang="el">Σύρετε στις Εφαρμογές</span><span data-lang="en">Drag to Applications</span></h3>
-          <p><span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>. Αν εμφανιστεί "Μη Αναγνωρισμένος Δημιουργός", ακολουθήστε τον οδηγό στο repo.</span><span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>. If you see "Unidentified Developer", follow the guide in the repo.</span></p>
+          <p><span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>.<br> Αν εμφανιστεί "Μη Αναγνωρισμένος Δημιουργός", ακολουθήστε τον οδηγό εδώ.</span><span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>.<br> If you see "Unidentified Developer", follow the guide here.</span></p>
         </div>
       </div>
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-content">
           <h3><span data-lang="el">Ενεργοποιήστε το iPhone Handoff</span><span data-lang="en">Enable iPhone Handoff</span></h3>
-          <p><span data-lang="el">Στο iPhone: <code>Ρυθμίσεις → Τηλέφωνο → Κλήσεις σε άλλες συσκευές</code>. Mac και iPhone στο ίδιο Wi-Fi και Apple ID.</span><span data-lang="en">On iPhone: <code>Settings → Phone → Calls on Other Devices</code>. Mac and iPhone on same Wi-Fi and Apple ID.</span></p>
+          <p><span data-lang="el">Στο iPhone: <code>Ρυθμίσεις → Τηλέφωνο → Κλήσεις σε άλλες συσκευές</code>.<br> Το Mac και το iPhone πρέπει να είναι στο ίδιο Wi-Fi και Apple ID.</span><span data-lang="en">On iPhone: <code>Settings → Phone → Calls on Other Devices</code>.<br> The Mac and iPhone must be on the same Wi-Fi and Apple ID.</span></p>
         </div>
       </div>
     </div>
@@ -298,16 +298,10 @@
 <section class="download-section" id="download">
   <div class="download-card">
     <h2><span data-lang="el">Ξεκινήστε σήμερα</span><span data-lang="en">Get started today</span></h2>
-    <p><span data-lang="el">Δωρεάν, ανοιχτού κώδικα, για macOS Ventura και παλαιότερα.</span><span data-lang="en">Free, open source, for macOS Ventura and older.</span></p>
+    <p><span data-lang="el">Δωρεάν, ανοιχτού κώδικα, για παλαιότερα macOS.</span><span data-lang="en">Free, open source, for older macOS.</span></p>
     <a class="btn-primary" id="download-btn-main" href="https://github.com/Konstantinos2106/HelloMac/releases/latest">
       ↓ <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
-    </a>
-    <div style="margin-top:20px;">
-      <a class="license-badge" id="license-badge-link" href="https://github.com/Konstantinos2106/HelloMac/blob/main/LICENSE" target="_blank">
-        🔒 <span data-lang="el">Άδεια:</span><span data-lang="en">License:</span>
-        <span class="license-name" id="license-name"><span class="spinner"></span></span>
-      </a>
-    </div>
+    </a><br><br>
     <div class="req-list">
       <!-- <div class="req-item"><span data-lang="el">macOS Ventura ή παλαιότερο</span><span data-lang="en">macOS Ventura or older</span></div> -->
       <div class="req-item"><span data-lang="el">iPhone στο ίδιο Apple ID</span><span data-lang="en">iPhone on the same Apple ID</span></div>
@@ -414,7 +408,6 @@ async function loadAll() {
       grid.innerHTML = imgFiles.slice(0, 4).map(f => `
         <div class="screenshot-card">
           <img src="${RAW}/${f.name}" alt="${f.name}" loading="lazy" />
-          <div class="screenshot-label">${f.name.replace(/\.[^.]+$/, '')}</div>
         </div>
       `).join('');
     } else {
@@ -422,7 +415,7 @@ async function loadAll() {
     }
   } catch {
     document.getElementById('screenshots-grid').innerHTML =
-      '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;">Σφάλμα φόρτωσης εικόνων.</p>';
+      '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;">Σφάλμα φόρτωσης εικόνων.<br> Δείετε τες στο  <a href="https://github.com/Konstantinos2106/HelloMac" target="_blank">GitHub</a></p>';
   }
 
   // ── 5. Τελευταίο Release (έκδοση + download + notes) ──
