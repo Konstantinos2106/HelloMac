@@ -193,8 +193,8 @@
     .step-content h3{font-size:17px;font-weight:600;margin-bottom:6px;}
     .step-content p{font-size:14px;color:var(--text-secondary);line-height:1.65;}
     .step-content code{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-family:'SF Mono',monospace;font-size:13px;color:var(--green);}
-    .step-content a{color:var(--green); text-decoration:none; font-weight:500;}
-    .step-content a:hover{text-decoration:underline;}
+    .step-content a.step-link{color:var(--green); text-decoration:none; font-weight:500;}
+    .step-content a.step-link:hover{text-decoration:underline;}
 
     /* RELEASE BOX */
     .release-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 32px;margin-top:20px;display:none;}
@@ -276,9 +276,8 @@
       footer{flex-direction:column;text-align:center;}
       .pdf-modal-content { width: 95%; height: 90vh; }
       
-      .scroll-top-btn { bottom: 20px; right: 20px; }
-      /* Need to move higher on mobile due to taller stacked footer */
-      .scroll-top-btn.above-footer { bottom: 180px; }
+      /* HIDE SCROLL-TO-TOP BUTTON COMPLETELY ON MOBILE */
+      .scroll-top-btn { display: none !important; }
     }
   </style>
 </head>
@@ -433,8 +432,9 @@
             ↓ <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
           </a>
           <div class="req-list" style="margin-top: 32px; justify-content: center;">
-            <div class="req-item"><span data-lang="el">iPhone στο ίδιο Apple ID</span><span data-lang="en">iPhone on the same Apple ID</span></div>
+            <div class="req-item"><span data-lang="el">iPhone και Mac στο ίδιο Apple ID</span><span data-lang="en">iPhone and Mac on the same Apple ID</span></div>
             <div class="req-item"><span data-lang="el">Ίδιο Wi-Fi δίκτυο</span><span data-lang="en">Same Wi-Fi network</span></div>
+            <div class="req-item"><span data-lang="el">Ενεργοποιημένο iPhone Handoff</span><span data-lang="en">iPhone Handoff Enabled</span></div>
           </div>
         </div>
       </div>
@@ -463,9 +463,16 @@
             <div class="step-num">1</div>
             <div class="step-content">
               <h3><span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span></h3>
+              <p style="margin-bottom: 12px;">
+                <span data-lang="el">Κατεβάστε την τελευταία έκδοση (.dmg):</span>
+                <span data-lang="en">Download the latest version (.dmg):</span>
+              </p>
+              <a class="btn-primary" id="download-btn-step" href="https://github.com/Konstantinos2106/HelloMac/releases/latest" style="padding: 10px 24px; font-size: 14px; margin-bottom: 12px; display: inline-flex;">
+                ↓ <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
+              </a>
               <p>
-                <span data-lang="el">Κατεβάστε την τελευταία έκδοση .dmg από τη σελίδα <a href="#" onclick="switchDoc('doc-intro', document.querySelectorAll('.sidebar-link')[0], event)">Εισαγωγής</a> ή τα <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank">Releases</a>.</span>
-                <span data-lang="en">Download the latest .dmg release from the <a href="#" onclick="switchDoc('doc-intro', document.querySelectorAll('.sidebar-link')[0], event)">Intro</a> page or <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank">Releases</a>.</span>
+                <span data-lang="el">ή από τα <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank" class="step-link">Releases</a>.</span>
+                <span data-lang="en">or from <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank" class="step-link">Releases</a>.</span>
               </p>
             </div>
           </div>
@@ -474,8 +481,8 @@
             <div class="step-content">
               <h3><span data-lang="el">Σύρετε στις Εφαρμογές</span><span data-lang="en">Drag to Applications</span></h3>
               <p>
-                <span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>.<br> Αν εμφανιστεί "Μη Αναγνωρισμένος Δημιουργός", ακολουθήστε τον οδηγό <a href="#" onclick="openPdf(event)">εδώ</a>.</span>
-                <span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>.<br> If you see "Unidentified Developer", follow the guide <a href="#" onclick="openPdf(event)">here</a>.</span>
+                <span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>.<br> Αν εμφανιστεί "Μη Αναγνωρισμένος Δημιουργός", ακολουθήστε τον οδηγό <a href="#" onclick="openPdf(event)" class="step-link">εδώ</a>.</span>
+                <span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>.<br> If you see "Unidentified Developer", follow the guide <a href="#" onclick="openPdf(event)" class="step-link">here</a>.</span>
               </p>
             </div>
           </div>
@@ -765,6 +772,11 @@ async function loadAll() {
     const dmg = rel.assets?.find(a => /\.dmg$/i.test(a.name));
     const dlUrl = dmg ? dmg.browser_download_url : rel.html_url;
     document.getElementById('download-btn-main').href = dlUrl;
+    
+    // Add dynamically fetched URL to Step 1 download button
+    if (document.getElementById('download-btn-step')) {
+      document.getElementById('download-btn-step').href = dlUrl;
+    }
 
     if (rel.body?.trim()) {
       document.getElementById('release-tag').textContent  = tag;
