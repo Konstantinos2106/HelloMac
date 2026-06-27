@@ -12,7 +12,7 @@ class AddContactWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Προσθήκη Επαφής"
+        window.title = L("add_contact_menu")
         window.center()
         window.isReleasedWhenClosed = false
         self.init(window: window)
@@ -22,28 +22,28 @@ class AddContactWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        let titleLabel = NSTextField(labelWithString: "Νέα Επαφή")
+        let titleLabel = NSTextField(labelWithString: L("new_contact"))
         titleLabel.font = NSFont.boldSystemFont(ofSize: 15)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(titleLabel)
 
         nameField = NSTextField()
-        nameField.placeholderString = "Όνομα"
+        nameField.placeholderString = L("name")
         nameField.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(nameField)
 
         phoneField = NSTextField()
-        phoneField.placeholderString = "Τηλέφωνο (π.χ. 6971234567)"
+        phoneField.placeholderString = L("phone_placeholder")
         phoneField.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(phoneField)
 
-        let addButton = NSButton(title: "Προσθήκη", target: self, action: #selector(addContact))
+        let addButton = NSButton(title: L("add_btn"), target: self, action: #selector(addContact))
         addButton.bezelStyle = .rounded
         addButton.keyEquivalent = "\r"
         addButton.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(addButton)
 
-        let cancelButton = NSButton(title: "Άκυρο", target: self, action: #selector(cancel))
+        let cancelButton = NSButton(title: L("cancel_btn"), target: self, action: #selector(cancel))
         cancelButton.bezelStyle = .rounded
         cancelButton.keyEquivalent = "\u{1B}"
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
@@ -76,7 +76,7 @@ class AddContactWindowController: NSWindowController {
 
         guard !name.isEmpty, !phone.isEmpty else {
             let alert = NSAlert()
-            alert.messageText = "Συμπλήρωσε όνομα και τηλέφωνο"
+            alert.messageText = L("fill_fields")
             alert.runModal()
             return
         }
@@ -110,7 +110,7 @@ class RemoveContactWindowController: NSWindowController, NSTableViewDelegate, NS
             backing: .buffered,
             defer: false
         )
-        window.title = "Διαγραφή Επαφής"
+        window.title = L("remove_contact_menu")
         window.center()
         window.isReleasedWhenClosed = false
         self.init(window: window)
@@ -120,7 +120,7 @@ class RemoveContactWindowController: NSWindowController, NSTableViewDelegate, NS
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        let titleLabel = NSTextField(labelWithString: "Επίλεξε επαφή για διαγραφή")
+        let titleLabel = NSTextField(labelWithString: L("select_to_delete"))
         titleLabel.font = NSFont.boldSystemFont(ofSize: 15)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(titleLabel)
@@ -137,7 +137,7 @@ class RemoveContactWindowController: NSWindowController, NSTableViewDelegate, NS
         tableView.rowHeight = 36
 
         let nameCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
-        nameCol.title = "Όνομα"
+        nameCol.title = L("name")
         nameCol.width = 160
 
         let phoneCol = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("phone"))
@@ -149,12 +149,12 @@ class RemoveContactWindowController: NSWindowController, NSTableViewDelegate, NS
         scrollView.documentView = tableView
         contentView.addSubview(scrollView)
 
-        let removeButton = NSButton(title: "🗑 Διαγραφή", target: self, action: #selector(removeContact))
+        let removeButton = NSButton(title: L("delete_btn"), target: self, action: #selector(removeContact))
         removeButton.bezelStyle = .rounded
         removeButton.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(removeButton)
 
-        let cancelButton = NSButton(title: "Κλείσιμο", target: self, action: #selector(cancel))
+        let cancelButton = NSButton(title: L("close_btn"), target: self, action: #selector(cancel))
         cancelButton.bezelStyle = .rounded
         cancelButton.keyEquivalent = "\u{1B}"
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
@@ -189,17 +189,18 @@ class RemoveContactWindowController: NSWindowController, NSTableViewDelegate, NS
         let row = tableView.selectedRow
         guard row >= 0 else {
             let alert = NSAlert()
-            alert.messageText = "Επίλεξε μια επαφή για διαγραφή"
+            alert.messageText = L("select_one_to_delete")
             alert.runModal()
             return
         }
 
         let alert = NSAlert()
-        alert.messageText = "Διαγραφή επαφής"
-        alert.informativeText = "Σίγουρα θέλεις να διαγράψεις τον/την \"\(contacts[row].name)\";"
-        alert.addButton(withTitle: "Διαγραφή")
-        alert.addButton(withTitle: "Άκυρο")
+        alert.messageText = L("delete_alert_title")
+        alert.informativeText = L("delete_alert_text", contacts[row].name)
+        alert.addButton(withTitle: L("remove_tooltip"))
+        alert.addButton(withTitle: L("cancel_btn"))
         alert.buttons[0].hasDestructiveAction = true
+        
         if alert.runModal() == .alertFirstButtonReturn {
             contacts.remove(at: row)
             ContactStore.shared.contacts = contacts

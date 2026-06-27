@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "HelloMac",
-    platforms: [.macOS(.v12)],
+    platforms: [.macOS(.v11)],
     targets: [
         .executableTarget(
             name: "HelloMac",

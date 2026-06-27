@@ -15,12 +15,12 @@ echo "🔨 Build το $DISPLAY_NAME..."
 SDK_PATH=$(xcrun --sdk macosx --show-sdk-path 2>/dev/null || echo "/Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk")
 echo "📦 SDK: $SDK_PATH"
 
-# Αρχιτεκτονική (Apple Silicon ή Intel)
+# Αρχιτεκτονική (Apple Silicon ή Intel) - Ενημερωμένο για macOS 11.0 (Big Sur)
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
-    TARGET="arm64-apple-macos12.0"
+    TARGET="arm64-apple-macos11.0"
 else
-    TARGET="x86_64-apple-macos12.0"
+    TARGET="x86_64-apple-macos11.0"
 fi
 echo "🖥  Αρχιτεκτονική: $TARGET"
 
@@ -29,7 +29,7 @@ rm -rf "$APP_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS"
 mkdir -p "$APP_PATH/Contents/Resources"
 
-# Compile όλα τα .swift αρχεία μαζί με swiftc
+# Compile όλα τα .swift αρχεία μαζί με το νέο Localizer.swift
 swiftc \
     -sdk "$SDK_PATH" \
     -target "$TARGET" \
@@ -37,6 +37,7 @@ swiftc \
     -framework AppKit \
     -framework Foundation \
     "$SRC_DIR/main.swift" \
+    "$SRC_DIR/Localizer.swift" \
     "$SRC_DIR/Contact.swift" \
     "$SRC_DIR/AppDelegate.swift" \
     "$SRC_DIR/MainWindow.swift" \
@@ -53,7 +54,7 @@ else
     echo "⚠️  Εικονίδιο δεν βρέθηκε: $ICON_SRC"
 fi
 
-# Info.plist — CFBundleName = Τηλέφωνο για το menu bar
+# Info.plist — Ενημερωμένο για macOS 11.0 (Big Sur)
 cat > "$APP_PATH/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -74,7 +75,7 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
-    <string>12.0</string>
+    <string>11.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>CFBundleIconFile</key>
@@ -87,8 +88,3 @@ chmod +x "$BINARY_PATH"
 
 echo ""
 echo "✅ Έτοιμο! Η εφαρμογή είναι στο: $APP_PATH"
-echo ""
-echo "📌 Επόμενα βήματα:"
-echo "   1. Άνοιξε το Finder → Downloads"
-echo "   2. Αντέγραψε το $DISPLAY_NAME.app στο φάκελο εφαρμογών του macOS"
-echo "   3. Πανέτοιμο! Σύρε το $DISPLAY_NAME στο Dock για γρήγορη πρόσβαση"

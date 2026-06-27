@@ -61,8 +61,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         sep.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(sep)
 
-        favButton = makeTabButton(symbolName: "star.fill", title: "Επαφές", action: #selector(showFavorites))
-        dialButton = makeTabButton(symbolName: "circle.grid.3x3.fill", title: "Πληκτρολόγιο", action: #selector(showDialer))
+        favButton = makeTabButton(symbolName: "star.fill", title: L("contacts"), action: #selector(showFavorites))
+        dialButton = makeTabButton(symbolName: "circle.grid.3x3.fill", title: L("keypad"), action: #selector(showDialer))
 
         tabBar.addSubview(favButton)
         tabBar.addSubview(dialButton)
@@ -117,14 +117,14 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func setupFavoritesView() {
-        let titleLabel = NSTextField(labelWithString: "Επαφές")
+        let titleLabel = NSTextField(labelWithString: L("contacts"))
         titleLabel.font = NSFont.boldSystemFont(ofSize: 17)
         titleLabel.textColor = .white
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         favoritesView.addSubview(titleLabel)
 
         // Κουμπί Προσθήκης
-        let addImg = NSImage(systemSymbolName: "person.badge.plus", accessibilityDescription: "Προσθήκη")
+        let addImg = NSImage(systemSymbolName: "person.badge.plus", accessibilityDescription: L("add_tooltip"))
         let addBtn = NSButton(image: addImg ?? NSImage(), target: self, action: #selector(openAdd))
         addBtn.bezelStyle = .regularSquare
         addBtn.isBordered = false
@@ -134,7 +134,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         favoritesView.addSubview(addBtn)
 
         // Κουμπί Διαγραφής
-        let removeImg = NSImage(systemSymbolName: "person.badge.minus", accessibilityDescription: "Διαγραφή")
+        let removeImg = NSImage(systemSymbolName: "person.badge.minus", accessibilityDescription: L("remove_tooltip"))
         let removeBtn = NSButton(image: removeImg ?? NSImage(), target: self, action: #selector(openRemove))
         removeBtn.bezelStyle = .regularSquare
         removeBtn.isBordered = false
@@ -209,7 +209,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         centerWrapper.addSubview(displayLabel)
 
         // Delete button
-        let deleteImg = NSImage(systemSymbolName: "delete.left", accessibilityDescription: "Διαγραφή")
+        let deleteImg = NSImage(systemSymbolName: "delete.left", accessibilityDescription: L("remove_tooltip"))
         let deleteBtn = NSButton(image: deleteImg ?? NSImage(), target: self, action: #selector(deleteLast))
         deleteBtn.bezelStyle = .regularSquare
         deleteBtn.isBordered = false
@@ -254,8 +254,19 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         callBtn.layer?.backgroundColor = NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1).cgColor
         callBtn.layer?.cornerRadius = 34
         callBtn.translatesAutoresizingMaskIntoConstraints = false
-        let callSymbolConfig = NSImage.SymbolConfiguration(pointSize: 28, weight: .medium)
-        let callImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: "Κλήση")?.withSymbolConfiguration(callSymbolConfig)
+        
+        // ΑΣΦΑΛΗΣ ΕΛΕΓΧΟΣ ΓΙΑ macOS 11 (Big Sur)
+        let baseImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: L("call_tooltip"))
+        let callImg: NSImage?
+        
+        if #available(macOS 12.0, *) {
+            let callSymbolConfig = NSImage.SymbolConfiguration(pointSize: 28, weight: .medium)
+            callImg = baseImg?.withSymbolConfiguration(callSymbolConfig)
+        } else {
+            // Στο Big Sur χρησιμοποιούμε το απλό εικονίδιο χωρίς το SymbolConfiguration
+            callImg = baseImg
+        }
+        
         let callIconView = NSImageView(image: callImg ?? NSImage())
         callIconView.contentTintColor = .white
         callIconView.translatesAutoresizingMaskIntoConstraints = false
@@ -269,7 +280,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         centerWrapper.addSubview(callBtn)
 
         NSLayoutConstraint.activate([
-            // Display label — πάνω μέρος του wrapper, κλιπάρει οριζόντια
             displayLabel.topAnchor.constraint(equalTo: centerWrapper.topAnchor),
             displayLabel.leadingAnchor.constraint(equalTo: centerWrapper.leadingAnchor, constant: 16),
             displayLabel.trailingAnchor.constraint(equalTo: centerWrapper.trailingAnchor, constant: -52),
@@ -390,7 +400,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let contacts = ContactStore.shared.contacts
         if contacts.isEmpty {
-            let empty = NSTextField(labelWithString: "Δεν υπάρχουν επαφές.\nΠάτα + για να προσθέσεις.")
+            let empty = NSTextField(labelWithString: L("no_contacts"))
             empty.alignment = .center
             empty.textColor = NSColor(white: 0.5, alpha: 1)
             empty.font = NSFont.systemFont(ofSize: 13)
@@ -433,11 +443,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         removeWindowController?.window?.makeKeyAndOrderFront(nil)
     }
 
-    // MARK: - NSWindowDelegate: αποτροπή Zoom, αλλά επιτρέπει Revert από tiling
     func windowShouldZoom(_ window: NSWindow, toFrame newFrame: NSRect) -> Bool {
-        // Αν το παράθυρο είναι ήδη σε tiled/zoomed κατάσταση (isZoomed == true),
-        // σημαίνει ότι ο χρήστης πάτησε "Revert" → επιτρέπουμε για να επαναφερθεί η προηγούμενη θέση.
-        // Αν δεν είναι zoomed, ο χρήστης πάτησε "Zoom" → το αποτρέπουμε.
         return window.isZoomed
     }
 }
@@ -459,7 +465,7 @@ class ContactRow: NSView {
     private func setupUI(contact: Contact) {
         wantsLayer = true
 
-        let phoneImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: "Κλήση")
+        let phoneImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: L("call_tooltip"))
         let iconView = NSImageView(image: phoneImg ?? NSImage())
         iconView.contentTintColor = NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1)
         iconView.translatesAutoresizingMaskIntoConstraints = false
@@ -595,7 +601,6 @@ class DialerKey: NSButton {
     }
 }
 
-// MARK: - NSStackView extension
 extension NSStackView {
     var isUserInteractionEnabled: Bool {
         get { return true }

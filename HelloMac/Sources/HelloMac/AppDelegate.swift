@@ -26,33 +26,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu(title: "HelloMac")
         appMenuItem.submenu = appMenu
 
-        let aboutItem = NSMenuItem(title: "Σχετικά με το HelloMac", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: L("about_menu"), action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         appMenu.addItem(aboutItem)
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "Έξοδος", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: L("exit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         // ── Εργαλεία ──
         let toolsMenuItem = NSMenuItem()
         mainMenu.addItem(toolsMenuItem)
-        let toolsMenu = NSMenu(title: "Εργαλεία")
+        let toolsMenu = NSMenu(title: L("tools"))
         toolsMenuItem.submenu = toolsMenu
 
-        let contactsItem = NSMenuItem(title: "Επαφές", action: #selector(menuShowContacts), keyEquivalent: "1")
+        let contactsItem = NSMenuItem(title: L("contacts"), action: #selector(menuShowContacts), keyEquivalent: "1")
         contactsItem.target = self
         toolsMenu.addItem(contactsItem)
 
-        let dialerItem = NSMenuItem(title: "Πληκτρολόγιο", action: #selector(menuShowDialer), keyEquivalent: "2")
+        let dialerItem = NSMenuItem(title: L("keypad"), action: #selector(menuShowDialer), keyEquivalent: "2")
         dialerItem.target = self
         toolsMenu.addItem(dialerItem)
 
         toolsMenu.addItem(NSMenuItem.separator())
 
-        let addItem = NSMenuItem(title: "Προσθήκη Επαφής", action: #selector(menuAddContact), keyEquivalent: "n")
+        let addItem = NSMenuItem(title: L("add_contact_menu"), action: #selector(menuAddContact), keyEquivalent: "n")
         addItem.target = self
         toolsMenu.addItem(addItem)
 
-        let removeItem = NSMenuItem(title: "Διαγραφή Επαφής", action: #selector(menuRemoveContact), keyEquivalent: "d")
+        let removeItem = NSMenuItem(title: L("remove_contact_menu"), action: #selector(menuRemoveContact), keyEquivalent: "d")
         removeItem.target = self
         toolsMenu.addItem(removeItem)
 
@@ -62,9 +62,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showAbout() {
         let alert = NSAlert()
         alert.messageText = "HelloMac"
-        alert.informativeText = "Έκδοση 1.0\n\nΠρογραμματιστής: Konstantinos2106\n\nΓρήγορη κλήση επαφών απευθείας από το Mac!"
+        alert.informativeText = L("about_text")
         alert.icon = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: nil)
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: L("ok"))
         alert.runModal()
     }
 
@@ -88,7 +88,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindowController?.openRemovePublic()
     }
 
-    // MARK: - FaceTime suppression
+    // MARK: - FaceTime suppression (100% ασφαλές, ανέπαφο)
     func suppressFaceTime() {
         facetimeTimer?.invalidate()
         facetimeTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] timer in
