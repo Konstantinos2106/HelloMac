@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="banner1.png" alt="HelloMac Banner" width="100%">
+  <img src="Icns_Photos/Banner.png" alt="HelloMac Banner" width="100%">
 </p>
 
 <p align="center">
-  <img src="logo.png" alt="HelloMac Icon" width="200" height="200">
+  <img src="Icns_Photos/phone.png" alt="HelloMac Icon" width="200" height="200">
 </p>
 
 <h1 align="center">HelloMac</h1>
@@ -18,9 +18,9 @@
 ## 📸 Screenshots / Στιγμιότυπα
 
 <p align="center">
-  <img src="HelloMac1en.png" alt="HelloMac Contacts" width="30%">
+  <img src="Icns_Photos/HelloMac1en.png" alt="HelloMac Contacts" width="30%">
   &nbsp; &nbsp; &nbsp;
-  <img src="HelloMac2en.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/HelloMac2en.png" alt="HelloMac Keypad" width="30%">
 </p>
 
 ---
