@@ -782,7 +782,7 @@ async function loadAll() {
   } catch {}
 
   // Logo
-  const logoUrl = await findImg(['logo.png','logo.jpg','logo.svg','icon.png','icon.jpg','AppIcon.png']);
+  const logoUrl = await findImg(['/Icns_Photos/logo.png','/Icns_Photos/logo.jpg','/Icns_Photos/logo.svg','/Icns_Photos/icon.png','/Icns_Photos/icon.jpg','/Icns_Photos/AppIcon.png', '/Icns_Photos/phone.png']);
   if (logoUrl) {
     document.getElementById('nav-logo-wrap').innerHTML = `<img src="${logoUrl}" alt="logo">`;
     document.getElementById('footer-logo').innerHTML = `<img src="${logoUrl}" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover;">`;
@@ -793,7 +793,7 @@ async function loadAll() {
   }
 
   // Banner
-  const bannerUrl = await findImg(['banner1.png','banner.png','banner1.jpg','banner.jpg','header.png','preview.png']);
+  const bannerUrl = await findImg(['/Icns_Photos/banner1.png','/Icns_Photos/banner.png','/Icns_Photos/banner1.jpg','/Icns_Photos/banner.jpg','/Icns_Photos/header.png','/Icns_Photos/preview.png', '/Icns_Photos/Banner.png', '/Icns_Photos/Banner.jpg']);
   if (bannerUrl) {
     const bannerImg = document.getElementById('docs-banner');
     bannerImg.src = bannerUrl;
@@ -801,21 +801,26 @@ async function loadAll() {
   }
 
   // Screenshots
-  try {
-    const contents = await (await fetch(`${API}/contents`)).json();
-    const imgFiles = contents.filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name) && !/(logo|banner|icon|header|preview)/i.test(f.name));
-    const grid = document.getElementById('screenshots-grid');
-    if (imgFiles.length > 0) {
-      grid.innerHTML = imgFiles.slice(0, 4).map(f => `
-        <div class="screenshot-card"><img src="${RAW}/${f.name}" alt="${f.name}" loading="lazy" /></div>
-      `).join('');
-    } else {
-      grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:40px 0;">Δεν βρέθηκαν στιγμιότυπα.</p>';
-    }
-  } catch {
-    document.getElementById('screenshots-grid').innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;">Σφάλμα φόρτωσης εικόνων.</p>';
+try {
+  // Προσθέτουμε το όνομα του φακέλου στο path
+  const folder = 'Icns_Photos'; 
+  const contents = await (await fetch(`${API}/contents/${folder}`)).json();
+  
+  const imgFiles = contents.filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name) && !/(logo|banner|icon|header|preview)/i.test(f.name));
+  const grid = document.getElementById('screenshots-grid');
+  
+  if (imgFiles.length > 0) {
+    grid.innerHTML = imgFiles.slice(0, 4).map(f => `
+      <div class="screenshot-card">
+        <img src="${RAW}/${folder}/${f.name}" alt="${f.name}" loading="lazy" />
+      </div>
+    `).join('');
+  } else {
+    grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:40px 0;">Δεν βρέθηκαν στιγμιότυπα.</p>';
   }
-
+} catch {
+  document.getElementById('screenshots-grid').innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;">Σφάλμα φόρτωσης εικόνων.</p>';
+}
   // Release Info
   try {
     const rel = await (await fetch(`${API}/releases/latest`)).json();
