@@ -43,7 +43,7 @@ HelloMac uses a clever background mechanism to process calls. It routes the audi
 3. Open the `.dmg` file and drag **HelloMac** into your `Applications` folder.
 
 ### ✉️ Contact
-Feel free to reach out with new ideas or issues via email [here](mailto:78wc433vq@mozmail.com).
+Feel free to reach out with new ideas or issues via email [here](mailto:hellomac.support@gmail.com).
 
 ### ✏️ Notes
 * HelloMac is continuously updated and evolving, and it may contain bugs. Please check back for new releases, as an automatic update feature is not yet available.
@@ -70,7 +70,7 @@ Feel free to reach out with new ideas or issues via email [here](mailto:78wc433v
 3. Ανοίξτε το και σύρετε το **HelloMac** στον φάκελο `Εφαρμογές` (Applications).
 
 ### ✉️ Επικοινωνία
-Μπορείτε να επικοινωνήσετε μαζί μου για νέες ιδέες και προβλήματα μέσω email [εδώ](mailto:78wc433vq@mozmail.com).
+Μπορείτε να επικοινωνήσετε μαζί μου για νέες ιδέες και προβλήματα μέσω email [εδώ](mailto:hellomac.support@gmail.com).
 
 ### ✏️ Σημειώσεις
 * Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη. Παρακαλώ να ελέγχετε για νέες εκδόσεις καθώς ακόμη δεν υπάρχει η δυνατότητα αυτόματου ελέγχου και ενημέρωσης.
