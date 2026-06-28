@@ -78,7 +78,7 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 Μπορείτε να επικοινωνήσετε μαζί μου για νέες ιδέες και προβλήματα μέσω email [εδώ](mailto:hellomac.support@gmail.com).
 
 ### ✏️ Σημειώσεις
-* Συμβατό με: macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
+* **Συμβατό με:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
 * Σε περίπτωση που στην πρώτη εκκίνηση εμφανιστεί μήνυμα "Μη Αναγνωρισμένου Δημιουργού", ακολουθήστε τον οδηγό [εδώ](PDF/Unrecognized_Creator_EL.pdf).
 * Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη. Παρακαλώ να ελέγχετε για νέες εκδόσεις καθώς ακόμη δεν υπάρχει η δυνατότητα αυτόματου ελέγχου και ενημέρωσης.
 
