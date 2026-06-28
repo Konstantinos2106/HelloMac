@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html lang="el" data-theme="dark">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HelloMac</title>
   <meta name="description" id="meta-desc" content="Make phone calls directly from your Mac." />
   <link rel="icon" id="site-favicon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2330d158'/%3E%3Cpath d='M30 20h15l7 16-9 5c4 9 11 15 19 19l5-9 16 7v15c0 4-3 7-7 7C44 78 22 56 22 30c0-4 3-8 8-10z' fill='white'/%3E%3C/svg%3E">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
     /* VARIABLES (Dark/Light Mode) */
     :root[data-theme="dark"] {
@@ -27,7 +32,8 @@
     html{scroll-behavior:smooth;}
     body{
       background:var(--bg); color:var(--text);
-      font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
+      /* Χρήση Inter ως πρώτη επιλογή για τα Windows */
+      font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;
       font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
       transition: background-color 0.3s, color 0.3s;
       overflow-x: hidden;
@@ -60,7 +66,11 @@
     .nav-logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;text-decoration:none;color:var(--text); cursor:pointer;}
     .logo-icon{width:28px;height:28px;border-radius:7px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
     .logo-icon img{width:100%;height:100%;object-fit:cover;}
-    .logo-icon-fallback{width:28px;height:28px;background:var(--green);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;}
+    
+    /* ΝΕΟ ΚΑΘΑΡΟ FALLBACK (Αντί για emoji) */
+    .logo-icon-fallback{width:28px;height:28px;background:var(--green);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#000;}
+    .hero-big-logo .logo-icon-fallback { width: 150px; height: 150px; border-radius: 35px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+    .hero-big-logo .logo-icon-fallback svg { width: 64px; height: 64px; }
     
     .nav-right-actions { margin-left:auto; display:flex; gap:16px; align-items:center; }
     
@@ -82,7 +92,6 @@
     /* BIG OCLP STYLE LOGO */
     .hero-big-logo { margin-bottom: 30px; display: flex; justify-content: center; }
     .hero-big-logo img { width: 150px; height: 150px; border-radius: 35px; object-fit: cover; box-shadow: 0 20px 40px rgba(0,0,0,0.15); transition: box-shadow 0.3s; }
-    .hero-big-logo .logo-icon-fallback { width: 150px; height: 150px; border-radius: 35px; font-size: 60px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
     
     /* FIX FOR LIGHT MODE IMAGES */
     :root[data-theme="light"] .hero-big-logo img { border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
@@ -93,10 +102,13 @@
     .hero h1{font-size:clamp(42px,8vw,80px);font-weight:700;letter-spacing:-2.5px;line-height:1.05;margin-bottom:22px;}
     .hero h1 .accent{color:var(--green);}
     .hero-sub{font-size:clamp(16px,2.5vw,20px);color:var(--text-secondary);max-width:580px;margin:0 auto 42px;line-height:1.55;}
+    .hero-sub{font-size:clamp(16px,2.5vw,20px);color:var(--text-secondary);max-width:580px;margin:0 auto 42px;line-height:1.55;}
+    body.lang-el .hero-sub { max-width: 690px; }
     .hero-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
 
     .btn-primary{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#000;font-weight:600;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none;transition:all .2s;cursor:pointer;border:none;}
     .btn-primary:hover{background:#34e05a;transform:translateY(-1px);box-shadow:0 8px 30px rgba(48,209,88,.3);}
+    .btn-primary svg { width: 18px; height: 18px; } /* Μέγεθος για τα νέα SVG βελάκια */
 
     .btn-secondary{display:inline-flex;align-items:center;gap:8px;background:var(--surface2);color:var(--text);font-weight:600;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none;border:1px solid var(--border);transition:all .2s;cursor:pointer;}
     .btn-secondary:hover{background:var(--surface);border-color:rgba(128,128,128,.4);}
@@ -268,14 +280,16 @@
     }
   </style>
 </head>
-<body class="lang-el">
+<body class="lang-en">
 
 <div class="mouse-glow" id="mouse-glow"></div>
 
 <nav>
   <a class="nav-logo" onclick="showHome()">
     <div class="logo-icon" id="nav-logo-wrap">
-      <div class="logo-icon-fallback">📞</div>
+      <div class="logo-icon-fallback">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+      </div>
     </div>
     HelloMac
   </a>
@@ -290,8 +304,17 @@
       <button class="active" onclick="setLang('el')">ΕΛ</button>
       <button onclick="setLang('en')">EN</button>
     </div>
+
+    <a class="nav-stars" id="nav-downloads" href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank" style="display: none;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span id="downloads-count"></span>
+    </a>
     
-    <a class="nav-stars" href="https://github.com/Konstantinos2106/HelloMac" target="_blank">
+    <a class="nav-stars" id="nav-stars" href="https://github.com/Konstantinos2106/HelloMac" target="_blank" style="display: none;">
       ★ <span id="stars-count">–</span>
     </a>
   </div>
@@ -301,22 +324,25 @@
   <section class="hero" style="padding-top: 80px;">
     <div class="hero-big-logo">
       <div id="main-logo-wrap">
-        <div class="logo-icon-fallback">📞</div>
+        <div class="logo-icon-fallback">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        </div>
       </div>
     </div>
 
-    <div class="hero-eyebrow" id="hero-badge"><span class="spinner"></span></div>
+    <div class="hero-eyebrow" id="hero-badge" style="display: none;"><span class="spinner"></span></div>
     <h1>
       <span data-lang="el">Τηλέφωνο για<br><span class="accent">παλαιότερα macOS</span></span>
       <span data-lang="en">Phone app for<br><span class="accent">older macOS</span></span>
     </h1>
     <p class="hero-sub" id="hero-desc">
-      <span data-lang="el">Πραγματοποιήστε κλήσεις απευθείας από το Mac σας. Ελαφρύ, native και με οικείο περιβάλλον τηλεφώνου.</span>
-      <span data-lang="en">Make phone calls directly from your Mac. Lightweight, native, and with a familiar phone interface.</span>
-    </p>
+  <span data-lang="el">Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</span>
+  <span data-lang="en">Make calls directly from your Mac via your iPhone.<br>A blazing-fast and lightweight app, featuring a classic dialpad and a full contacts list.</span>
+</p>
     <div class="hero-actions">
       <button class="btn-primary" onclick="showDocs()">
-        <span data-lang="el">Ξεκινήστε →</span><span data-lang="en">Getting Started →</span>
+        <span data-lang="el">Ξεκινήστε</span><span data-lang="en">Getting Started</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
       </button>
       <a class="btn-secondary" href="https://github.com/Konstantinos2106/HelloMac" target="_blank">
         <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;vertical-align:middle"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
@@ -393,14 +419,14 @@
       <ul>
         <li><a href="#" class="sidebar-link active" onclick="switchDoc('doc-intro', this, event)"><span data-lang="el">Εισαγωγή</span><span data-lang="en">Introduction</span></a></li>
         <li><a href="#" class="sidebar-link" onclick="switchDoc('doc-features', this, event)"><span data-lang="el">Χαρακτηριστικά</span><span data-lang="en">Features</span></a></li>
-        <li><a href="#" class="sidebar-link" onclick="switchDoc('doc-screenshots', this, event)"><span data-lang="el">Στιγμιότυπα</span><span data-lang="en">Screenshots</span></a></li>
+        <li id="sidebar-screenshots-item"><a href="#" class="sidebar-link" onclick="switchDoc('doc-screenshots', this, event)"><span data-lang="el">Στιγμιότυπα</span><span data-lang="en">Screenshots</span></a></li>
       </ul>
     </div>
     <div class="docs-sidebar-group">
       <h4><span data-lang="el">Οδηγίες</span><span data-lang="en">Guides</span></h4>
       <ul>
         <li><a href="#" class="sidebar-link" onclick="switchDoc('doc-install', this, event)"><span data-lang="el">Εγκατάσταση</span><span data-lang="en">Installation</span></a></li>
-        <li><a href="#" class="sidebar-link" onclick="switchDoc('doc-release', this, event)"><span data-lang="el">Σημειώσεις Έκδοσης</span><span data-lang="en">Release Notes</span></a></li>
+        <li id="sidebar-release-item"><a href="#" class="sidebar-link" onclick="switchDoc('doc-release', this, event)"><span data-lang="el">Σημειώσεις Έκδοσης</span><span data-lang="en">Release Notes</span></a></li>
       </ul>
     </div>
   </aside>
@@ -425,8 +451,9 @@
         <div class="download-card">
           <h2><span data-lang="el">Ξεκινήστε σήμερα</span><span data-lang="en">Get started today</span></h2>
           <p><span data-lang="el">Δωρεάν, ανοιχτού κώδικα, για παλαιότερα macOS.</span><span data-lang="en">Free, open source, for older macOS.</span></p>
-          <a class="btn-primary" id="download-btn-main" href="https://github.com/Konstantinos2106/HelloMac/releases/latest">
-            ↓ <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
+          <a class="btn-primary" id="download-btn-main" href="https://github.com/Konstantinos2106/HelloMac/releases">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+            <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
           </a>
           <div class="req-list" style="margin-top: 32px; justify-content: center;">
             <div class="req-item"><span data-lang="el">iPhone και Mac στο ίδιο Apple ID</span><span data-lang="en">iPhone and Mac on the same Apple ID</span></div>
@@ -461,35 +488,36 @@
           <div class="feature-card">
             <div class="feature-icon" style="font-size:0">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="7" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="7" cy="10" r="1.5" fill="var(--green)"/><circle cx="12" cy="10" r="1.5" fill="var(--green)"/><circle cx="17" cy="10" r="1.5" fill="var(--green)"/><circle cx="7" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="21" r="1.5" fill="var(--green)"/></svg>
-            </div>
-            <h3><span data-lang="el">Κλασικό Πληκτρολόγιο</span><span data-lang="en">Classic Keypad</span></h3>
-            <p><span data-lang="el">Καντράν για γρήγορη πληκτρολόγηση αριθμών.</span><span data-lang="en">Dialpad for quick number entry.</span></p>
           </div>
-          <div class="feature-card">
-            <div class="feature-icon" style="font-size:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
-            </div>
-            <h3><span data-lang="el">Ελαφρύ & Γρήγορο</span><span data-lang="en">Lightweight & Fast</span></h3>
-            <p><span data-lang="el">Minimal αποτύπωμα, ανοίγει σε δευτερόλεπτα.</span><span data-lang="en">Minimal footprint, opens in seconds.</span></p>
+          <h3><span data-lang="el">Κλασικό Πληκτρολόγιο</span><span data-lang="en">Classic Keypad</span></h3>
+          <p><span data-lang="el">Καντράν για γρήγορη πληκτρολόγηση αριθμών.</span><span data-lang="en">Dialpad for quick number entry.</span></p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
           </div>
-          
-          <div class="feature-card">
-            <div class="feature-icon" style="font-size:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            </div>
-            <h3><span data-lang="el">Συμβατότητα</span><span data-lang="en">Compatibility</span></h3>
-            <p>macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia.</p>
+          <h3><span data-lang="el">Ελαφρύ & Γρήγορο</span><span data-lang="en">Lightweight & Fast</span></h3>
+          <p><span data-lang="el">Minimal αποτύπωμα, ανοίγει σε δευτερόλεπτα.</span><span data-lang="en">Minimal footprint, opens in seconds.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
           </div>
+          <h3><span data-lang="el">Συμβατότητα</span><span data-lang="en">Compatibility</span></h3>
+          <p>macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia.</p>
+        </div>
 
-          <div class="feature-card license-card">
-            <div class="feature-icon" style="font-size:0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <h3 class="license-card-title"><span class="spinner"></span></h3>
-            <p class="license-card-body"><span data-lang="el">Φόρτωση από GitHub…</span><span data-lang="en">Loading from GitHub…</span></p>
+        <div class="feature-card license-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
+          <h3 class="license-card-title"><span class="spinner"></span></h3>
+          <p class="license-card-body"><span data-lang="el">Φόρτωση από GitHub…</span><span data-lang="en">Loading from GitHub…</span></p>
+        </div>
         </div>
       </div>
+      
       <div id="doc-screenshots" class="doc-section">
         <div class="section-label"><span data-lang="el">Διεπαφή</span><span data-lang="en">Interface</span></div>
         <h2 class="section-title">
@@ -518,8 +546,9 @@
                 <span data-lang="el">Κατεβάστε την τελευταία έκδοση (.dmg):</span>
                 <span data-lang="en">Download the latest version (.dmg):</span>
               </p>
-              <a class="btn-primary" id="download-btn-step" href="https://github.com/Konstantinos2106/HelloMac/releases/latest" style="padding: 10px 24px; font-size: 14px; margin-bottom: 12px; display: inline-flex;">
-                ↓ <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
+              <a class="btn-primary" id="download-btn-step" href="https://github.com/Konstantinos2106/HelloMac/releases" style="padding: 10px 24px; font-size: 14px; margin-bottom: 12px; display: inline-flex;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
               </a>
               <p>
                 <span data-lang="el">ή από τα <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank" class="step-link">Releases</a>.</span>
@@ -594,7 +623,9 @@
 <footer>
   <div class="footer-left">
     <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;">
-      <div id="footer-logo" class="logo-icon-fallback" style="width:22px;height:22px;font-size:12px;color:#fff;">📞</div>
+      <div id="footer-logo" class="logo-icon-fallback" style="width:22px;height:22px;font-size:12px;color:#fff;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+      </div>
       HelloMac
     </div>
     <span style="color:var(--text-tertiary)">·</span>
@@ -616,6 +647,24 @@ const REPO = 'Konstantinos2106/HelloMac';
 const RAW  = `https://raw.githubusercontent.com/${REPO}/main`;
 const API  = `https://api.github.com/repos/${REPO}`;
 
+// ── ΜΗΧΑΝΙΣΜΟΣ ANTI-RATE LIMIT (LOCALSTORAGE CACHE) ──
+async function fetchWithCache(url, cacheTimeMins = 15) {
+  const cachedData = localStorage.getItem(url);
+  const cachedTime = localStorage.getItem(url + '_time');
+  
+  if (cachedData && cachedTime && (Date.now() - cachedTime < cacheTimeMins * 60 * 1000)) {
+    return JSON.parse(cachedData);
+  }
+  
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("GitHub API Error: " + response.status);
+  const data = await response.json();
+  
+  localStorage.setItem(url, JSON.stringify(data));
+  localStorage.setItem(url + '_time', Date.now().toString());
+  return data;
+}
+
 // ── Πράσινη Λάμψη Ποντικιού ──
 const glow = document.getElementById('mouse-glow');
 window.addEventListener('mousemove', (e) => {
@@ -636,13 +685,11 @@ function toggleScrollBtn(scrollAmount) {
   }
 }
 
-// Track Window scroll (for Home view)
 window.addEventListener('scroll', () => {
   if (!document.body.classList.contains('is-docs-view')) {
     const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
     toggleScrollBtn(scrollTop);
     
-    // Έλεγχος αν πλησιάζουμε το Footer ώστε να σηκωθεί το βελάκι
     const windowHeight = window.innerHeight;
     const documentHeight = document.documentElement.scrollHeight;
     const footerHeight = document.querySelector('footer').offsetHeight || 100;
@@ -655,14 +702,12 @@ window.addEventListener('scroll', () => {
   }
 });
 
-// Track Docs Content scroll (for Docs view)
 docsScrollArea.addEventListener('scroll', () => {
   if (document.body.classList.contains('is-docs-view')) {
     toggleScrollBtn(docsScrollArea.scrollTop);
   }
 });
 
-// Perform scroll to top depending on active view
 function scrollToTop() {
   if (document.body.classList.contains('is-docs-view')) {
     docsScrollArea.scrollTo({top: 0, behavior: 'smooth'});
@@ -713,7 +758,6 @@ function switchDoc(sectionId, element, event) {
   document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
   element.classList.add('active');
   
-  // Κύλιση περιεχομένου στην κορυφή αντί για όλο το window
   docsScrollArea.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -724,6 +768,11 @@ function setLang(lang) {
   document.querySelector('#lang-switch button:' + (lang==='el'?'first-child':'last-child')).classList.add('active');
   document.documentElement.lang = lang;
 }
+
+// ── ΑΥΤΟΜΑΤΗ ΑΝΙΧΝΕΥΣΗ ΓΛΩΣΣΑΣ ΠΕΡΙΗΓΗΤΗ ──
+const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+const defaultLang = browserLang.startsWith('el') ? 'el' : 'en';
+setLang(defaultLang);
 
 // ── Dark/Light Mode ──
 const themeToggle = document.getElementById('theme-toggle');
@@ -747,42 +796,27 @@ themeToggle.addEventListener('click', () => {
 function parseMarkdown(text) {
   if (!text) return '';
   return text
-    .replace(/</g, '&lt;').replace(/>/g, '&gt;') // Προστασία HTML tags
-    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text);">$1</strong>') // Έντονα (Bold)
-    .replace(/\*(.*?)\*/g, '<em>$1</em>') // Πλάγια (Italic)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--green); text-decoration:none;">$1</a>') // Links
-    .replace(/^### (.*)$/gm, '<h3 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:16px;">$1</h3>') // Headers
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text);">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--green); text-decoration:none;">$1</a>')
+    .replace(/^### (.*)$/gm, '<h3 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:16px;">$1</h3>')
     .replace(/^## (.*)$/gm, '<h2 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:18px;">$1</h2>')
-    .replace(/^---$/gm, '<hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">') // Διαχωριστικό
-    .replace(/^(?:\*|\-) (.*)$/gm, '<div style="display:list-item; margin-left:24px; margin-bottom:6px;">$1</div>') // Λίστες
-    .replace(/\n/g, '<br>'); // Αλλαγές γραμμής
-}
-
-// ── Helpers Εικόνων ──
-async function imgExists(url) {
-  try { const r = await fetch(url, {method:'HEAD'}); return r.ok; } catch { return false; }
-}
-async function findImg(names) {
-  for (const n of names) {
-    const url = `${RAW}/${n}`;
-    if (await imgExists(url)) return url;
-  }
-  return null;
+    .replace(/^---$/gm, '<hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">')
+    .replace(/^(?:\*|\-) (.*)$/gm, '<div style="display:list-item; margin-left:24px; margin-bottom:6px;">$1</div>')
+    .replace(/\n/g, '<br>');
 }
 
 // ── API Φόρτωση ──
 async function loadAll() {
-  // Repo Info
-  try {
-    const repo = await (await fetch(API)).json();
-    document.getElementById('stars-count').textContent = repo.stargazers_count ?? '–';
-    if (repo.description) {
-      document.getElementById('hero-desc').innerHTML = `<span>${repo.description}</span>`;
-    }
-  } catch {}
+  // 1. ΣΤΑΘΕΡΟΠΟΙΗΣΗ ΛΟΓΟΤΥΠΟΥ (Χωρίς API, 100% σίγουρο)
+  const logoUrl = "Icns_Photos/phone.png"; 
+  
+  // Αν έχετε banner στον ίδιο φάκελο (π.χ. banner.png), γράψτε το εδώ. 
+  // Αν δεν έχετε, αφήστε το κενό: const bannerUrl = "";
+  const bannerUrl = "Icns_Photos/banner.png"; 
 
-  // Logo
-  const logoUrl = await findImg(['/Icns_Photos/logo.png','/Icns_Photos/logo.jpg','/Icns_Photos/logo.svg','/Icns_Photos/icon.png','/Icns_Photos/icon.jpg','/Icns_Photos/AppIcon.png', '/Icns_Photos/phone.png']);
+  // Εφαρμογή Logo
   if (logoUrl) {
     document.getElementById('nav-logo-wrap').innerHTML = `<img src="${logoUrl}" alt="logo">`;
     document.getElementById('footer-logo').innerHTML = `<img src="${logoUrl}" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover;">`;
@@ -792,49 +826,82 @@ async function loadAll() {
     if (favicon) { favicon.type = 'image/png'; favicon.href = logoUrl; }
   }
 
-  // Banner
-  const bannerUrl = await findImg(['/Icns_Photos/banner1.png','/Icns_Photos/banner.png','/Icns_Photos/banner1.jpg','/Icns_Photos/banner.jpg','/Icns_Photos/header.png','/Icns_Photos/preview.png', '/Icns_Photos/Banner.png', '/Icns_Photos/Banner.jpg']);
+  // Εφαρμογή Banner
   if (bannerUrl) {
     const bannerImg = document.getElementById('docs-banner');
     bannerImg.src = bannerUrl;
-    bannerImg.style.display = 'block';
+    // Αν δεν βρει το αρχείο, κρύβει το error icon
+    bannerImg.onerror = () => { bannerImg.style.display = 'none'; };
+    bannerImg.onload = () => { bannerImg.style.display = 'block'; };
   }
 
-  // Screenshots
-try {
-  // Προσθέτουμε το όνομα του φακέλου στο path
-  const folder = 'Icns_Photos'; 
-  const contents = await (await fetch(`${API}/contents/${folder}`)).json();
-  
-  const imgFiles = contents.filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name) && !/(logo|banner|icon|header|preview)/i.test(f.name));
-  const grid = document.getElementById('screenshots-grid');
-  
-  if (imgFiles.length > 0) {
-    grid.innerHTML = imgFiles.slice(0, 4).map(f => `
-      <div class="screenshot-card">
-        <img src="${RAW}/${folder}/${f.name}" alt="${f.name}" loading="lazy" />
-      </div>
-    `).join('');
-  } else {
-    grid.innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:40px 0;">Δεν βρέθηκαν στιγμιότυπα.</p>';
+  // Repo Info (Αστέρια)
+  try {
+    const repo = await fetchWithCache(API);
+    if (repo.stargazers_count !== undefined && Number.isInteger(repo.stargazers_count)) {
+      document.getElementById('stars-count').textContent = repo.stargazers_count;
+      document.getElementById('nav-stars').style.display = 'flex';
+    }
+  } catch {}
+
+  // Total Downloads
+  try {
+    const allReleases = await fetchWithCache(`${API}/releases`);
+    let totalDownloads = 0;
+    if (Array.isArray(allReleases)) {
+      allReleases.forEach(rel => {
+        if (rel.assets) {
+          rel.assets.forEach(asset => {
+            totalDownloads += asset.download_count;
+          });
+        }
+      });
+      if (Number.isInteger(totalDownloads) && totalDownloads > 0) {
+        document.getElementById('downloads-count').textContent = totalDownloads;
+        document.getElementById('nav-downloads').style.display = 'flex';
+      }
+    }
+  } catch {}
+
+  // Screenshots (Μέσω API, εξαιρώντας το phone.png)
+  try {
+    const folder = 'Icns_Photos';
+    const folderContents = await fetchWithCache(`${API}/contents/${folder}`);
+    
+    if (Array.isArray(folderContents)) {
+      // Εξαιρούμε το phone.png για να μην το βγάλει στα στιγμιότυπα
+      const imgFiles = folderContents.filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name) && !/(phone|banner|logo|icon|header|preview)/i.test(f.name));
+      const grid = document.getElementById('screenshots-grid');
+      
+      if (imgFiles.length > 0) {
+        grid.innerHTML = imgFiles.slice(0, 4).map(f => `
+          <div class="screenshot-card"><img src="${f.download_url}" alt="${f.name}" loading="lazy" /></div>
+        `).join('');
+      } else {
+        document.getElementById('sidebar-screenshots-item').style.display = 'none';
+      }
+    } else {
+      throw new Error();
+    }
+  } catch {
+    const item = document.getElementById('sidebar-screenshots-item');
+    if (item) item.style.display = 'none';
   }
-} catch {
-  document.getElementById('screenshots-grid').innerHTML = '<p style="color:var(--text-secondary);grid-column:1/-1;text-align:center;">Σφάλμα φόρτωσης εικόνων.</p>';
-}
+
   // Release Info
   try {
-    const rel = await (await fetch(`${API}/releases/latest`)).json();
+    const rel = await fetchWithCache(`${API}/releases/latest`);
     const tag  = rel.tag_name || rel.name || '';
     const date = new Date(rel.published_at).toLocaleDateString('el-GR',{year:'numeric',month:'long',day:'numeric'});
 
-    document.getElementById('hero-badge').innerHTML = `● <span data-lang="el">Νέο — ${tag}</span><span data-lang="en">New — ${tag}</span>`;
+    const badge = document.getElementById('hero-badge');
+    badge.innerHTML = `● <span data-lang="el">Νέο — ${tag}</span><span data-lang="en">New — ${tag}</span>`;
+    badge.style.display = 'inline-flex';
     setLang(document.body.classList.contains('lang-en') ? 'en' : 'el');
 
     const dmg = rel.assets?.find(a => /\.dmg$/i.test(a.name));
-    const dlUrl = dmg ? dmg.browser_download_url : rel.html_url;
+    const dlUrl = dmg ? dmg.browser_download_url : 'https://github.com/Konstantinos2106/HelloMac/releases';
     document.getElementById('download-btn-main').href = dlUrl;
-    
-    // Add dynamically fetched URL to Step 1 download button
     if (document.getElementById('download-btn-step')) {
       document.getElementById('download-btn-step').href = dlUrl;
     }
@@ -842,23 +909,30 @@ try {
     if (rel.body?.trim()) {
       document.getElementById('release-tag').textContent  = tag;
       document.getElementById('release-date').textContent = date;
-      // Εφαρμογή του custom Markdown Parser
       document.getElementById('release-body').innerHTML = parseMarkdown(rel.body);
     } else {
       document.getElementById('release-body').innerHTML = "<span data-lang='el'>Δεν υπάρχουν σημειώσεις για αυτή την έκδοση.</span><span data-lang='en'>No notes for this release.</span>";
     }
   } catch {
-    document.getElementById('hero-badge').innerHTML = '● HelloMac';
-    document.getElementById('release-body').innerHTML = "Σφάλμα φόρτωσης σημειώσεων από το GitHub.";
+    const badge = document.getElementById('hero-badge');
+    if (badge) badge.style.display = 'none';
+    
+    const relItem = document.getElementById('sidebar-release-item');
+    if (relItem) relItem.style.display = 'none';
+    
+    const fallbackUrl = 'https://github.com/Konstantinos2106/HelloMac/releases';
+    document.getElementById('download-btn-main').href = fallbackUrl;
+    if (document.getElementById('download-btn-step')) {
+      document.getElementById('download-btn-step').href = fallbackUrl;
+    }
   }
 
   // License
   try {
-    const lic = await (await fetch(`${API}/license`)).json();
+    const lic = await fetchWithCache(`${API}/license`);
     const name = lic.license?.spdx_id || lic.license?.name || 'Open Source';
     const url  = lic.html_url || `https://github.com/${REPO}/blob/main/LICENSE`;
 
-    // Χρήση querySelectorAll για ενημέρωση των στοιχείων license και στις 2 ενότητες
     document.querySelectorAll('.license-card-title').forEach(el => el.textContent = name + ' License');
     document.querySelectorAll('.license-card-body').forEach(el => {
       el.innerHTML = `<span data-lang="el">Ανοιχτός κώδικας υπό άδεια ${name}.</span><span data-lang="en">Open source under ${name} license.</span>`;
