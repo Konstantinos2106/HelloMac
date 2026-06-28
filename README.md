@@ -79,3 +79,5 @@ Feel free to reach out with new ideas or issues via email [here](mailto:78wc433v
 ## 📜 License / Άδεια Χρήσης
 Αυτό το project διατίθεται υπό την [Άδεια MIT](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
 This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.
+
+[![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
