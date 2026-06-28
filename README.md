@@ -9,8 +9,8 @@
 <h1 align="center">HelloMac</h1>
 
 <p align="center">
-  <strong>Make phone calls directly from your Mac. A reliable, standalone calling utility built for older macOS versions.</strong><br><br>
-  <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας. Αξιόπιστη και ελαφριά εφαρμογή Τηλεφώνου για παλαιότερες εκδόσεις macOS.</strong>
+  <strong>Make calls directly from your Mac via your iPhone.<br>A blazing-fast and lightweight app, featuring a classic dialpad and a full contacts list.</strong><br><br>
+  <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</strong>
 </p>
 
 ---
@@ -26,47 +26,47 @@
 ---
 ## About HelloMac
 
-Older versions of macOS lack a dedicated, standalone "Phone" application, forcing users to rely on the bulky FaceTime interface for simple audio calls. <br>
-**HelloMac** bridges this gap by providing a clean, native, and lightweight dialer.
+In older versions of macOS (before version 26 'Tahoe'), there is no standalone 'Phone' app, forcing users to open FaceTime or Contacts for a simple call.<br>
+**HelloMac** solves this issue by offering a clean, lightweight, and familiar phone interface.
 
 ### ✨ Features
-* **Native macOS UI:** Beautiful interface that perfectly blends with macOS, including full Dark Mode support.
-* **Contacts Management:** Easily view, add, and remove your favorite contacts.
-* **Classic Keypad:** A straightforward, easy-to-use dialpad for manual number entry.
+* **Native macOS UI:** Design that integrates seamlessly with the operating system.
+* **Contact Management:** Add, remove, and quickly view your contacts.
+* **Classic Keypad:** Easy-to-use dialer for quick number entry.
 
-### ⚙️ How it Works (The FaceTime Workaround)
-HelloMac uses a clever background mechanism to process calls. It routes the audio call through the native `tel://` protocol using FaceTime. However, to provide a true standalone experience, HelloMac actively suppresses and hides the FaceTime UI window in the background, allowing you to focus purely on your call through the HelloMac interface.
+### ⚙️ How it works (FaceTime Workaround)
+HelloMac uses a clever background mechanism. It routes calls via the `tel://` protocol using FaceTime. However, to provide the experience of a truly standalone application, HelloMac automatically hides the FaceTime window, allowing you to manage your call undisturbed.
 
 ### 📥 Installation
 1. Go to the [Releases](../../releases) page.
-2. Download the `HelloMac.1.0.dmg` file.
-3. Open the `.dmg` file and drag **HelloMac** into your `Applications` folder.
+2. Download the latest version: `HelloMac.Χ.Χ.Χ.dmg`.
+3. Open the file and drag **HelloMac** to your `Applications` folder.
 
 ### ✉️ Contact
-Feel free to reach out with new ideas or issues via email [here](mailto:hellomac.support@gmail.com).
+You can contact me for suggestions and issues via email [here](mailto:hellomac.support@gmail.com).
 
 ### ✏️ Notes
-* HelloMac is continuously updated and evolving, and it may contain bugs. Please check back for new releases, as an automatic update feature is not yet available.
-* In case you see an "Unidentified Developer" message on the first launch, please follow the guide [here](Unrecognized_Creator.pdf).
+* HelloMac is constantly being updated and evolved, so it may contain bugs. Please check for new versions, as there is currently no automatic update feature.
+* If an "Unidentified Developer" message appears on first launch, follow the guide [here](Unrecognized_Creator.pdf).
 
 ---
 
 ## Σχετικά με το HelloMac
 
-Στις παλαιότερες εκδόσεις του macOS δεν υπάρχει αυτόνομη εφαρμογή "Τηλέφωνο", με αποτέλεσμα οι χρήστες να πρέπει να ανοίγουν το FaceTime ή τις Επαφές τους για μια απλή κλήση.<br>
+Στις παλαιότερες εκδόσεις του macOS (πριν την έκδοση 26 'Tahoe') δεν υπάρχει αυτόνομη εφαρμογή "Τηλέφωνο", με αποτέλεσμα οι χρήστες να πρέπει να ανοίγουν το FaceTime ή τις Επαφές τους για μια απλή κλήση.<br>
 Το **HelloMac** έρχεται να λύσει αυτό το πρόβλημα, προσφέροντας ένα καθαρό, ελαφρύ και γνώριμο περιβάλλον τηλεφώνου.
 
 ### ✨ Χαρακτηριστικά
-* **Native macOS UI:** Σχεδιασμός που δένει άψογα με το λειτουργικό, με πλήρη υποστήριξη Dark Mode.
-* **Διαχείριση Επαφών:** Προσθήκη, αφαίρεση και γρήγορη προβολή των αγαπημένων σας επαφών.
+* **Native macOS UI:** Σχεδιασμός που δένει άψογα με το λειτουργικό.
+* **Διαχείριση Επαφών:** Προσθήκη, αφαίρεση και γρήγορη προβολή των επαφών σας.
 * **Κλασικό Πληκτρολόγιο:** Εύχρηστο καντράν για γρήγορη πληκτρολόγηση αριθμών.
 
-### ⚙️ Πώς λειτουργεί (Το FaceTime Workaround)
+### ⚙️ Πώς λειτουργεί (FaceTime Workaround)
 Το HelloMac χρησιμοποιεί έναν έξυπνο μηχανισμό στο παρασκήνιο. Προωθεί την κλήση μέσω του πρωτοκόλλου `tel://` χρησιμοποιώντας το FaceTime. Όμως, για να σας προσφέρει την εμπειρία μιας πραγματικά αυτόνομης εφαρμογής, το HelloMac κρύβει αυτόματα το παράθυρο του FaceTime, αφήνοντάς σας να διαχειρίζεστε την κλήση σας ανενόχλητοι.
 
 ### 📥 Εγκατάσταση
 1. Μεταβείτε στη σελίδα [Releases](../../releases).
-2. Κατεβάστε το αρχείο `HelloMac.1.0.dmg`.
+2. Κατεβάστε το αρχείο `HelloMac.Χ.Χ.Χ.dmg`.
 3. Ανοίξτε το και σύρετε το **HelloMac** στον φάκελο `Εφαρμογές` (Applications).
 
 ### ✉️ Επικοινωνία
@@ -76,8 +76,8 @@ Feel free to reach out with new ideas or issues via email [here](mailto:hellomac
 * Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη. Παρακαλώ να ελέγχετε για νέες εκδόσεις καθώς ακόμη δεν υπάρχει η δυνατότητα αυτόματου ελέγχου και ενημέρωσης.
 * Σε περίπτωση που στην πρώτη εκκίνηση εμφανιστεί μήνυμα "Μη Αναγνωρισμένου Δημιουργού", ακολουθήστε τον οδηγό [εδώ](Unrecognized_Creator.pdf).
 
-## 📜 License / Άδεια Χρήσης
+## 📜 Άδεια Χρήσης
 Αυτό το project διατίθεται υπό την [Άδεια MIT](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
-This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.
+Το HelloMac είναι ένα project ανοιχτού κώδικα και δεν σχετίζεται, δεν υποστηρίζεται ούτε χρηματοδοτείται από την Apple Inc ή κάποια άλλη πηγή. Τα ονόματα iPhone, Mac, macOS και FaceTime είναι εμπορικά σήματα της Apple Inc.
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
