@@ -10,7 +10,7 @@
 
 <p align="center">
   <strong>Make calls directly from your Mac via your iPhone.<br>A blazing-fast and lightweight app, featuring a classic dialpad and a full contacts list.</strong><br><br>
-  <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</strong>
+  <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</strong>
 </p>
 
 ---
