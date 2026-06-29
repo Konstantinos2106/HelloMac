@@ -16,7 +16,7 @@
 <br><br>
 <p align="center">
   <strong>Update the application manually for one last time to version 2.0 to enable the new automatic updates feature.</strong><br><br>
-  <strong>Ενημερώστε την εφαρμογή χειροκίνητα για μια τελευταία φορά στην έκδοση 2.0 ώστε να εφαρμόστετε την νέα λειτουργία αυτοματοποιημένων ενημερώσεων </strong>
+  <strong>Ενημερώστε την εφαρμογή χειροκίνητα για μια τελευταία φορά στην έκδοση 2.0 ώστε να εφαρμόστετε την νέα λειτουργία αυτοματοποιημένων ενημερώσεων.</strong>
 </p>
 
 ---
