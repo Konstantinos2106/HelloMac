@@ -13,6 +13,12 @@
   <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</strong>
 </p>
 
+<br><br>
+<p align="center">
+  <strong>Update the application manually for one last time to version 2.0 to enable the new automatic updates feature.</strong><br><br>
+  <strong>Ενημερώστε την εφαρμογή χειροκίνητα για μια τελευταία φορά στην έκδοση 2.0 ώστε να εφαρμόστετε την νέα λειτουργία αυτοματοποιημένων ενημερώσεων </strong>
+</p>
+
 ---
 
 ## 📸 Screenshots / Στιγμιότυπα
@@ -48,7 +54,7 @@ You can contact me for suggestions and issues via email [here](mailto:hellomac.s
 ### ✏️ Notes
 * **Compatible with:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
 * If an "Unidentified Developer" message appears on first launch, follow the guide [here](PDF/Unrecognized_Creator_EL.pdf).
-* HelloMac is constantly being updated and evolved, so it may contain bugs. Please check for new versions, as there is currently no automatic update feature.<br>(Auto-update feature coming soon in version 2.0)
+* HelloMac is constantly being updated and evolved, so it may contain bugs.
 
 ### 📜 License
 This project is available under the [MIT License](LICENSE) - see the LICENSE file for details.<br>
@@ -80,7 +86,7 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 ### ✏️ Σημειώσεις
 * **Συμβατό με:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
 * Σε περίπτωση που στην πρώτη εκκίνηση εμφανιστεί μήνυμα "Μη Αναγνωρισμένου Δημιουργού", ακολουθήστε τον οδηγό [εδώ](PDF/Unrecognized_Creator_EL.pdf).
-* Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη. Παρακαλώ να ελέγχετε για νέες εκδόσεις καθώς ακόμη δεν υπάρχει η δυνατότητα αυτόματου ελέγχου και ενημέρωσης.<br>(Έρχεται η δυνατότητα αυτόματης ενημέρωσης σύντομα στην έκδοση 2.0)
+* Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη.
 
 ### 📜 Άδεια Χρήσης
 Αυτό το project διατίθεται υπό την [Άδεια MIT](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
