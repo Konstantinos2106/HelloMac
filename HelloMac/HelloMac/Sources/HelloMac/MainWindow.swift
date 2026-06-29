@@ -9,19 +9,20 @@ class NonFullScreenWindow: NSWindow {
 
 class MainWindowController: NSWindowController, NSWindowDelegate {
     private var stackView: NSStackView!
-    private var favoritesView: NSView!
+    private var contactsView: NSView!
     private var dialerView: NSView!
-    private var favButton: NSButton!
+    private var emptyStateView: NSView!
+    private var contactsButton: NSButton!
     private var dialButton: NSButton!
     private var displayLabel: NSTextField!
     private var addWindowController: AddContactWindowController?
     private var removeWindowController: RemoveContactWindowController?
 
     // Expose for menu actions
-    func showFavoritesPublic()  { showFavorites() }
-    func showDialerPublic()     { showDialer() }
-    func openAddPublic()        { openAdd() }
-    func openRemovePublic()     { openRemove() }
+    func showContactsPublic()  { showContacts() }
+    func showDialerPublic()    { showDialer() }
+    func openAddPublic()       { openAdd() }
+    func openRemovePublic()    { openRemove() }
 
     convenience init() {
         let window = NonFullScreenWindow(
@@ -33,22 +34,30 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         window.title = "HelloMac"
         window.titlebarAppearsTransparent = true
         window.center()
+        
+        // Αλλαγή σε .darkAqua για να εξασφαλίσουμε λευκά γράμματα στον τίτλο
+        window.appearance = NSAppearance(named: .darkAqua) 
         window.isReleasedWhenClosed = false
         window.backgroundColor = NSColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1)
         window.minSize = NSSize(width: 280, height: 480)
         window.maxSize = NSSize(width: 600, height: 900)
-        // Απενεργοποίηση full screen — καμία επιλογή full screen
         window.collectionBehavior = [.managed, .fullScreenNone]
+        
         self.init(window: window)
         window.delegate = self
         setupUI()
+        
+        // Ακούμε για αλλαγές στις ρυθμίσεις εμφάνισης
+        NotificationCenter.default.addObserver(self, selector: #selector(updateUIVisibility), name: NSNotification.Name("UpdateUIVisibility"), object: nil)
+
+        // Καλούμε τη συνάρτηση μία φορά κατά την εκκίνηση για να διαβάσει τις αποθηκευμένες ρυθμίσεις
+        updateUIVisibility()
     }
 
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
         contentView.wantsLayer = true
 
-        // Tab Bar κάτω
         let tabBar = NSView()
         tabBar.wantsLayer = true
         tabBar.layer?.backgroundColor = NSColor(red: 0.15, green: 0.15, blue: 0.16, alpha: 1).cgColor
@@ -61,17 +70,22 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         sep.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(sep)
 
-        favButton = makeTabButton(symbolName: "star.fill", title: L("contacts"), action: #selector(showFavorites))
+        contactsButton = makeTabButton(symbolName: "person.2.fill", title: L("contacts"), action: #selector(showContacts))
         dialButton = makeTabButton(symbolName: "circle.grid.3x3.fill", title: L("keypad"), action: #selector(showDialer))
 
-        tabBar.addSubview(favButton)
-        tabBar.addSubview(dialButton)
+        let tabStack = NSStackView(views: [contactsButton, dialButton])
+        tabStack.orientation = .horizontal
+        tabStack.distribution = .equalSpacing
+        tabStack.spacing = 60
+        tabStack.alignment = .centerY
+        tabStack.translatesAutoresizingMaskIntoConstraints = false
+        tabBar.addSubview(tabStack)
 
-        // Favorites View
-        favoritesView = NSView()
-        favoritesView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(favoritesView)
-        setupFavoritesView()
+        // Contacts View
+        contactsView = NSView()
+        contactsView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(contactsView)
+        setupContactsView()
 
         // Dialer View
         dialerView = NSView()
@@ -79,6 +93,37 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         dialerView.isHidden = true
         contentView.addSubview(dialerView)
         setupDialer()
+        
+        // --- ΝΕΟ: Empty State View (Όταν όλα είναι κλειστά) ---
+        emptyStateView = NSView()
+        emptyStateView.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateView.isHidden = true
+        contentView.addSubview(emptyStateView)
+        
+        let warningIcon = NSImageView(image: NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: nil) ?? NSImage())
+        warningIcon.contentTintColor = NSColor(white: 0.4, alpha: 1)
+        warningIcon.translatesAutoresizingMaskIntoConstraints = false
+        
+        let emptyLabel = NSTextField(labelWithString: L("all_features_disabled"))
+        emptyLabel.font = NSFont.systemFont(ofSize: 14)
+        emptyLabel.textColor = NSColor(white: 0.6, alpha: 1)
+        emptyLabel.alignment = .center
+        emptyLabel.isEditable = false
+        emptyLabel.isSelectable = false
+        emptyLabel.isBezeled = false
+        emptyLabel.drawsBackground = false
+        emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        let openSettingsBtn = NSButton(title: L("enable_features_btn"), target: NSApp.delegate, action: Selector(("showSettingsToAppearance")))
+        openSettingsBtn.bezelStyle = .rounded
+        openSettingsBtn.translatesAutoresizingMaskIntoConstraints = false
+        
+        let emptyStack = NSStackView(views: [warningIcon, emptyLabel, openSettingsBtn])
+        emptyStack.orientation = .vertical
+        emptyStack.spacing = 16
+        emptyStack.alignment = .centerX
+        emptyStack.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateView.addSubview(emptyStack)
 
         NSLayoutConstraint.activate([
             tabBar.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
@@ -91,39 +136,47 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             sep.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             sep.heightAnchor.constraint(equalToConstant: 0.5),
 
-            favButton.leadingAnchor.constraint(equalTo: tabBar.leadingAnchor),
-            favButton.widthAnchor.constraint(equalTo: tabBar.widthAnchor, multiplier: 0.5),
-            favButton.topAnchor.constraint(equalTo: tabBar.topAnchor),
-            favButton.bottomAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            tabStack.centerXAnchor.constraint(equalTo: tabBar.centerXAnchor),
+            tabStack.centerYAnchor.constraint(equalTo: tabBar.centerYAnchor),
+            tabStack.heightAnchor.constraint(equalTo: tabBar.heightAnchor),
+            
+            contactsButton.widthAnchor.constraint(equalToConstant: 80),
+            contactsButton.heightAnchor.constraint(equalTo: tabStack.heightAnchor),
+            dialButton.widthAnchor.constraint(equalToConstant: 80),
+            dialButton.heightAnchor.constraint(equalTo: tabStack.heightAnchor),
 
-            dialButton.trailingAnchor.constraint(equalTo: tabBar.trailingAnchor),
-            dialButton.widthAnchor.constraint(equalTo: tabBar.widthAnchor, multiplier: 0.5),
-            dialButton.topAnchor.constraint(equalTo: tabBar.topAnchor),
-            dialButton.bottomAnchor.constraint(equalTo: tabBar.bottomAnchor),
-
-            favoritesView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            favoritesView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            favoritesView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            favoritesView.bottomAnchor.constraint(equalTo: sep.topAnchor),
+            contactsView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            contactsView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            contactsView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            contactsView.bottomAnchor.constraint(equalTo: sep.topAnchor),
 
             dialerView.topAnchor.constraint(equalTo: contentView.topAnchor),
             dialerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             dialerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             dialerView.bottomAnchor.constraint(equalTo: sep.topAnchor),
+            
+            // Κεντράρισμα του μηνύματος στο κέντρο της οθόνης
+            emptyStateView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            emptyStateView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            emptyStateView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            emptyStateView.bottomAnchor.constraint(equalTo: sep.topAnchor),
+            emptyStack.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
+            emptyStack.centerYAnchor.constraint(equalTo: emptyStateView.centerYAnchor),
+            warningIcon.widthAnchor.constraint(equalToConstant: 40),
+            warningIcon.heightAnchor.constraint(equalToConstant: 32)
         ])
 
-        showFavorites()
+        showContacts()
         NotificationCenter.default.addObserver(self, selector: #selector(refreshContacts), name: .contactsDidChange, object: nil)
     }
 
-    private func setupFavoritesView() {
+    private func setupContactsView() {
         let titleLabel = NSTextField(labelWithString: L("contacts"))
         titleLabel.font = NSFont.boldSystemFont(ofSize: 17)
         titleLabel.textColor = .white
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        favoritesView.addSubview(titleLabel)
+        contactsView.addSubview(titleLabel)
 
-        // Κουμπί Προσθήκης
         let addImg = NSImage(systemSymbolName: "person.badge.plus", accessibilityDescription: L("add_tooltip"))
         let addBtn = NSButton(image: addImg ?? NSImage(), target: self, action: #selector(openAdd))
         addBtn.bezelStyle = .regularSquare
@@ -131,9 +184,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         addBtn.contentTintColor = NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1)
         addBtn.translatesAutoresizingMaskIntoConstraints = false
         if let cell = addBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
-        favoritesView.addSubview(addBtn)
+        contactsView.addSubview(addBtn)
 
-        // Κουμπί Διαγραφής
         let removeImg = NSImage(systemSymbolName: "person.badge.minus", accessibilityDescription: L("remove_tooltip"))
         let removeBtn = NSButton(image: removeImg ?? NSImage(), target: self, action: #selector(openRemove))
         removeBtn.bezelStyle = .regularSquare
@@ -141,14 +193,18 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         removeBtn.contentTintColor = NSColor(red: 1.0, green: 0.3, blue: 0.3, alpha: 1)
         removeBtn.translatesAutoresizingMaskIntoConstraints = false
         if let cell = removeBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
-        favoritesView.addSubview(removeBtn)
+        contactsView.addSubview(removeBtn)
 
         let scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
+        
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay 
+        
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
-        favoritesView.addSubview(scrollView)
+        contactsView.addSubview(scrollView)
 
         stackView = NSStackView()
         stackView.orientation = .vertical
@@ -157,34 +213,31 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         scrollView.documentView = stackView
 
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: favoritesView.topAnchor, constant: 16),
-            titleLabel.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor, constant: 16),
+            titleLabel.topAnchor.constraint(equalTo: contactsView.topAnchor, constant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: contactsView.leadingAnchor, constant: 16),
 
-            // Διαγραφή — πιο δεξιά
             removeBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            removeBtn.trailingAnchor.constraint(equalTo: favoritesView.trailingAnchor, constant: -14),
+            removeBtn.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor, constant: -14),
             removeBtn.widthAnchor.constraint(equalToConstant: 26),
             removeBtn.heightAnchor.constraint(equalToConstant: 26),
 
-            // Προσθήκη — αριστερά από διαγραφή
             addBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
             addBtn.trailingAnchor.constraint(equalTo: removeBtn.leadingAnchor, constant: -10),
             addBtn.widthAnchor.constraint(equalToConstant: 26),
             addBtn.heightAnchor.constraint(equalToConstant: 26),
 
             scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            scrollView.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: favoritesView.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: favoritesView.bottomAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: contactsView.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: contactsView.bottomAnchor),
 
-            stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            stackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
         ])
 
         refreshContacts()
     }
 
     private func setupDialer() {
-        // Wrapper για κεντράρισμα όλου του περιεχομένου κάθετα
         let centerWrapper = NSView()
         centerWrapper.translatesAutoresizingMaskIntoConstraints = false
         dialerView.addSubview(centerWrapper)
@@ -197,7 +250,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             centerWrapper.bottomAnchor.constraint(lessThanOrEqualTo: dialerView.bottomAnchor, constant: -8),
         ])
 
-        // Οθόνη αριθμών — απλό label με clip, αριστερή στοίχιση όταν γεμίζει
         displayLabel = NSTextField(labelWithString: "")
         displayLabel.font = NSFont.systemFont(ofSize: 38, weight: .thin)
         displayLabel.textColor = .white
@@ -208,7 +260,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         displayLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         centerWrapper.addSubview(displayLabel)
 
-        // Delete button
         let deleteImg = NSImage(systemSymbolName: "delete.left", accessibilityDescription: L("remove_tooltip"))
         let deleteBtn = NSButton(image: deleteImg ?? NSImage(), target: self, action: #selector(deleteLast))
         deleteBtn.bezelStyle = .regularSquare
@@ -218,12 +269,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         if let cell = deleteBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
         centerWrapper.addSubview(deleteBtn)
 
-        // Grid πληκτρολογίου — μόνο αριθμοί, χωρίς γράμματα
         let keys: [(String, String)] = [
-            ("1",""), ("2",""), ("3",""),
-            ("4",""), ("5",""), ("6",""),
-            ("7",""), ("8",""), ("9",""),
-            ("*",""), ("0",""), ("#","")
+            ("1",""), ("2","ABC"), ("3","DEF"),
+            ("4","GHI"), ("5","JKL"), ("6","MNO"),
+            ("7","PQRS"), ("8","TUV"), ("9","WXYZ"),
+            ("*",""), ("0","+"), ("#","")
         ]
 
         let gridStack = NSStackView()
@@ -246,7 +296,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             gridStack.addArrangedSubview(rowStack)
         }
 
-        // Κουμπί κλήσης
         let callBtn = NSButton(title: "", target: self, action: #selector(dialNumber))
         callBtn.bezelStyle = .regularSquare
         callBtn.isBordered = false
@@ -255,7 +304,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         callBtn.layer?.cornerRadius = 34
         callBtn.translatesAutoresizingMaskIntoConstraints = false
         
-        // ΑΣΦΑΛΗΣ ΕΛΕΓΧΟΣ ΓΙΑ macOS 11 (Big Sur)
         let baseImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: L("call_tooltip"))
         let callImg: NSImage?
         
@@ -263,7 +311,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             let callSymbolConfig = NSImage.SymbolConfiguration(pointSize: 28, weight: .medium)
             callImg = baseImg?.withSymbolConfiguration(callSymbolConfig)
         } else {
-            // Στο Big Sur χρησιμοποιούμε το απλό εικονίδιο χωρίς το SymbolConfiguration
             callImg = baseImg
         }
         
@@ -335,22 +382,28 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         return btn
     }
 
-    @objc func showFavorites() {
-        favoritesView.isHidden = false
+    @objc func showContacts() {
+        let hideContacts = UserDefaults.standard.bool(forKey: "hideContactsMenu")
+        guard !hideContacts else { return } // Αποτροπή αν είναι κλειστό
+        contactsView.isHidden = false
         dialerView.isHidden = true
-        updateTabColors(active: "star.fill", inactive: "circle.grid.3x3.fill")
+        emptyStateView.isHidden = true
+        updateTabColors(active: "person.2.fill", inactive: "circle.grid.3x3.fill")
     }
 
     @objc func showDialer() {
-        favoritesView.isHidden = true
+        let hideKeypad = UserDefaults.standard.bool(forKey: "hideKeypadMenu")
+        guard !hideKeypad else { return } // Αποτροπή αν είναι κλειστό
+        contactsView.isHidden = true
         dialerView.isHidden = false
-        updateTabColors(active: "circle.grid.3x3.fill", inactive: "star.fill")
+        emptyStateView.isHidden = true
+        updateTabColors(active: "circle.grid.3x3.fill", inactive: "person.2.fill")
     }
 
     private func updateTabColors(active: String, inactive: String) {
         let blue = NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1)
         let gray = NSColor(white: 0.5, alpha: 1)
-        for btn in [favButton, dialButton] {
+        for btn in [contactsButton, dialButton] {
             guard let btn = btn else { continue }
             let isActive = btn.identifier?.rawValue == active
             let color = isActive ? blue : gray
@@ -405,6 +458,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             empty.textColor = NSColor(white: 0.5, alpha: 1)
             empty.font = NSFont.systemFont(ofSize: 13)
             empty.maximumNumberOfLines = 2
+            empty.isEditable = false
+            empty.isSelectable = false
+            empty.isBezeled = false
+            empty.drawsBackground = false
             stackView.addArrangedSubview(empty)
         } else {
             for contact in contacts {
@@ -421,7 +478,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func makeCall(to phone: String) {
-        guard let url = URL(string: "tel:\(phone)") else { return }
+        guard let url = URL(string: "tel:\(phone.sanitizedForCall)") else { return }
         let appDelegate = NSApp.delegate as? AppDelegate
         appDelegate?.suppressFaceTime()
         NSWorkspace.shared.open(url)
@@ -441,6 +498,36 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         }
         removeWindowController?.showWindow(nil)
         removeWindowController?.window?.makeKeyAndOrderFront(nil)
+    }
+    
+    @objc private func updateUIVisibility() {
+        let hideContacts = UserDefaults.standard.bool(forKey: "hideContactsMenu")
+        let hideKeypad = UserDefaults.standard.bool(forKey: "hideKeypadMenu")
+        let hideBoth = hideContacts && hideKeypad
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            context.allowsImplicitAnimation = true
+            self.contactsButton.isHidden = hideContacts
+            self.dialButton.isHidden = hideKeypad
+            
+            if hideBoth {
+                self.contactsView.isHidden = true
+                self.dialerView.isHidden = true
+                self.emptyStateView.isHidden = false
+            } else {
+                self.emptyStateView.isHidden = true
+                
+                if hideContacts && !self.contactsView.isHidden {
+                    self.showDialer()
+                } else if hideKeypad && !self.dialerView.isHidden {
+                    self.showContacts()
+                } else if self.contactsView.isHidden && self.dialerView.isHidden {
+                    if !hideContacts { self.showContacts() }
+                    else if !hideKeypad { self.showDialer() }
+                }
+            }
+        }
     }
 
     func windowShouldZoom(_ window: NSWindow, toFrame newFrame: NSRect) -> Bool {
@@ -474,12 +561,20 @@ class ContactRow: NSView {
         let nameLabel = NSTextField(labelWithString: contact.name)
         nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .regular)
         nameLabel.textColor = .white
+        nameLabel.isEditable = false
+        nameLabel.isSelectable = false
+        nameLabel.isBezeled = false
+        nameLabel.drawsBackground = false
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(nameLabel)
 
         let phoneLabel = NSTextField(labelWithString: contact.phone)
         phoneLabel.font = NSFont.systemFont(ofSize: 13)
         phoneLabel.textColor = NSColor(white: 0.55, alpha: 1)
+        phoneLabel.isEditable = false
+        phoneLabel.isSelectable = false
+        phoneLabel.isBezeled = false
+        phoneLabel.drawsBackground = false
         phoneLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(phoneLabel)
 
@@ -550,6 +645,10 @@ class DialerKey: NSButton {
         digitLabel.font = NSFont.systemFont(ofSize: 26, weight: .light)
         digitLabel.textColor = .white
         digitLabel.alignment = .center
+        digitLabel.isEditable = false
+        digitLabel.isSelectable = false
+        digitLabel.isBezeled = false
+        digitLabel.drawsBackground = false
         digitLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(digitLabel)
 
@@ -558,6 +657,10 @@ class DialerKey: NSButton {
             lettersLabel.font = NSFont.systemFont(ofSize: 9, weight: .semibold)
             lettersLabel.textColor = NSColor(white: 0.7, alpha: 1)
             lettersLabel.alignment = .center
+            lettersLabel.isEditable = false
+            lettersLabel.isSelectable = false
+            lettersLabel.isBezeled = false
+            lettersLabel.drawsBackground = false
             lettersLabel.translatesAutoresizingMaskIntoConstraints = false
             addSubview(lettersLabel)
             NSLayoutConstraint.activate([

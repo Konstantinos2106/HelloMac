@@ -15,7 +15,7 @@ echo "🔨 Build το $DISPLAY_NAME..."
 SDK_PATH=$(xcrun --sdk macosx --show-sdk-path 2>/dev/null || echo "/Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk")
 echo "📦 SDK: $SDK_PATH"
 
-# Αρχιτεκτονική (Apple Silicon ή Intel) - Ενημερωμένο για macOS 11.0 (Big Sur)
+# Αρχιτεκτονική (Apple Silicon ή Intel)
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
     TARGET="arm64-apple-macos11.0"
@@ -46,7 +46,6 @@ swiftc \
 
 echo "✅ Compile OK"
 
-# Αντιγραφή εικονιδίου
 if [ -f "$ICON_SRC" ]; then
     cp "$ICON_SRC" "$APP_PATH/Contents/Resources/AppIcon.icns"
     echo "🎨 Εικονίδιο OK"
@@ -54,7 +53,6 @@ else
     echo "⚠️  Εικονίδιο δεν βρέθηκε: $ICON_SRC"
 fi
 
-# Info.plist — Ενημερωμένο για macOS 11.0 (Big Sur)
 cat > "$APP_PATH/Contents/Info.plist" << PLIST
 <?xml version="1.1" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.1//EN" "http://www.apple.com/DTDs/PropertyList-1.1.dtd">
@@ -67,9 +65,9 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundleIdentifier</key>
     <string>com.hellomac.telephone</string>
     <key>CFBundleVersion</key>
-    <string>1.1</string>
+    <string>2.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1</string>
+    <string>2.0</string>
     <key>CFBundleExecutable</key>
     <string>${BINARY_NAME}</string>
     <key>CFBundlePackageType</key>

@@ -24,3 +24,9 @@ class ContactStore {
         }
     }
 }
+extension String {
+    /// Καθαρίζει τον αριθμό αφήνοντας μόνο νούμερα και το σύμβολο '+'
+    var sanitizedForCall: String {
+        return self.filter { "0123456789+".contains($0) }
+    }
+}

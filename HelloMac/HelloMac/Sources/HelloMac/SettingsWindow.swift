@@ -7,18 +7,21 @@ class AddContactWindowController: NSWindowController {
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 200),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 450, height: 280),
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
-        window.title = L("add_contact_menu")
+        window.title = L("settings_title")
         window.center()
         window.isReleasedWhenClosed = false
+        
+        // 1. Καλούμε πρώτα το self.init
         self.init(window: window)
+        
+        // 2. Μετά καλούμε το setupUI, που πλέον μπορεί να χρησιμοποιήσει το 'self'
         setupUI()
     }
-
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
@@ -224,5 +227,148 @@ class RemoveContactWindowController: NSWindowController, NSTableViewDelegate, NS
         cell.backgroundColor = .clear
         cell.stringValue = tableColumn?.identifier.rawValue == "name" ? contact.name : contact.phone
         return cell
+    }
+}
+// MARK: - Μοντέρνο Παράθυρο Ρυθμίσεων (Auto Layout & Κεντράρισμα)
+class SettingsWindowController: NSWindowController {
+    
+    convenience init() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 260),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = L("settings_title")
+        window.center()
+        window.isReleasedWhenClosed = false
+        
+        self.init(window: window)
+        setupUI()
+    }
+    
+    private func setupUI() {
+        guard let window = self.window else { return }
+        
+        let tabViewController = NSTabViewController()
+        tabViewController.tabStyle = .toolbar
+        
+        // ==========================================
+        // ΚΑΡΤΕΛΑ 1: ΕΝΗΜΕΡΩΣΕΙΣ
+        // ==========================================
+        let updatesVC = NSViewController()
+        let updatesView = NSView()
+        
+        let iconImageView = NSImageView(image: NSImage(named: "AppIcon") ?? NSImage())
+        iconImageView.imageScaling = .scaleProportionallyUpOrDown
+        iconImageView.translatesAutoresizingMaskIntoConstraints = false
+        iconImageView.widthAnchor.constraint(equalToConstant: 80).isActive = true
+        iconImageView.heightAnchor.constraint(equalToConstant: 80).isActive = true
+        
+        let versionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
+        let versionLabel = NSTextField(labelWithString: L("current_version", versionString))
+        versionLabel.alignment = .center
+        versionLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        versionLabel.textColor = .secondaryLabelColor
+        versionLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        let checkButton = NSButton(title: L("check_now"), target: NSApp.delegate, action: Selector(("menuCheckUpdates")))
+        checkButton.bezelStyle = .rounded
+        checkButton.controlSize = .large
+        checkButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Ομαδοποίηση και κεντράρισμα
+        let updatesStack = NSStackView(views: [iconImageView, versionLabel, checkButton])
+        updatesStack.orientation = .vertical
+        updatesStack.spacing = 16
+        updatesStack.alignment = .centerX
+        updatesStack.translatesAutoresizingMaskIntoConstraints = false
+        updatesView.addSubview(updatesStack)
+        
+        NSLayoutConstraint.activate([
+            updatesStack.centerXAnchor.constraint(equalTo: updatesView.centerXAnchor),
+            updatesStack.centerYAnchor.constraint(equalTo: updatesView.centerYAnchor),
+            updatesView.widthAnchor.constraint(equalToConstant: 400),
+            updatesView.heightAnchor.constraint(equalToConstant: 220)
+        ])
+        
+        updatesVC.view = updatesView
+        updatesVC.title = L("tab_updates")
+        let updatesTab = NSTabViewItem(viewController: updatesVC)
+        updatesTab.image = NSImage(systemSymbolName: "arrow.triangle.2.circlepath", accessibilityDescription: nil)
+        
+        // ==========================================
+        // ΚΑΡΤΕΛΑ 2: ΕΜΦΑΝΙΣΗ
+        // ==========================================
+        let appearanceVC = NSViewController()
+        let appearanceView = NSView()
+        
+        // Γραμμή 1: Επαφές
+        let contactsRow = NSStackView()
+        contactsRow.orientation = .horizontal
+        let contactsLabel = NSTextField(labelWithString: L("show_contacts_tab"))
+        contactsLabel.font = NSFont.systemFont(ofSize: 14)
+        contactsRow.addView(contactsLabel, in: .leading)
+        let contactsSwitch = NSSwitch()
+        contactsSwitch.target = self
+        contactsSwitch.action = #selector(toggleFeature(_:))
+        contactsSwitch.identifier = NSUserInterfaceItemIdentifier("showContactsMenu")
+        contactsSwitch.state = UserDefaults.standard.bool(forKey: "hideContactsMenu") ? .off : .on
+        contactsRow.addView(contactsSwitch, in: .trailing)
+        
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Γραμμή 2: Πληκτρολόγιο
+        let keypadRow = NSStackView()
+        keypadRow.orientation = .horizontal
+        let keypadLabel = NSTextField(labelWithString: L("show_keypad_tab"))
+        keypadLabel.font = NSFont.systemFont(ofSize: 14)
+        keypadRow.addView(keypadLabel, in: .leading)
+        let keypadSwitch = NSSwitch()
+        keypadSwitch.target = self
+        keypadSwitch.action = #selector(toggleFeature(_:))
+        keypadSwitch.identifier = NSUserInterfaceItemIdentifier("showKeypadMenu")
+        keypadSwitch.state = UserDefaults.standard.bool(forKey: "hideKeypadMenu") ? .off : .on
+        keypadRow.addView(keypadSwitch, in: .trailing)
+        
+        // Ομαδοποίηση και κεντράρισμα
+        let appearanceStack = NSStackView(views: [contactsRow, separator, keypadRow])
+        appearanceStack.orientation = .vertical
+        appearanceStack.spacing = 16
+        appearanceStack.translatesAutoresizingMaskIntoConstraints = false
+        appearanceView.addSubview(appearanceStack)
+        
+        NSLayoutConstraint.activate([
+            appearanceStack.centerXAnchor.constraint(equalTo: appearanceView.centerXAnchor),
+            appearanceStack.centerYAnchor.constraint(equalTo: appearanceView.centerYAnchor),
+            contactsRow.widthAnchor.constraint(equalToConstant: 280),
+            separator.widthAnchor.constraint(equalToConstant: 300),
+            keypadRow.widthAnchor.constraint(equalToConstant: 280),
+            appearanceView.widthAnchor.constraint(equalToConstant: 400),
+            appearanceView.heightAnchor.constraint(equalToConstant: 220)
+        ])
+        
+        appearanceVC.view = appearanceView
+        appearanceVC.title = L("tab_appearance")
+        let appearanceTab = NSTabViewItem(viewController: appearanceVC)
+        appearanceTab.image = NSImage(systemSymbolName: "macwindow", accessibilityDescription: nil)
+        
+        // Προσθήκη Καρτελών στον Controller
+        tabViewController.addTabViewItem(updatesTab)
+        tabViewController.addTabViewItem(appearanceTab)
+        
+        window.contentViewController = tabViewController
+    }
+    
+    @objc private func toggleFeature(_ sender: NSSwitch) {
+        if sender.identifier?.rawValue == "showContactsMenu" {
+            UserDefaults.standard.set(sender.state == .off, forKey: "hideContactsMenu")
+        } else if sender.identifier?.rawValue == "showKeypadMenu" {
+            UserDefaults.standard.set(sender.state == .off, forKey: "hideKeypadMenu")
+        }
+        
+        NotificationCenter.default.post(name: NSNotification.Name("UpdateUIVisibility"), object: nil)
     }
 }
