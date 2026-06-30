@@ -808,17 +808,29 @@ themeToggle.addEventListener('click', () => {
 function parseMarkdown(text) {
   if (!text) return '';
   return text
-    .replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text);">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--green); text-decoration:none;">$1</a>')
+    // 1. BLOCK ELEMENTS
+    // Πιάνουμε τα κενά (\s*) και το περιεχόμενο, και φτιάχνουμε δυναμικά το style
+    .replace(/^(\s*)(?:\*|\-) (.*)$/gm, function(match, spaces, content) {
+      // Αν υπάρχουν κενά (spaces.length > 0), είναι υπο-λίστα
+      let isNested = spaces.length > 0;
+      let marginLeft = isNested ? '48px' : '24px';
+      let listStyle = isNested ? 'circle' : 'disc'; // 'circle' = κενή τελίτσα, 'disc' = γεμάτη
+      
+      return `<div style="display:list-item; list-style-type:${listStyle}; margin-left:${marginLeft}; margin-bottom:6px;">${content}</div>`;
+    })
     .replace(/^### (.*)$/gm, '<h3 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:16px;">$1</h3>')
     .replace(/^## (.*)$/gm, '<h2 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:18px;">$1</h2>')
     .replace(/^---$/gm, '<hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">')
-    .replace(/^(?:\*|\-) (.*)$/gm, '<div style="display:list-item; margin-left:24px; margin-bottom:6px;">$1</div>')
+
+    // 2. INLINE ELEMENTS (Bold, Italic, Links, Inline Code)
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text);">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:var(--surface2); padding:2px 4px; border-radius:4px; font-size:90%; color:var(--green);">$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--green); text-decoration:none;">$1</a>')
+    
+    // 3. Line breaks
     .replace(/\n/g, '<br>');
 }
-
 // ── API Φόρτωση ──
 async function loadAll() {
   // 1. ΣΤΑΘΕΡΟΠΟΙΗΣΗ ΛΟΓΟΤΥΠΟΥ (Χωρίς API, 100% σίγουρο)
