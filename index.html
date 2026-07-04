@@ -195,7 +195,8 @@
     .banner-wrap{width:100%;max-width:900px;margin:30px 0;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);box-shadow:0 20px 50px rgba(0,0,0,.3);}
     .banner-wrap img{width:100%;display:block;object-fit:cover;}
 
-    .screenshots-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px;}
+    /* SCREENSHOTS GRID: 3 COLUMNS */
+    .screenshots-grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:20px;margin-top:40px;align-items:start;}
     .screenshot-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);background:var(--surface2);}
     .screenshot-card img{width:100%;display:block;object-fit:cover;}
 
@@ -277,7 +278,7 @@
       .docs-sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 20px; }
       .docs-content { overflow: visible; padding: 20px; }
       .docs-content-inner { padding: 0; }
-      .screenshots-grid{grid-template-columns:1fr;}
+      .screenshots-grid{grid-template-columns:1fr;} /* Στα κινητά γίνεται 1 στήλη */
       footer{flex-direction:column;text-align:center;}
       .pdf-modal-content { width: 95%; height: 90vh; }
       .scroll-top-btn { display: none !important; }
@@ -340,9 +341,9 @@
       <span data-lang="en">Phone app for<br><span class="accent">older macOS</span></span>
     </h1>
     <p class="hero-sub" id="hero-desc">
-  <span data-lang="el">Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</span>
-  <span data-lang="en">Make calls directly from your Mac via your iPhone.<br>A blazing-fast and lightweight app, featuring a classic dialpad and a full contacts list.</span>
-</p>
+      <span data-lang="el">Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</span>
+      <span data-lang="en">Make calls directly from your Mac via your iPhone.<br>A blazing-fast and lightweight app, featuring a classic dialpad and a full contacts list.</span>
+    </p>
     <div class="hero-actions">
       <button class="btn-primary" onclick="showDocs()">
         <span data-lang="el">Ξεκινήστε</span><span data-lang="en">Getting Started</span>
@@ -373,6 +374,13 @@
           </div>
           <h3>Native macOS UI</h3>
           <p><span data-lang="el">Πλήρης Dark Mode, οικεία αίσθηση iPhone.</span><span data-lang="en">Full Dark Mode, familiar iPhone feel.</span></p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <h3><span data-lang="el">Αγαπημένα</span><span data-lang="en">Favorites</span></h3>
+          <p><span data-lang="el">Άμεση πρόσβαση στις πιο σημαντικές επαφές σας.</span><span data-lang="en">Quick access to your most important contacts.</span></p>
         </div>
         <div class="feature-card">
           <div class="feature-icon" style="font-size:0">
@@ -484,6 +492,13 @@
           </div>
           <div class="feature-card">
             <div class="feature-icon" style="font-size:0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <h3><span data-lang="el">Αγαπημένα</span><span data-lang="en">Favorites</span></h3>
+            <p><span data-lang="el">Άμεση πρόσβαση στις πιο σημαντικές επαφές σας.</span><span data-lang="en">Quick access to your most important contacts.</span></p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon" style="font-size:0">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <h3><span data-lang="el">Λίστα Επαφών</span><span data-lang="en">Contacts List</span></h3>
@@ -528,10 +543,19 @@
           <span data-lang="el">Στιγμιότυπα Εφαρμογής</span>
           <span data-lang="en">Application Screenshots</span>
         </h2>
+        <!-- Το νέο πλέγμα 3 στηλών με τις σταθερές εικόνες -->
         <div class="screenshots-grid" id="screenshots-grid">
-          <div class="screenshot-card" style="min-height:200px;display:flex;align-items:center;justify-content:center;">
-            <span class="spinner"></span>
-          </div>
+          <!-- 1: Αγαπημένα -->
+          <div class="screenshot-card" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1el.png" alt="Αγαπημένα" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1en.png" alt="Favorites" loading="lazy"></div>
+          
+          <!-- 2: Επαφές -->
+          <div class="screenshot-card" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2el.png" alt="Επαφές" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2en.png" alt="Contacts" loading="lazy"></div>
+          
+          <!-- 3: Πληκτρολόγιο -->
+          <div class="screenshot-card" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3el.png" alt="Πληκτρολόγιο" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3en.png" alt="Keypad" loading="lazy"></div>
         </div>
       </div>
 
@@ -768,8 +792,6 @@ function switchDoc(sectionId, element, event) {
 }
 
 // ── Γλώσσα ──
-
-// ΒΗΜΑ 1: Ορίζουμε τους τίτλους εδώ, ακριβώς πριν τη συνάρτηση
 const pageTitles = {
   el: "HelloMac | Εφαρμογή Κλήσεων για παλαιότερα macOS",
   en: "HelloMac | Phone Calling App for older macOS"
@@ -810,36 +832,25 @@ themeToggle.addEventListener('click', () => {
 function parseMarkdown(text) {
   if (!text) return '';
   return text
-    // 1. BLOCK ELEMENTS
-    // Πιάνουμε τα κενά (\s*) και το περιεχόμενο, και φτιάχνουμε δυναμικά το style
     .replace(/^(\s*)(?:\*|\-) (.*)$/gm, function(match, spaces, content) {
-      // Αν υπάρχουν κενά (spaces.length > 0), είναι υπο-λίστα
       let isNested = spaces.length > 0;
       let marginLeft = isNested ? '48px' : '24px';
-      let listStyle = isNested ? 'circle' : 'disc'; // 'circle' = κενή τελίτσα, 'disc' = γεμάτη
-      
+      let listStyle = isNested ? 'circle' : 'disc'; 
       return `<div style="display:list-item; list-style-type:${listStyle}; margin-left:${marginLeft}; margin-bottom:6px;">${content}</div>`;
     })
     .replace(/^### (.*)$/gm, '<h3 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:16px;">$1</h3>')
     .replace(/^## (.*)$/gm, '<h2 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:18px;">$1</h2>')
     .replace(/^---$/gm, '<hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">')
-
-    // 2. INLINE ELEMENTS (Bold, Italic, Links, Inline Code)
     .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text);">$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`([^`]+)`/g, '<code style="background:var(--surface2); padding:2px 4px; border-radius:4px; font-size:90%; color:var(--green);">$1</code>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--green); text-decoration:none;">$1</a>')
-    
-    // 3. Line breaks
     .replace(/\n/g, '<br>');
 }
+
 // ── API Φόρτωση ──
 async function loadAll() {
-  // 1. ΣΤΑΘΕΡΟΠΟΙΗΣΗ ΛΟΓΟΤΥΠΟΥ (Χωρίς API, 100% σίγουρο)
   const logoUrl = "Icns_Photos/phone.png"; 
-  
-  // Αν έχετε banner στον ίδιο φάκελο (π.χ. banner.png), γράψτε το εδώ. 
-  // Αν δεν έχετε, αφήστε το κενό: const bannerUrl = "";
   const bannerUrl = "Icns_Photos/banner.png"; 
 
   // Εφαρμογή Logo
@@ -848,15 +859,12 @@ async function loadAll() {
     document.getElementById('footer-logo').innerHTML = `<img src="${logoUrl}" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover;">`;
     document.getElementById('footer-logo').style.background = 'none';
     document.getElementById('main-logo-wrap').innerHTML = `<img src="${logoUrl}" alt="HelloMac">`;
-    // const favicon = document.getElementById('site-favicon');
-    // if (favicon) { favicon.type = 'image/png'; favicon.href = logoUrl; }
   }
 
   // Εφαρμογή Banner
   if (bannerUrl) {
     const bannerImg = document.getElementById('docs-banner');
     bannerImg.src = bannerUrl;
-    // Αν δεν βρει το αρχείο, κρύβει το error icon
     bannerImg.onerror = () => { bannerImg.style.display = 'none'; };
     bannerImg.onload = () => { bannerImg.style.display = 'block'; };
   }
@@ -888,31 +896,6 @@ async function loadAll() {
       }
     }
   } catch {}
-
-  // Screenshots (Μέσω API, εξαιρώντας το phone.png)
-  try {
-    const folder = 'Icns_Photos';
-    const folderContents = await fetchWithCache(`${API}/contents/${folder}`);
-    
-    if (Array.isArray(folderContents)) {
-      // Εξαιρούμε το phone.png για να μην το βγάλει στα στιγμιότυπα
-      const imgFiles = folderContents.filter(f => /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name) && !/(phone|banner|logo|icon|header|preview)/i.test(f.name));
-      const grid = document.getElementById('screenshots-grid');
-      
-      if (imgFiles.length > 0) {
-        grid.innerHTML = imgFiles.slice(0, 4).map(f => `
-          <div class="screenshot-card"><img src="${f.download_url}" alt="${f.name}" loading="lazy" /></div>
-        `).join('');
-      } else {
-        document.getElementById('sidebar-screenshots-item').style.display = 'none';
-      }
-    } else {
-      throw new Error();
-    }
-  } catch {
-    const item = document.getElementById('sidebar-screenshots-item');
-    if (item) item.style.display = 'none';
-  }
 
   // Release Info
   try {
