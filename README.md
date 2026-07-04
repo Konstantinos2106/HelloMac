@@ -24,9 +24,11 @@
 ## 📸 Screenshots / Στιγμιότυπα
 
 <p align="center">
-  <img src="Icns_Photos/HelloMac1en.png" alt="HelloMac Contacts" width="30%">
-  &nbsp; &nbsp; &nbsp;
-  <img src="Icns_Photos/HelloMac2en.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/HelloMac1en.png" alt="HelloMac Favorites" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac2en.png" alt="HelloMac Contacts" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac3en.png" alt="HelloMac Keypad" width="30%">
 </p>
 
 ---
