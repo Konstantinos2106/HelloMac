@@ -13,10 +13,13 @@
   <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</strong>
 </p>
 
-<br><br>
 <p align="center">
-  <strong>Update the application manually for one last time to version 2.0 to enable the new automatic updates feature.</strong><br><br>
-  <strong>Ενημερώστε την εφαρμογή χειροκίνητα για μια τελευταία φορά στην έκδοση 2.0 ώστε να εφαρμόστετε την νέα λειτουργία αυτοματοποιημένων ενημερώσεων.</strong>
+  <a href="https://github.com/Konstantinos2106/HelloMac/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Konstantinos2106/HelloMac" alt="Latest Release">
+  </a>
+  <a href="https://github.com/Konstantinos2106/HelloMac/releases">
+    <img src="https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total" alt="Total Downloads">
+  </a>
 </p>
 
 ---
@@ -62,6 +65,8 @@ You can contact me for suggestions and issues via email [here](mailto:hellomac.s
 This project is available under the [MIT License](LICENSE) - see the LICENSE file for details.<br>
 HelloMac is an open-source project and is not affiliated with, endorsed by, or sponsored by Apple Inc. or any other entity. iPhone, Mac, macOS, and FaceTime are trademarks of Apple Inc.
 
+[![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
+
 ---
 
 ## Σχετικά με το HelloMac
@@ -92,6 +97,6 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 
 ### 📜 Άδεια Χρήσης
 Αυτό το project διατίθεται υπό την [Άδεια MIT](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
-Το HelloMac είναι ένα project ανοιχτού κώδικα και δεν σχετίζεται, δεν υποστηρίζεται ούτε χρηματοδοτείται από την Apple Inc ή κάποια άλλη πηγή. Τα ονόματα iPhone, Mac, macOS και FaceTime είναι εμπορικά σήματα της Apple Inc.<br><br>
+Το HelloMac είναι ένα project ανοιχτού κώδικα και δεν σχετίζεται, δεν υποστηρίζεται ούτε χρηματοδοτείται από την Apple Inc ή κάποια άλλη πηγή. Τα ονόματα iPhone, Mac, macOS και FaceTime είναι εμπορικά σήματα της Apple Inc.
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
