@@ -7,26 +7,69 @@ class NonFullScreenWindow: NSWindow {
     }
 }
 
-class MainWindowController: NSWindowController, NSWindowDelegate {
+// MARK: - Πληκτρολόγηση αριθμών από το φυσικό πληκτρολόγιο
+protocol KeyCaptureDelegate: AnyObject {
+    func keyCaptureDidType(digit: String)
+    func keyCaptureDidBackspace()
+    func keyCaptureDidPressEnter()
+}
+
+class KeyCaptureView: NSView {
+    weak var keyDelegate: KeyCaptureDelegate?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if let characters = event.characters {
+            if characters == "\r" || characters == "\u{3}" {
+                keyDelegate?.keyCaptureDidPressEnter()
+                return
+            }
+            for scalar in characters.unicodeScalars {
+                if CharacterSet.decimalDigits.contains(scalar) || scalar == "+" {
+                    keyDelegate?.keyCaptureDidType(digit: String(scalar))
+                }
+            }
+        }
+        switch event.keyCode {
+        case 51, 117: // Delete / Forward Delete
+            keyDelegate?.keyCaptureDidBackspace()
+        default:
+            break
+        }
+    }
+}
+
+class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDelegate {
     private var stackView: NSStackView!
+    private var favoritesStackView: NSStackView!
     private var contactsView: NSView!
-    private var dialerView: NSView!
+    private var favoritesView: NSView!
+    private var dialerView: KeyCaptureView!
     private var emptyStateView: NSView!
     private var contactsButton: NSButton!
+    private var favoritesButton: NSButton!
     private var dialButton: NSButton!
     private var displayLabel: NSTextField!
     private var addWindowController: AddContactWindowController?
     private var removeWindowController: RemoveContactWindowController?
+    
+    private var plusButton: DialerKey?
+    
+    // Νέα ανεξάρτητα labels για τις άδειες λίστες
+    private var emptyContactsLabel: NSTextField!
+    private var emptyFavoritesLabel: NSTextField!
 
     // Expose for menu actions
     func showContactsPublic()  { showContacts() }
+    func showFavoritesPublic() { showFavorites() }
     func showDialerPublic()    { showDialer() }
     func openAddPublic()       { openAdd() }
     func openRemovePublic()    { openRemove() }
 
     convenience init() {
         let window = NonFullScreenWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 335, height: 650),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -35,11 +78,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.center()
         
-        // Αλλαγή σε .darkAqua για να εξασφαλίσουμε λευκά γράμματα στον τίτλο
         window.appearance = NSAppearance(named: .darkAqua) 
         window.isReleasedWhenClosed = false
         window.backgroundColor = NSColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1)
-        window.minSize = NSSize(width: 280, height: 480)
+        window.minSize = NSSize(width: 300, height: 550)
         window.maxSize = NSSize(width: 600, height: 900)
         window.collectionBehavior = [.managed, .fullScreenNone]
         
@@ -47,10 +89,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         window.delegate = self
         setupUI()
         
-        // Ακούμε για αλλαγές στις ρυθμίσεις εμφάνισης
         NotificationCenter.default.addObserver(self, selector: #selector(updateUIVisibility), name: NSNotification.Name("UpdateUIVisibility"), object: nil)
 
-        // Καλούμε τη συνάρτηση μία φορά κατά την εκκίνηση για να διαβάσει τις αποθηκευμένες ρυθμίσεις
         updateUIVisibility()
     }
 
@@ -71,12 +111,13 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         contentView.addSubview(sep)
 
         contactsButton = makeTabButton(symbolName: "person.2.fill", title: L("contacts"), action: #selector(showContacts))
+        favoritesButton = makeTabButton(symbolName: "star.fill", title: L("favorites"), action: #selector(showFavorites))
         dialButton = makeTabButton(symbolName: "circle.grid.3x3.fill", title: L("keypad"), action: #selector(showDialer))
 
-        let tabStack = NSStackView(views: [contactsButton, dialButton])
+        let tabStack = NSStackView(views: [favoritesButton, contactsButton, dialButton])
         tabStack.orientation = .horizontal
         tabStack.distribution = .equalSpacing
-        tabStack.spacing = 60
+        tabStack.spacing = 44
         tabStack.alignment = .centerY
         tabStack.translatesAutoresizingMaskIntoConstraints = false
         tabBar.addSubview(tabStack)
@@ -87,14 +128,22 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         contentView.addSubview(contactsView)
         setupContactsView()
 
+        // Favorites View
+        favoritesView = NSView()
+        favoritesView.translatesAutoresizingMaskIntoConstraints = false
+        favoritesView.isHidden = true
+        contentView.addSubview(favoritesView)
+        setupFavoritesView()
+
         // Dialer View
-        dialerView = NSView()
+        dialerView = KeyCaptureView()
+        dialerView.keyDelegate = self
         dialerView.translatesAutoresizingMaskIntoConstraints = false
         dialerView.isHidden = true
         contentView.addSubview(dialerView)
         setupDialer()
         
-        // --- ΝΕΟ: Empty State View (Όταν όλα είναι κλειστά) ---
+        // Empty State View (Όταν όλα τα μενού είναι κλειστά)
         emptyStateView = NSView()
         emptyStateView.translatesAutoresizingMaskIntoConstraints = false
         emptyStateView.isHidden = true
@@ -140,9 +189,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             tabStack.centerYAnchor.constraint(equalTo: tabBar.centerYAnchor),
             tabStack.heightAnchor.constraint(equalTo: tabBar.heightAnchor),
             
-            contactsButton.widthAnchor.constraint(equalToConstant: 80),
+            contactsButton.widthAnchor.constraint(equalToConstant: 70),
             contactsButton.heightAnchor.constraint(equalTo: tabStack.heightAnchor),
-            dialButton.widthAnchor.constraint(equalToConstant: 80),
+            favoritesButton.widthAnchor.constraint(equalToConstant: 70),
+            favoritesButton.heightAnchor.constraint(equalTo: tabStack.heightAnchor),
+            dialButton.widthAnchor.constraint(equalToConstant: 70),
             dialButton.heightAnchor.constraint(equalTo: tabStack.heightAnchor),
 
             contactsView.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -150,12 +201,16 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             contactsView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             contactsView.bottomAnchor.constraint(equalTo: sep.topAnchor),
 
+            favoritesView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            favoritesView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            favoritesView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            favoritesView.bottomAnchor.constraint(equalTo: sep.topAnchor),
+
             dialerView.topAnchor.constraint(equalTo: contentView.topAnchor),
             dialerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             dialerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             dialerView.bottomAnchor.constraint(equalTo: sep.topAnchor),
             
-            // Κεντράρισμα του μηνύματος στο κέντρο της οθόνης
             emptyStateView.topAnchor.constraint(equalTo: contentView.topAnchor),
             emptyStateView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             emptyStateView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
@@ -166,8 +221,20 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             warningIcon.heightAnchor.constraint(equalToConstant: 32)
         ])
 
-        showContacts()
-        NotificationCenter.default.addObserver(self, selector: #selector(refreshContacts), name: .contactsDidChange, object: nil)
+        if !UserDefaults.standard.bool(forKey: "hideFavoritesMenu") {
+            showFavorites()
+        } else if !UserDefaults.standard.bool(forKey: "hideContactsMenu") {
+            showContacts()
+        } else if !UserDefaults.standard.bool(forKey: "hideKeypadMenu") {
+            showDialer()
+        }
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshAll), name: .contactsDidChange, object: nil)
+    }
+
+    @objc private func refreshAll() {
+        refreshContacts()
+        refreshFavorites()
     }
 
     private func setupContactsView() {
@@ -198,10 +265,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         let scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
-        
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay 
-        
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
         contactsView.addSubview(scrollView)
@@ -211,6 +276,19 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         stackView.spacing = 0
         stackView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = stackView
+
+        // Το ανεξάρτητο label για άδεια λίστα επαφών
+        emptyContactsLabel = NSTextField(labelWithString: L("no_contacts"))
+        emptyContactsLabel.alignment = .center
+        emptyContactsLabel.textColor = NSColor(white: 0.5, alpha: 1)
+        emptyContactsLabel.font = NSFont.systemFont(ofSize: 13)
+        emptyContactsLabel.maximumNumberOfLines = 2
+        emptyContactsLabel.isEditable = false
+        emptyContactsLabel.isSelectable = false
+        emptyContactsLabel.isBezeled = false
+        emptyContactsLabel.drawsBackground = false
+        emptyContactsLabel.translatesAutoresizingMaskIntoConstraints = false
+        contactsView.addSubview(emptyContactsLabel)
 
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: contactsView.topAnchor, constant: 16),
@@ -232,9 +310,67 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
             scrollView.bottomAnchor.constraint(equalTo: contactsView.bottomAnchor),
 
             stackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
+            
+            // Τοποθέτηση του label στο κέντρο του scroll view, ελαφρώς προς τα πάνω
+            emptyContactsLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            emptyContactsLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20)
         ])
 
         refreshContacts()
+    }
+
+    private func setupFavoritesView() {
+        let titleLabel = NSTextField(labelWithString: L("favorites"))
+        titleLabel.font = NSFont.boldSystemFont(ofSize: 17)
+        titleLabel.textColor = .white
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        favoritesView.addSubview(titleLabel)
+
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        favoritesView.addSubview(scrollView)
+
+        favoritesStackView = NSStackView()
+        favoritesStackView.orientation = .vertical
+        favoritesStackView.spacing = 0
+        favoritesStackView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = favoritesStackView
+
+        // Το ανεξάρτητο label για άδεια λίστα αγαπημένων
+        emptyFavoritesLabel = NSTextField(labelWithString: L("no_favorites"))
+        emptyFavoritesLabel.alignment = .center
+        emptyFavoritesLabel.textColor = NSColor(white: 0.5, alpha: 1)
+        emptyFavoritesLabel.font = NSFont.systemFont(ofSize: 13)
+        emptyFavoritesLabel.maximumNumberOfLines = 2
+        emptyFavoritesLabel.isEditable = false
+        emptyFavoritesLabel.isSelectable = false
+        emptyFavoritesLabel.isBezeled = false
+        emptyFavoritesLabel.drawsBackground = false
+        emptyFavoritesLabel.translatesAutoresizingMaskIntoConstraints = false
+        favoritesView.addSubview(emptyFavoritesLabel)
+
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: favoritesView.topAnchor, constant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor, constant: 16),
+
+            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            scrollView.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: favoritesView.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: favoritesView.bottomAnchor),
+
+            favoritesStackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
+            
+            // Τοποθέτηση του label στο κέντρο του scroll view, ελαφρώς προς τα πάνω
+            emptyFavoritesLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            emptyFavoritesLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20)
+        ])
+
+        refreshFavorites()
     }
 
     private func setupDialer() {
@@ -251,7 +387,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         ])
 
         displayLabel = NSTextField(labelWithString: "")
-        displayLabel.font = NSFont.systemFont(ofSize: 38, weight: .thin)
+        displayLabel.font = NSFont.systemFont(ofSize: 44, weight: .thin)
         displayLabel.textColor = .white
         displayLabel.alignment = .left
         displayLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -269,11 +405,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         if let cell = deleteBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
         centerWrapper.addSubview(deleteBtn)
 
-        let keys: [(String, String)] = [
-            ("1",""), ("2",""), ("3",""),
-            ("4",""), ("5",""), ("6",""),
-            ("7",""), ("8",""), ("9",""),
-            ("*",""), ("0",""), ("#","")
+        let keys: [String] = [
+            "1", "2", "3",
+            "4", "5", "6",
+            "7", "8", "9",
+            "+", "0", ""
         ]
 
         let gridStack = NSStackView()
@@ -285,13 +421,43 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         for row in 0..<4 {
             let rowStack = NSStackView()
             rowStack.orientation = .horizontal
-            rowStack.spacing = 14
+            rowStack.spacing = 20
             rowStack.distribution = .fillEqually
             for col in 0..<3 {
                 let idx = row * 3 + col
-                let (digit, letters) = keys[idx]
-                let btn = DialerKey(digit: digit, letters: letters, target: self, action: #selector(keyPressed(_:)))
-                rowStack.addArrangedSubview(btn)
+                let digit = keys[idx]
+                
+                if digit.isEmpty {
+                    let dummy = NSView()
+                    dummy.translatesAutoresizingMaskIntoConstraints = false
+                    NSLayoutConstraint.activate([
+                        dummy.widthAnchor.constraint(equalToConstant: 64),
+                        dummy.heightAnchor.constraint(equalToConstant: 64)
+                    ])
+                    rowStack.addArrangedSubview(dummy)
+                } else if digit == "+" {
+                    let wrapper = NSView()
+                    wrapper.translatesAutoresizingMaskIntoConstraints = false
+                    NSLayoutConstraint.activate([
+                        wrapper.widthAnchor.constraint(equalToConstant: 64),
+                        wrapper.heightAnchor.constraint(equalToConstant: 64)
+                    ])
+                    let btn = DialerKey(digit: digit, target: self, action: #selector(keyPressed(_:)))
+                    btn.translatesAutoresizingMaskIntoConstraints = false
+                    wrapper.addSubview(btn)
+                    NSLayoutConstraint.activate([
+                        btn.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
+                        btn.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
+                        btn.widthAnchor.constraint(equalTo: wrapper.widthAnchor),
+                        btn.heightAnchor.constraint(equalTo: wrapper.heightAnchor)
+                    ])
+                    self.plusButton = btn
+                    btn.isHidden = UserDefaults.standard.bool(forKey: "hidePlusButton")
+                    rowStack.addArrangedSubview(wrapper)
+                } else {
+                    let btn = DialerKey(digit: digit, target: self, action: #selector(keyPressed(_:)))
+                    rowStack.addArrangedSubview(btn)
+                }
             }
             gridStack.addArrangedSubview(rowStack)
         }
@@ -328,18 +494,18 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
 
         NSLayoutConstraint.activate([
             displayLabel.topAnchor.constraint(equalTo: centerWrapper.topAnchor),
-            displayLabel.leadingAnchor.constraint(equalTo: centerWrapper.leadingAnchor, constant: 16),
+            displayLabel.leadingAnchor.constraint(equalTo: centerWrapper.leadingAnchor, constant: 20),
             displayLabel.trailingAnchor.constraint(equalTo: centerWrapper.trailingAnchor, constant: -52),
-            displayLabel.heightAnchor.constraint(equalToConstant: 52),
+            displayLabel.heightAnchor.constraint(equalToConstant: 58),
 
             deleteBtn.centerYAnchor.constraint(equalTo: displayLabel.centerYAnchor),
-            deleteBtn.trailingAnchor.constraint(equalTo: centerWrapper.trailingAnchor, constant: -14),
-            deleteBtn.widthAnchor.constraint(equalToConstant: 30),
-            deleteBtn.heightAnchor.constraint(equalToConstant: 30),
+            deleteBtn.trailingAnchor.constraint(equalTo: centerWrapper.trailingAnchor, constant: -16),
+            deleteBtn.widthAnchor.constraint(equalToConstant: 34),
+            deleteBtn.heightAnchor.constraint(equalToConstant: 34),
 
-            gridStack.topAnchor.constraint(equalTo: displayLabel.bottomAnchor, constant: 10),
-            gridStack.leadingAnchor.constraint(equalTo: centerWrapper.leadingAnchor, constant: 16),
-            gridStack.trailingAnchor.constraint(equalTo: centerWrapper.trailingAnchor, constant: -16),
+            gridStack.topAnchor.constraint(equalTo: displayLabel.bottomAnchor, constant: 14),
+            gridStack.leadingAnchor.constraint(equalTo: centerWrapper.leadingAnchor, constant: 24),
+            gridStack.trailingAnchor.constraint(equalTo: centerWrapper.trailingAnchor, constant: -24),
 
             callBtn.topAnchor.constraint(equalTo: gridStack.bottomAnchor, constant: 16),
             callBtn.centerXAnchor.constraint(equalTo: centerWrapper.centerXAnchor),
@@ -384,26 +550,40 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func showContacts() {
         let hideContacts = UserDefaults.standard.bool(forKey: "hideContactsMenu")
-        guard !hideContacts else { return } // Αποτροπή αν είναι κλειστό
+        guard !hideContacts else { return }
         contactsView.isHidden = false
+        favoritesView.isHidden = true
         dialerView.isHidden = true
         emptyStateView.isHidden = true
-        updateTabColors(active: "person.2.fill", inactive: "circle.grid.3x3.fill")
+        updateTabColors(active: "person.2.fill")
+    }
+
+    @objc func showFavorites() {
+        let hideFavorites = UserDefaults.standard.bool(forKey: "hideFavoritesMenu")
+        guard !hideFavorites else { return }
+        contactsView.isHidden = true
+        favoritesView.isHidden = false
+        dialerView.isHidden = true
+        emptyStateView.isHidden = true
+        refreshFavorites()
+        updateTabColors(active: "star.fill")
     }
 
     @objc func showDialer() {
         let hideKeypad = UserDefaults.standard.bool(forKey: "hideKeypadMenu")
-        guard !hideKeypad else { return } // Αποτροπή αν είναι κλειστό
+        guard !hideKeypad else { return }
         contactsView.isHidden = true
+        favoritesView.isHidden = true
         dialerView.isHidden = false
         emptyStateView.isHidden = true
-        updateTabColors(active: "circle.grid.3x3.fill", inactive: "person.2.fill")
+        updateTabColors(active: "circle.grid.3x3.fill")
+        window?.makeFirstResponder(dialerView)
     }
 
-    private func updateTabColors(active: String, inactive: String) {
+    private func updateTabColors(active: String) {
         let blue = NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1)
         let gray = NSColor(white: 0.5, alpha: 1)
-        for btn in [contactsButton, dialButton] {
+        for btn in [contactsButton, favoritesButton, dialButton] {
             guard let btn = btn else { continue }
             let isActive = btn.identifier?.rawValue == active
             let color = isActive ? blue : gray
@@ -423,6 +603,19 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         updateDisplayFont()
     }
 
+    func keyCaptureDidType(digit: String) {
+        displayLabel.stringValue += digit
+        updateDisplayFont()
+    }
+
+    func keyCaptureDidBackspace() {
+        deleteLast()
+    }
+
+    func keyCaptureDidPressEnter() {
+        dialNumber()
+    }
+
     @objc func deleteLast() {
         let s = displayLabel.stringValue
         if !s.isEmpty {
@@ -435,10 +628,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
         let count = displayLabel.stringValue.count
         let size: CGFloat
         switch count {
-        case 0...11:  size = 38
-        case 12...14: size = 30
-        case 15...18: size = 24
-        default:      size = 18
+        case 0...11:  size = 44
+        case 12...14: size = 36
+        case 15...18: size = 28
+        default:      size = 22
         }
         displayLabel.font = NSFont.systemFont(ofSize: size, weight: .thin)
     }
@@ -452,29 +645,39 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
     @objc func refreshContacts() {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let contacts = ContactStore.shared.contacts
-        if contacts.isEmpty {
-            let empty = NSTextField(labelWithString: L("no_contacts"))
-            empty.alignment = .center
-            empty.textColor = NSColor(white: 0.5, alpha: 1)
-            empty.font = NSFont.systemFont(ofSize: 13)
-            empty.maximumNumberOfLines = 2
-            empty.isEditable = false
-            empty.isSelectable = false
-            empty.isBezeled = false
-            empty.drawsBackground = false
-            stackView.addArrangedSubview(empty)
-        } else {
-            for contact in contacts {
-                let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)))
-                stackView.addArrangedSubview(row)
-                row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
-                row.heightAnchor.constraint(equalToConstant: 58).isActive = true
-            }
+        
+        // Διαχείριση της ορατότητας του ανεξάρτητου label
+        emptyContactsLabel.isHidden = !contacts.isEmpty
+        
+        for contact in contacts {
+            let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)))
+            stackView.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+            row.heightAnchor.constraint(equalToConstant: 58).isActive = true
+        }
+    }
+
+    @objc func refreshFavorites() {
+        favoritesStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let favorites = ContactStore.shared.favorites
+        
+        // Διαχείριση της ορατότητας του ανεξάρτητου label
+        emptyFavoritesLabel.isHidden = !favorites.isEmpty
+        
+        for contact in favorites {
+            let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)))
+            favoritesStackView.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: favoritesStackView.widthAnchor).isActive = true
+            row.heightAnchor.constraint(equalToConstant: 58).isActive = true
         }
     }
 
     @objc func callRow(_ sender: ContactRow) {
         makeCall(to: sender.phone)
+    }
+
+    @objc func toggleFavoriteRow(_ sender: ContactRow) {
+        ContactStore.shared.toggleFavorite(id: sender.contactID)
     }
 
     func makeCall(to phone: String) {
@@ -503,27 +706,39 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
     @objc private func updateUIVisibility() {
         let hideContacts = UserDefaults.standard.bool(forKey: "hideContactsMenu")
         let hideKeypad = UserDefaults.standard.bool(forKey: "hideKeypadMenu")
-        let hideBoth = hideContacts && hideKeypad
+        let hideFavorites = UserDefaults.standard.bool(forKey: "hideFavoritesMenu")
+        let hidePlus = UserDefaults.standard.bool(forKey: "hidePlusButton")
+        let hideAll = hideContacts && hideKeypad && hideFavorites
 
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.3
             context.allowsImplicitAnimation = true
+            
             self.contactsButton.isHidden = hideContacts
             self.dialButton.isHidden = hideKeypad
+            self.favoritesButton.isHidden = hideFavorites
+            self.plusButton?.isHidden = hidePlus 
             
-            if hideBoth {
+            if hideAll {
                 self.contactsView.isHidden = true
                 self.dialerView.isHidden = true
+                self.favoritesView.isHidden = true
                 self.emptyStateView.isHidden = false
             } else {
                 self.emptyStateView.isHidden = true
-                
+
                 if hideContacts && !self.contactsView.isHidden {
-                    self.showDialer()
+                    if !hideFavorites { self.showFavorites() }
+                    else { self.showDialer() }
                 } else if hideKeypad && !self.dialerView.isHidden {
-                    self.showContacts()
-                } else if self.contactsView.isHidden && self.dialerView.isHidden {
+                    if !hideFavorites { self.showFavorites() }
+                    else { self.showContacts() }
+                } else if hideFavorites && !self.favoritesView.isHidden {
                     if !hideContacts { self.showContacts() }
+                    else { self.showDialer() }
+                } else if self.contactsView.isHidden && self.dialerView.isHidden && self.favoritesView.isHidden {
+                    if !hideFavorites { self.showFavorites() }
+                    else if !hideContacts { self.showContacts() }
                     else if !hideKeypad { self.showDialer() }
                 }
             }
@@ -535,17 +750,23 @@ class MainWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
-// MARK: - Contact Row
 class ContactRow: NSView {
     var phone: String = ""
+    var contactID: UUID = UUID()
     private var target: AnyObject?
     private var action: Selector?
+    private var favoriteAction: Selector?
+    private var favoriteButton: NSButton!
+    private var isFavorite: Bool = false
 
-    convenience init(contact: Contact, target: AnyObject, action: Selector) {
+    convenience init(contact: Contact, target: AnyObject, action: Selector, favoriteAction: Selector? = nil) {
         self.init(frame: .zero)
         self.phone = contact.phone
+        self.contactID = contact.id
         self.target = target
         self.action = action
+        self.favoriteAction = favoriteAction
+        self.isFavorite = contact.isFavorite
         setupUI(contact: contact)
     }
 
@@ -558,13 +779,14 @@ class ContactRow: NSView {
         iconView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(iconView)
 
-        let nameLabel = NSTextField(labelWithString: contact.name)
+        let nameLabel = NSTextField(labelWithString: contact.fullName)
         nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .regular)
         nameLabel.textColor = .white
         nameLabel.isEditable = false
         nameLabel.isSelectable = false
         nameLabel.isBezeled = false
         nameLabel.drawsBackground = false
+        nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(nameLabel)
 
@@ -577,6 +799,17 @@ class ContactRow: NSView {
         phoneLabel.drawsBackground = false
         phoneLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(phoneLabel)
+
+        let starImg = NSImage(systemSymbolName: contact.isFavorite ? "star.fill" : "star",
+                               accessibilityDescription: contact.isFavorite ? L("favorite_remove_tooltip") : L("favorite_add_tooltip"))
+        
+        favoriteButton = NSButton(image: starImg ?? NSImage(), target: nil, action: nil)
+        favoriteButton.bezelStyle = .regularSquare
+        favoriteButton.isBordered = false
+        favoriteButton.contentTintColor = contact.isFavorite ? NSColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1) : NSColor(white: 0.45, alpha: 1)
+        favoriteButton.translatesAutoresizingMaskIntoConstraints = false
+        if let cell = favoriteButton.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
+        addSubview(favoriteButton)
 
         let line = NSView()
         line.wantsLayer = true
@@ -592,8 +825,14 @@ class ContactRow: NSView {
 
             nameLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
             nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: phoneLabel.leadingAnchor, constant: -8),
 
-            phoneLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            favoriteButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            favoriteButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            favoriteButton.widthAnchor.constraint(equalToConstant: 20),
+            favoriteButton.heightAnchor.constraint(equalToConstant: 20),
+
+            phoneLabel.trailingAnchor.constraint(equalTo: favoriteButton.leadingAnchor, constant: -12),
             phoneLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
 
             line.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -602,11 +841,20 @@ class ContactRow: NSView {
             line.heightAnchor.constraint(equalToConstant: 0.5),
         ])
 
-        let click = NSClickGestureRecognizer(target: self, action: #selector(tapped))
+        let click = NSClickGestureRecognizer(target: self, action: #selector(rowTapped(_:)))
         addGestureRecognizer(click)
     }
 
-    @objc func tapped() {
+    @objc func rowTapped(_ gesture: NSGestureRecognizer) {
+        let location = gesture.location(in: self)
+        
+        let hitRect = favoriteButton.frame.insetBy(dx: -15, dy: -15)
+        
+        if hitRect.contains(location) {
+            starTapped()
+            return
+        }
+        
         wantsLayer = true
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.08
@@ -619,30 +867,41 @@ class ContactRow: NSView {
         })
         _ = target?.perform(action, with: self)
     }
+
+    @objc func starTapped() {
+        isFavorite.toggle()
+        let img = NSImage(systemSymbolName: isFavorite ? "star.fill" : "star",
+                           accessibilityDescription: isFavorite ? L("favorite_remove_tooltip") : L("favorite_add_tooltip"))
+        favoriteButton.image = img
+        favoriteButton.contentTintColor = isFavorite ? NSColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1) : NSColor(white: 0.45, alpha: 1)
+        
+        if let favoriteAction = favoriteAction {
+            NSApp.sendAction(favoriteAction, to: target, from: self)
+        }
+    }
 }
 
-// MARK: - Dialer Key
 class DialerKey: NSButton {
     var digit: String = ""
 
-    convenience init(digit: String, letters: String, target: AnyObject, action: Selector) {
+    convenience init(digit: String, target: AnyObject, action: Selector) {
         self.init(frame: .zero)
         self.digit = digit
         self.target = target
         self.action = action
-        setupUI(digit: digit, letters: letters)
+        setupUI(digit: digit)
     }
 
-    private func setupUI(digit: String, letters: String) {
+    private func setupUI(digit: String) {
         wantsLayer = true
         layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
-        layer?.cornerRadius = 28
+        layer?.cornerRadius = 32
         isBordered = false
         bezelStyle = .regularSquare
         title = ""
 
         let digitLabel = NSTextField(labelWithString: digit)
-        digitLabel.font = NSFont.systemFont(ofSize: 26, weight: .light)
+        digitLabel.font = NSFont.systemFont(ofSize: 28, weight: .light)
         digitLabel.textColor = .white
         digitLabel.alignment = .center
         digitLabel.isEditable = false
@@ -652,29 +911,10 @@ class DialerKey: NSButton {
         digitLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(digitLabel)
 
-        if !letters.isEmpty {
-            let lettersLabel = NSTextField(labelWithString: letters)
-            lettersLabel.font = NSFont.systemFont(ofSize: 9, weight: .semibold)
-            lettersLabel.textColor = NSColor(white: 0.7, alpha: 1)
-            lettersLabel.alignment = .center
-            lettersLabel.isEditable = false
-            lettersLabel.isSelectable = false
-            lettersLabel.isBezeled = false
-            lettersLabel.drawsBackground = false
-            lettersLabel.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(lettersLabel)
-            NSLayoutConstraint.activate([
-                digitLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-                digitLabel.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -7),
-                lettersLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-                lettersLabel.topAnchor.constraint(equalTo: digitLabel.bottomAnchor, constant: 0),
-            ])
-        } else {
-            NSLayoutConstraint.activate([
-                digitLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-                digitLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            ])
-        }
+        NSLayoutConstraint.activate([
+            digitLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            digitLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
 
         translatesAutoresizingMaskIntoConstraints = false
 
@@ -683,7 +923,7 @@ class DialerKey: NSButton {
     }
 
     override var intrinsicContentSize: NSSize {
-        return NSSize(width: 56, height: 56)
+        return NSSize(width: 64, height: 64)
     }
 
     override func layout() {

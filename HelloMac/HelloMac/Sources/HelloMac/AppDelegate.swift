@@ -71,6 +71,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         dialerItem.target = self
         toolsMenu.addItem(dialerItem)
 
+        let favoritesItem = NSMenuItem(title: L("show_favorites_menu"), action: #selector(menuShowFavorites), keyEquivalent: "3")
+        favoritesItem.target = self
+        toolsMenu.addItem(favoritesItem)
+
         toolsMenu.addItem(NSMenuItem.separator())
 
         let addItem = NSMenuItem(title: L("add_contact_menu"), action: #selector(menuAddContact), keyEquivalent: "n")
@@ -125,6 +129,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func menuShowDialer() {
         mainWindowController?.showWindow(nil)
         mainWindowController?.showDialerPublic()
+    }
+
+    @objc func menuShowFavorites() {
+        mainWindowController?.showWindow(nil)
+        mainWindowController?.showFavoritesPublic()
     }
 
     @objc func menuAddContact() {
