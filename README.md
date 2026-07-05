@@ -60,6 +60,7 @@ You can contact me for suggestions and issues via email [here](mailto:hellomac.s
 * **Compatible with:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
 * If an "Unidentified Developer" message appears on first launch, follow the guide [here](PDF/Unrecognized_Creator_EL.pdf).
 * HelloMac is constantly being updated and evolved, so it may contain bugs.
+* For automatic updates you must have at least version 2.0. Previous versions do not have an automatic checking and updating mechanism.
 
 ### 📜 License
 This project is available under the [MIT License](LICENSE) - see the LICENSE file for details.<br>
@@ -94,6 +95,7 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 * **Συμβατό με:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
 * Σε περίπτωση που στην πρώτη εκκίνηση εμφανιστεί μήνυμα "Μη Αναγνωρισμένου Δημιουργού", ακολουθήστε τον οδηγό [εδώ](PDF/Unrecognized_Creator_EL.pdf).
 * Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη.
+* Για αυτόματες ενημερώσεις πρέπει να έχετε τουλάχιστον την έκδοση 2.0. Οι προηγούμενες εκδόσεις δεν διαθέτουν μηχανισμό αυτόματου ελέγχου και ενημέρωσης. 
 
 ### 📜 Άδεια Χρήσης
 Αυτό το project διατίθεται υπό την [Άδεια MIT](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
