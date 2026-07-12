@@ -471,16 +471,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         callBtn.translatesAutoresizingMaskIntoConstraints = false
         
         let baseImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: L("call_tooltip"))
-        let callImg: NSImage?
         
-        if #available(macOS 12.0, *) {
-            let callSymbolConfig = NSImage.SymbolConfiguration(pointSize: 28, weight: .medium)
-            callImg = baseImg?.withSymbolConfiguration(callSymbolConfig)
-        } else {
-            callImg = baseImg
-        }
+        let callSymbolConfig = NSImage.SymbolConfiguration(pointSize: 28, weight: .medium)
+        let callImg = baseImg?.withSymbolConfiguration(callSymbolConfig)
         
         let callIconView = NSImageView(image: callImg ?? NSImage())
+        callIconView.imageScaling = .scaleProportionallyUpOrDown // Σημαντικό για να κεντραριστεί σωστά
         callIconView.contentTintColor = .white
         callIconView.translatesAutoresizingMaskIntoConstraints = false
         callBtn.addSubview(callIconView)

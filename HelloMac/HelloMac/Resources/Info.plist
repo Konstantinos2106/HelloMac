@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.hellomac.telephone</string>
     <key>CFBundleVersion</key>
-    <string>2.1</string>
+    <string>2.1.1</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.1/string>
+    <string>2.1.1/string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>LSUIElement</key>
