@@ -833,8 +833,9 @@ function parseMarkdown(text) {
   if (!text) return '';
   return text
     .replace(/^(\s*)(?:\*|\-) (.*)$/gm, function(match, spaces, content) {
-      let isNested = spaces.length > 0;
-      let marginLeft = isNested ? '48px' : '24px';
+      // Αλλαγή: Θεωρούμε nested αν έχει 2 ή περισσότερα κενά
+      let isNested = spaces.length >= 2; 
+      let marginLeft = isNested ? '40px' : '20px';
       let listStyle = isNested ? 'circle' : 'disc'; 
       return `<div style="display:list-item; list-style-type:${listStyle}; margin-left:${marginLeft}; margin-bottom:6px;">${content}</div>`;
     })
@@ -918,7 +919,19 @@ async function loadAll() {
     if (rel.body?.trim()) {
       document.getElementById('release-tag').textContent  = tag;
       document.getElementById('release-date').textContent = date;
-      document.getElementById('release-body').innerHTML = parseMarkdown(rel.body);
+      
+      let parts = rel.body.split('---');
+      let englishMarkdown = parts[0] ? parts[0].trim() : '';
+      
+      let greekMarkdown = parts.length > 1 ? parts[1].trim() : englishMarkdown; 
+      
+      let englishHtml = parseMarkdown(englishMarkdown);
+      let greekHtml = parseMarkdown(greekMarkdown);
+      
+      document.getElementById('release-body').innerHTML = `
+        <div data-lang="en">${englishHtml}</div>
+        <div data-lang="el">${greekHtml}</div>
+      `;
     } else {
       document.getElementById('release-body').innerHTML = "<span data-lang='el'>Δεν υπάρχουν σημειώσεις για αυτή την έκδοση.</span><span data-lang='en'>No notes for this release.</span>";
     }
