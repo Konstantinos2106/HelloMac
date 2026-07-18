@@ -1,23 +1,118 @@
 import AppKit
 
-// NSWindow subclass που αποκλείει πλήρως το full screen
 class NonFullScreenWindow: NSWindow {
-    override func toggleFullScreen(_ sender: Any?) {
-        // Σκόπιμα κενό — το full screen είναι απενεργοποιημένο
+    override func toggleFullScreen(_ sender: Any?) { }
+    
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.contains(.command) && event.keyCode == 3 {
+            if let controller = self.windowController as? MainWindowController {
+                controller.focusSearchFieldPublic()
+                return true
+            }
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }
 
-// MARK: - Πληκτρολόγηση αριθμών από το φυσικό πληκτρολόγιο
+// MARK: - Ετικέτα με υποστήριξη κέρσορα (Χεράκι) για συνδέσμους
+class ClickableLabel: NSTextField {
+    var isLinkActive: Bool = false {
+        didSet {
+            if isLinkActive {
+                discardCursorRects()
+                addCursorRect(bounds, cursor: .pointingHand)
+            } else {
+                discardCursorRects()
+            }
+        }
+    }
+    
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        if isLinkActive {
+            addCursorRect(bounds, cursor: .pointingHand)
+        }
+    }
+}
+
+// MARK: - Καθαρό Δεξί Κλικ
+class CleanFieldEditor: NSTextView {
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let defaultMenu = super.menu(for: event) ?? NSMenu()
+        let isGreek = Locale.preferredLanguages.first?.hasPrefix("el") ?? true
+        let newMenu = NSMenu()
+        
+        // 1. Απενεργοποίηση της αυτόματης προσθήκης του μενού "Υπηρεσίες" (Services) από το macOS
+        newMenu.allowsContextMenuPlugIns = false
+        
+        // 2. Βασικές λειτουργίες στα Ελληνικά/Αγγλικά
+        newMenu.addItem(NSMenuItem(title: isGreek ? "Αποκοπή" : "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: ""))
+        newMenu.addItem(NSMenuItem(title: isGreek ? "Αντιγραφή" : "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: ""))
+        newMenu.addItem(NSMenuItem(title: isGreek ? "Επικόλληση" : "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: ""))
+        
+        // 3. Αναζήτηση της αυθεντικής επιλογής Google από το σύστημα
+        var googleItem: NSMenuItem?
+        
+        for item in defaultMenu.items {
+            let actionStr = item.action?.description ?? ""
+            let title = item.title.lowercased()
+            
+            if actionStr.contains("WebSearch") || actionStr.contains("Google") || title.contains("google") {
+                googleItem = item.copy() as? NSMenuItem
+                googleItem?.title = isGreek ? "Αναζήτηση με το Google" : "Search with Google"
+            }
+        }
+        
+        // 4. Δυναμική δημιουργία του native Share Picker του macOS αν υπάρχει επιλεγμένο κείμενο
+        var shareItem: NSMenuItem?
+        let selectedRange = self.selectedRange()
+        if selectedRange.length > 0 {
+            shareItem = NSMenuItem(
+                title: isGreek ? "Κοινοποίηση..." : "Share...", 
+                action: #selector(openSharePicker(_:)), 
+                keyEquivalent: ""
+            )
+            shareItem?.target = self
+        }
+                
+        // 5. Προσθήκη Google & Share στο τέλος (με διαχωριστικό) αν βρέθηκαν
+        if googleItem != nil || shareItem != nil {
+            newMenu.addItem(NSMenuItem.separator())
+            if let g = googleItem { newMenu.addItem(g) }
+            if let s = shareItem { newMenu.addItem(s) }
+        }
+        
+        return newMenu
+    }
+    
+    // Εμφάνιση του πλούσιου (native) αναδυόμενου μενού κοινοποίησης του macOS
+    @objc private func openSharePicker(_ sender: NSMenuItem) {
+        let selectedRange = self.selectedRange()
+        guard selectedRange.length > 0 else { return }
+        let selectedText = (self.string as NSString).substring(with: selectedRange)
+        
+        // Δημιουργία του επίσημου Picker με το επιλεγμένο κείμενο
+        let picker = NSSharingServicePicker(items: [selectedText])
+        
+        // Εμφάνιση ακριβώς κάτω από το πεδίο αναζητήσεως
+        picker.show(relativeTo: self.bounds, of: self, preferredEdge: .minY)
+    }
+}
+
 protocol KeyCaptureDelegate: AnyObject {
     func keyCaptureDidType(digit: String)
     func keyCaptureDidBackspace()
     func keyCaptureDidPressEnter()
+    func keyCaptureDidPaste()
 }
 
 class KeyCaptureView: NSView {
     weak var keyDelegate: KeyCaptureDelegate?
-
     override var acceptsFirstResponder: Bool { true }
+
+    @objc func paste(_ sender: Any?) {
+        keyDelegate?.keyCaptureDidPaste()
+    }
 
     override func keyDown(with event: NSEvent) {
         if let characters = event.characters {
@@ -32,15 +127,13 @@ class KeyCaptureView: NSView {
             }
         }
         switch event.keyCode {
-        case 51, 117: // Delete / Forward Delete
-            keyDelegate?.keyCaptureDidBackspace()
-        default:
-            break
+        case 51, 117: keyDelegate?.keyCaptureDidBackspace()
+        default: break
         }
     }
 }
 
-class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDelegate {
+class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDelegate, NSSearchFieldDelegate {
     private var stackView: NSStackView!
     private var favoritesStackView: NSStackView!
     private var contactsView: NSView!
@@ -51,21 +144,28 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     private var favoritesButton: NSButton!
     private var dialButton: NSButton!
     private var displayLabel: NSTextField!
+    
+    private var contactsSearchField: NSSearchField!
+    private var favoritesSearchField: NSSearchField!
+    
     private var addWindowController: AddContactWindowController?
-    private var removeWindowController: RemoveContactWindowController?
+    private var editWindowController: AddContactWindowController?
     
     private var plusButton: DialerKey?
     
-    // Νέα ανεξάρτητα labels για τις άδειες λίστες
     private var emptyContactsLabel: NSTextField!
-    private var emptyFavoritesLabel: NSTextField!
+    private var emptyFavoritesLabel: ClickableLabel!
 
-    // Expose for menu actions
+    // MARK: - Ενημέρωση κλήσης (εμφανίζεται σε κάθε κλήση)
+    private var callToastView: NSView?
+    private var callToastHideWorkItem: DispatchWorkItem?
+    private var callToastTopConstraint: NSLayoutConstraint?
+
     func showContactsPublic()  { showContacts() }
     func showFavoritesPublic() { showFavorites() }
     func showDialerPublic()    { showDialer() }
     func openAddPublic()       { openAdd() }
-    func openRemovePublic()    { openRemove() }
+    func focusSearchFieldPublic() { focusSearchField() }
 
     convenience init() {
         let window = NonFullScreenWindow(
@@ -90,8 +190,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         setupUI()
         
         NotificationCenter.default.addObserver(self, selector: #selector(updateUIVisibility), name: NSNotification.Name("UpdateUIVisibility"), object: nil)
-
         updateUIVisibility()
+        DispatchQueue.main.async {
+            window.makeFirstResponder(nil)
+        }
     }
 
     private func setupUI() {
@@ -122,28 +224,31 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         tabStack.translatesAutoresizingMaskIntoConstraints = false
         tabBar.addSubview(tabStack)
 
-        // Contacts View
         contactsView = NSView()
         contactsView.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(contactsView)
         setupContactsView()
 
-        // Favorites View
         favoritesView = NSView()
         favoritesView.translatesAutoresizingMaskIntoConstraints = false
         favoritesView.isHidden = true
         contentView.addSubview(favoritesView)
         setupFavoritesView()
 
-        // Dialer View
         dialerView = KeyCaptureView()
         dialerView.keyDelegate = self
         dialerView.translatesAutoresizingMaskIntoConstraints = false
         dialerView.isHidden = true
+        
+        let pasteMenu = NSMenu()
+        let pasteItem = NSMenuItem(title: L("paste"), action: #selector(pasteNumber), keyEquivalent: "")
+        pasteItem.target = self
+        pasteMenu.addItem(pasteItem)
+        dialerView.menu = pasteMenu
+        
         contentView.addSubview(dialerView)
         setupDialer()
         
-        // Empty State View (Όταν όλα τα μενού είναι κλειστά)
         emptyStateView = NSView()
         emptyStateView.translatesAutoresizingMaskIntoConstraints = false
         emptyStateView.isHidden = true
@@ -232,6 +337,14 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         NotificationCenter.default.addObserver(self, selector: #selector(refreshAll), name: .contactsDidChange, object: nil)
     }
 
+    @objc private func focusSearchField() {
+        if !contactsView.isHidden && !contactsSearchField.isHidden {
+            window?.makeFirstResponder(contactsSearchField)
+        } else if !favoritesView.isHidden && !favoritesSearchField.isHidden {
+            window?.makeFirstResponder(favoritesSearchField)
+        }
+    }
+    
     @objc private func refreshAll() {
         refreshContacts()
         refreshFavorites()
@@ -252,15 +365,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         addBtn.translatesAutoresizingMaskIntoConstraints = false
         if let cell = addBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
         contactsView.addSubview(addBtn)
-
-        let removeImg = NSImage(systemSymbolName: "person.badge.minus", accessibilityDescription: L("remove_tooltip"))
-        let removeBtn = NSButton(image: removeImg ?? NSImage(), target: self, action: #selector(openRemove))
-        removeBtn.bezelStyle = .regularSquare
-        removeBtn.isBordered = false
-        removeBtn.contentTintColor = NSColor(red: 1.0, green: 0.3, blue: 0.3, alpha: 1)
-        removeBtn.translatesAutoresizingMaskIntoConstraints = false
-        if let cell = removeBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
-        contactsView.addSubview(removeBtn)
+        
+        contactsSearchField = NSSearchField()
+        contactsSearchField.placeholderString = L("search_placeholder")
+        contactsSearchField.translatesAutoresizingMaskIntoConstraints = false
+        contactsSearchField.delegate = self
+        contactsView.addSubview(contactsSearchField)
 
         let scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -277,7 +387,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         stackView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = stackView
 
-        // Το ανεξάρτητο label για άδεια λίστα επαφών
         emptyContactsLabel = NSTextField(labelWithString: L("no_contacts"))
         emptyContactsLabel.alignment = .center
         emptyContactsLabel.textColor = NSColor(white: 0.5, alpha: 1)
@@ -294,24 +403,22 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             titleLabel.topAnchor.constraint(equalTo: contactsView.topAnchor, constant: 16),
             titleLabel.leadingAnchor.constraint(equalTo: contactsView.leadingAnchor, constant: 16),
 
-            removeBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            removeBtn.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor, constant: -14),
-            removeBtn.widthAnchor.constraint(equalToConstant: 26),
-            removeBtn.heightAnchor.constraint(equalToConstant: 26),
-
             addBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            addBtn.trailingAnchor.constraint(equalTo: removeBtn.leadingAnchor, constant: -10),
+            addBtn.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor, constant: -14),
             addBtn.widthAnchor.constraint(equalToConstant: 26),
             addBtn.heightAnchor.constraint(equalToConstant: 26),
+            
+            contactsSearchField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
+            contactsSearchField.leadingAnchor.constraint(equalTo: contactsView.leadingAnchor, constant: 16),
+            contactsSearchField.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor, constant: -16),
 
-            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            scrollView.topAnchor.constraint(equalTo: contactsSearchField.bottomAnchor, constant: 8),
             scrollView.leadingAnchor.constraint(equalTo: contactsView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: contactsView.bottomAnchor),
 
             stackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
             
-            // Τοποθέτηση του label στο κέντρο του scroll view, ελαφρώς προς τα πάνω
             emptyContactsLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
             emptyContactsLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20)
         ])
@@ -325,6 +432,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         titleLabel.textColor = .white
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         favoritesView.addSubview(titleLabel)
+        
+        favoritesSearchField = NSSearchField()
+        favoritesSearchField.placeholderString = L("search_placeholder")
+        favoritesSearchField.translatesAutoresizingMaskIntoConstraints = false
+        favoritesSearchField.delegate = self
+        favoritesView.addSubview(favoritesSearchField)
 
         let scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -341,8 +454,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         favoritesStackView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = favoritesStackView
 
-        // Το ανεξάρτητο label για άδεια λίστα αγαπημένων
-        emptyFavoritesLabel = NSTextField(labelWithString: L("no_favorites"))
+        emptyFavoritesLabel = ClickableLabel(labelWithString: L("no_favorites"))
         emptyFavoritesLabel.alignment = .center
         emptyFavoritesLabel.textColor = NSColor(white: 0.5, alpha: 1)
         emptyFavoritesLabel.font = NSFont.systemFont(ofSize: 13)
@@ -352,26 +464,72 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyFavoritesLabel.isBezeled = false
         emptyFavoritesLabel.drawsBackground = false
         emptyFavoritesLabel.translatesAutoresizingMaskIntoConstraints = false
+        let click = NSClickGestureRecognizer(target: self, action: #selector(emptyFavoritesClicked(_:)))
+        emptyFavoritesLabel.addGestureRecognizer(click)
         favoritesView.addSubview(emptyFavoritesLabel)
 
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(equalTo: favoritesView.topAnchor, constant: 16),
             titleLabel.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor, constant: 16),
+            
+            favoritesSearchField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
+            favoritesSearchField.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor, constant: 16),
+            favoritesSearchField.trailingAnchor.constraint(equalTo: favoritesView.trailingAnchor, constant: -16),
 
-            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            scrollView.topAnchor.constraint(equalTo: favoritesSearchField.bottomAnchor, constant: 8),
             scrollView.leadingAnchor.constraint(equalTo: favoritesView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: favoritesView.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: favoritesView.bottomAnchor),
 
             favoritesStackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
             
-            // Τοποθέτηση του label στο κέντρο του scroll view, ελαφρώς προς τα πάνω
             emptyFavoritesLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
             emptyFavoritesLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20)
         ])
 
         refreshFavorites()
     }
+    
+    // MARK: - Διαχείριση κλικ στο κενό μήνυμα Αγαπημένων
+@objc private func emptyFavoritesClicked(_ gesture: NSClickGestureRecognizer) {
+    // Ελέγχουμε αν βρισκόμαστε πράγματι σε κατάσταση κενής αναζήτησης
+    guard !emptyFavoritesLabel.isHidden, !favoritesSearchField.stringValue.isEmpty else { return }
+    
+    // Μετάβαση στην καρτέλα "Επαφές"
+    showContacts()
+    
+    // Αντιγραφή του κειμένου αναζήτησης στις Επαφές για άμεση εύρεση (Έξυπνο UX!)
+    if !favoritesSearchField.stringValue.isEmpty {
+        contactsSearchField.stringValue = favoritesSearchField.stringValue
+        refreshContacts()
+    }
+}
+
+// Δημιουργία Styled Text με τη λέξη "Επαφές" ως μπλε υπογραμμισμένο σύνδεσμο
+private func setFavoritesEmptySearchText() {
+    let text = L("no_favorites_search")
+    let linkWord = L("contacts") // Επιστρέφει "Επαφές" στα Ελληνικά και "Contacts" στα Αγγλικά
+    
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.alignment = .center
+    
+    let attrStr = NSMutableAttributedString(string: text, attributes: [
+        .font: NSFont.systemFont(ofSize: 13),
+        .foregroundColor: NSColor(white: 0.5, alpha: 1),
+        .paragraphStyle: paragraphStyle
+    ])
+    
+    if let range = text.range(of: linkWord) {
+        let nsRange = NSRange(range, in: text)
+        attrStr.addAttributes([
+            .foregroundColor: NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1), // Μπλε χρώμα εφαρμογής
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+            .font: NSFont.systemFont(ofSize: 13, weight: .semibold)
+        ], range: nsRange)
+    }
+    
+    emptyFavoritesLabel.attributedStringValue = attrStr
+}
 
     private func setupDialer() {
         let centerWrapper = NSView()
@@ -471,12 +629,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         callBtn.translatesAutoresizingMaskIntoConstraints = false
         
         let baseImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: L("call_tooltip"))
-        
         let callSymbolConfig = NSImage.SymbolConfiguration(pointSize: 28, weight: .medium)
         let callImg = baseImg?.withSymbolConfiguration(callSymbolConfig)
         
         let callIconView = NSImageView(image: callImg ?? NSImage())
-        callIconView.imageScaling = .scaleProportionallyUpOrDown // Σημαντικό για να κεντραριστεί σωστά
+        callIconView.imageScaling = .scaleProportionallyUpOrDown
         callIconView.contentTintColor = .white
         callIconView.translatesAutoresizingMaskIntoConstraints = false
         callBtn.addSubview(callIconView)
@@ -552,6 +709,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         dialerView.isHidden = true
         emptyStateView.isHidden = true
         updateTabColors(active: "person.2.fill")
+        window?.makeFirstResponder(nil)
+        repositionCallToast()
     }
 
     @objc func showFavorites() {
@@ -563,6 +722,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyStateView.isHidden = true
         refreshFavorites()
         updateTabColors(active: "star.fill")
+        window?.makeFirstResponder(nil)
+        repositionCallToast()
     }
 
     @objc func showDialer() {
@@ -574,6 +735,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyStateView.isHidden = true
         updateTabColors(active: "circle.grid.3x3.fill")
         window?.makeFirstResponder(dialerView)
+        repositionCallToast()
     }
 
     private func updateTabColors(active: String) {
@@ -611,6 +773,30 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     func keyCaptureDidPressEnter() {
         dialNumber()
     }
+    
+    func keyCaptureDidPaste() {
+        pasteNumber()
+    }
+
+    func controlTextDidChange(_ obj: Notification) {
+        if let field = obj.object as? NSSearchField {
+            if field == contactsSearchField {
+                refreshContacts()
+            } else if field == favoritesSearchField {
+                refreshFavorites()
+            }
+        }
+    }
+
+    // Εφαρμόζει το καθαρό μενού σε όλες τις αναζητήσεις του παραθύρου
+    private var customFieldEditor: CleanFieldEditor?
+    func windowWillReturnFieldEditor(_ sender: NSWindow, to client: Any?) -> Any? {
+        if customFieldEditor == nil {
+            customFieldEditor = CleanFieldEditor()
+            customFieldEditor?.isFieldEditor = true
+        }
+        return customFieldEditor
+    }
 
     @objc func deleteLast() {
         let s = displayLabel.stringValue
@@ -637,16 +823,36 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         guard !number.isEmpty else { return }
         makeCall(to: number)
     }
+    
+    @objc func pasteNumber() {
+        if let pastedString = NSPasteboard.general.string(forType: .string) {
+            let sanitized = pastedString.sanitizedForCall
+            displayLabel.stringValue += sanitized
+            updateDisplayFont()
+        }
+    }
 
     @objc func refreshContacts() {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let contacts = ContactStore.shared.contacts
+        let allContacts = ContactStore.shared.contacts
+        let searchString = contactsSearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
         
-        // Διαχείριση της ορατότητας του ανεξάρτητου label
-        emptyContactsLabel.isHidden = !contacts.isEmpty
+        let filtered = searchString.isEmpty ? allContacts : allContacts.filter {
+            $0.fullName.lowercased().contains(searchString) || $0.phone.contains(searchString)
+        }
         
-        for contact in contacts {
-            let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)))
+        if allContacts.isEmpty {
+            emptyContactsLabel.stringValue = L("no_contacts")
+            emptyContactsLabel.isHidden = false
+        } else if filtered.isEmpty {
+            emptyContactsLabel.stringValue = L("no_search_results")
+            emptyContactsLabel.isHidden = false
+        } else {
+            emptyContactsLabel.isHidden = true
+        }
+        
+        for contact in filtered {
+            let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)), editAction: #selector(editContactRow(_:)), deleteAction: #selector(deleteContactRow(_:)))
             stackView.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
             row.heightAnchor.constraint(equalToConstant: 58).isActive = true
@@ -655,13 +861,28 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
     @objc func refreshFavorites() {
         favoritesStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let favorites = ContactStore.shared.favorites
+        let allFavorites = ContactStore.shared.favorites
+        let searchString = favoritesSearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
         
-        // Διαχείριση της ορατότητας του ανεξάρτητου label
-        emptyFavoritesLabel.isHidden = !favorites.isEmpty
+        let filtered = searchString.isEmpty ? allFavorites : allFavorites.filter {
+            $0.fullName.lowercased().contains(searchString) || $0.phone.contains(searchString)
+        }
         
-        for contact in favorites {
-            let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)))
+        if allFavorites.isEmpty {
+            emptyFavoritesLabel.stringValue = L("no_favorites")
+            emptyFavoritesLabel.isLinkActive = false
+            emptyFavoritesLabel.isHidden = false
+        } else if filtered.isEmpty {
+            setFavoritesEmptySearchText()
+            emptyFavoritesLabel.isLinkActive = true // Ενεργοποιεί το κλικ και το "χεράκι" στον κέρσορα
+            emptyFavoritesLabel.isHidden = false
+        } else {
+            emptyFavoritesLabel.isLinkActive = false
+            emptyFavoritesLabel.isHidden = true
+        }
+        
+        for contact in filtered {
+            let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)), editAction: #selector(editContactRow(_:)), deleteAction: #selector(deleteContactRow(_:)))
             favoritesStackView.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: favoritesStackView.widthAnchor).isActive = true
             row.heightAnchor.constraint(equalToConstant: 58).isActive = true
@@ -675,35 +896,201 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     @objc func toggleFavoriteRow(_ sender: ContactRow) {
         ContactStore.shared.toggleFavorite(id: sender.contactID)
     }
+    
+    @objc func editContactRow(_ sender: ContactRow) {
+        if let contactToEdit = ContactStore.shared.contacts.first(where: { $0.id == sender.contactID }) {
+            editWindowController = AddContactWindowController(contactToEdit: contactToEdit)
+            editWindowController?.showWindow(nil)
+            editWindowController?.window?.makeKeyAndOrderFront(nil)
+        }
+    }
+    
+    @objc func deleteContactRow(_ sender: ContactRow) {
+        if let contact = ContactStore.shared.contacts.first(where: { $0.id == sender.contactID }) {
+            let alert = NSAlert()
+            alert.messageText = L("delete_alert_title")
+            alert.informativeText = L("delete_alert_text", contact.fullName)
+            alert.addButton(withTitle: L("delete_btn"))
+            alert.addButton(withTitle: L("cancel_btn"))
+            alert.buttons[0].hasDestructiveAction = true
+            
+            // Επιβολή Dark Mode
+            alert.window.appearance = NSAppearance(named: .darkAqua) 
+            
+            if let appWindow = self.window {
+                alert.beginSheetModal(for: appWindow) { response in
+                    if response == .alertFirstButtonReturn {
+                        var contacts = ContactStore.shared.contacts
+                        contacts.removeAll { $0.id == contact.id }
+                        ContactStore.shared.contacts = contacts
+                        NotificationCenter.default.post(name: .contactsDidChange, object: nil)
+                    }
+                }
+            } else {
+                if alert.runModal() == .alertFirstButtonReturn {
+                    var contacts = ContactStore.shared.contacts
+                    contacts.removeAll { $0.id == contact.id }
+                    ContactStore.shared.contacts = contacts
+                    NotificationCenter.default.post(name: .contactsDidChange, object: nil)
+                }
+            }
+        }
+    }
 
     func makeCall(to phone: String) {
-        guard let url = URL(string: "tel:\(phone.sanitizedForCall)") else { return }
+        let urlString = "tel:\(phone.sanitizedForCall)"
+        guard let url = URL(string: urlString) else { return }
+        
         let appDelegate = NSApp.delegate as? AppDelegate
         appDelegate?.suppressFaceTime()
+        
         NSWorkspace.shared.open(url)
+        
+        // Διακριτική ενημέρωση σε κάθε κλήση: μην ξεκινήσεις άλλη κλήση
+        // όσο αυτή είναι ενεργή (δεν υπάρχει τρόπος να το ελέγξουμε προγραμματιστικά).
+        showCallInProgressToast()
+    }
+
+    // Επιστρέφει το view του ενεργού search field (contacts/favorites), ή nil αν
+    // βρισκόμαστε στο πληκτρολόγιο ή αν η μπάρα αναζήτησης είναι κρυμμένη εκεί.
+    private var activeVisibleSearchField: NSSearchField? {
+        if !contactsView.isHidden && !contactsSearchField.isHidden {
+            return contactsSearchField
+        } else if !favoritesView.isHidden && !favoritesSearchField.isHidden {
+            return favoritesSearchField
+        }
+        return nil
+    }
+
+    // Ενημερώνει τη θέση του toast: κάτω από τη μπάρα αναζήτησης αν είναι ορατή,
+    // αλλιώς στη θέση της (ίδιο top offset με τη μπάρα, δηλαδή κάτω από τον τίτλο).
+    private func repositionCallToast() {
+        guard let contentView = window?.contentView, let toast = callToastView else { return }
+
+        callToastTopConstraint?.isActive = false
+
+        if let searchField = activeVisibleSearchField {
+            // Ακριβώς κάτω από τη μπάρα αναζήτησης (για Επαφές & Αγαπημένα όταν η αναζήτηση είναι ορατή)
+            callToastTopConstraint = toast.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 8)
+        } else if !dialerView.isHidden {
+            // ΜΟΝΟ στο μενού Πληκτρολόγιο: ανέβασμα ψηλά στην κορυφή του παραθύρου
+            // ώστε να μην καλύπτει καθόλου την οθόνη πληκτρολόγησης του αριθμού
+            callToastTopConstraint = toast.topAnchor.constraint(equalTo: dialerView.topAnchor, constant: 12)
+        } else {
+            // Η μπάρα αναζήτησης είναι κρυμμένη στις Επαφές/Αγαπημένα:
+            // εμφάνισε το toast κάτω από τον τίτλο (εκεί όπου θα ήταν κανονικά η μπάρα).
+            let referenceView: NSView
+            if !contactsView.isHidden {
+                referenceView = contactsView
+            } else if !favoritesView.isHidden {
+                referenceView = favoritesView
+            } else {
+                referenceView = contentView
+            }
+            callToastTopConstraint = toast.topAnchor.constraint(equalTo: referenceView.topAnchor, constant: 44)
+        }
+
+        callToastTopConstraint?.isActive = true
+    }
+
+    // MARK: - Διακριτικό toast (χωρίς alert/sheet, δεν διακόπτει τον χρήστη)
+    private func showCallInProgressToast() {
+        guard let contentView = window?.contentView else { return }
+
+        // Αν υπάρχει ήδη ένα toast, απλά ανανέωσε τον χρόνο εξαφάνισής του
+        callToastHideWorkItem?.cancel()
+
+        if callToastView == nil {
+            let toast = NSView()
+            toast.wantsLayer = true
+            toast.layer?.backgroundColor = NSColor(white: 0.12, alpha: 0.92).cgColor
+            toast.layer?.cornerRadius = 10
+            toast.translatesAutoresizingMaskIntoConstraints = false
+            toast.alphaValue = 0
+
+            let label = NSTextField(labelWithString: L("call_in_progress"))
+            label.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+            label.textColor = NSColor(white: 0.92, alpha: 1)
+            label.isEditable = false
+            label.isSelectable = false
+            label.isBezeled = false
+            label.drawsBackground = false
+            label.alignment = .center
+            
+            // --- ΔΥΝΑΜΙΚΗ ΑΛΛΑΓΗ ΓΡΑΜΜΩΝ ---
+            label.maximumNumberOfLines = 0
+            label.cell?.wraps = true
+            label.cell?.truncatesLastVisibleLine = false
+            label.lineBreakMode = .byWordWrapping
+            
+            // 1. ΚΡΙΣΙΜΟ: Μειώνουμε την αντίσταση οριζόντιας συμπίεσης.
+            // Έτσι το AppKit αναγκάζεται να σπάσει το κείμενο σε 2η/3η γραμμή
+            // αντί να μεγαλώσει το πλάτος του παραθύρου!
+            label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            
+            label.translatesAutoresizingMaskIntoConstraints = false
+            toast.addSubview(label)
+
+            contentView.addSubview(toast)
+
+            NSLayoutConstraint.activate([
+                toast.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 20),
+                toast.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -20),
+                toast.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+
+                label.topAnchor.constraint(equalTo: toast.topAnchor, constant: 8),
+                label.bottomAnchor.constraint(equalTo: toast.bottomAnchor, constant: -8),
+                label.leadingAnchor.constraint(equalTo: toast.leadingAnchor, constant: 14),
+                label.trailingAnchor.constraint(equalTo: toast.trailingAnchor, constant: -14),
+                
+                // 2. ΚΡΙΣΙΜΟ: Αντί για στατικό 400, περιορίζουμε το μέγιστο πλάτος του toast 
+                // αυστηρά στο μέγεθος του παραθύρου μείον τα περιθώρια (20px από κάθε πλευρά).
+                toast.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, constant: -40)
+            ])
+
+            callToastView = toast
+        }
+
+        repositionCallToast()
+
+        callToastView?.layer?.removeAllAnimations()
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.15
+            callToastView?.animator().alphaValue = 1
+        }
+
+        let hideWorkItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0.25
+                self.callToastView?.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                self?.callToastView?.removeFromSuperview()
+                self?.callToastView = nil
+            })
+        }
+        callToastHideWorkItem = hideWorkItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: hideWorkItem)
     }
 
     @objc func openAdd() {
-        if addWindowController == nil {
-            addWindowController = AddContactWindowController()
-        }
-        addWindowController?.showWindow(nil)
-        addWindowController?.window?.makeKeyAndOrderFront(nil)
+    if addWindowController == nil {
+        addWindowController = AddContactWindowController(contactToEdit: nil)
     }
-
-    @objc func openRemove() {
-        if removeWindowController == nil {
-            removeWindowController = RemoveContactWindowController()
-        }
-        removeWindowController?.showWindow(nil)
-        removeWindowController?.window?.makeKeyAndOrderFront(nil)
-    }
+    addWindowController?.showWindow(nil)
+    addWindowController?.window?.makeKeyAndOrderFront(nil)
+}
     
     @objc private func updateUIVisibility() {
+        contactsSearchField.stringValue = ""
+        favoritesSearchField.stringValue = ""
+        refreshAll()
+        
         let hideContacts = UserDefaults.standard.bool(forKey: "hideContactsMenu")
         let hideKeypad = UserDefaults.standard.bool(forKey: "hideKeypadMenu")
         let hideFavorites = UserDefaults.standard.bool(forKey: "hideFavoritesMenu")
         let hidePlus = UserDefaults.standard.bool(forKey: "hidePlusButton")
+        let searchVisibility = UserDefaults.standard.integer(forKey: "searchBarVisibility")
         let hideAll = hideContacts && hideKeypad && hideFavorites
 
         NSAnimationContext.runAnimationGroup { context in
@@ -713,7 +1100,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             self.contactsButton.isHidden = hideContacts
             self.dialButton.isHidden = hideKeypad
             self.favoritesButton.isHidden = hideFavorites
-            self.plusButton?.isHidden = hidePlus 
+            self.plusButton?.isHidden = hidePlus
+            
+            self.contactsSearchField.isHidden = (searchVisibility == 1 || searchVisibility == 3)
+            self.favoritesSearchField.isHidden = (searchVisibility == 2 || searchVisibility == 3)
             
             if hideAll {
                 self.contactsView.isHidden = true
@@ -738,6 +1128,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
                     else if !hideKeypad { self.showDialer() }
                 }
             }
+
+            self.repositionCallToast()
         }
     }
 
@@ -752,102 +1144,145 @@ class ContactRow: NSView {
     private var target: AnyObject?
     private var action: Selector?
     private var favoriteAction: Selector?
-    private var favoriteButton: NSButton!
+    private var editAction: Selector?
+    private var deleteAction: Selector?
+    private var optionsButton: NSButton!
     private var isFavorite: Bool = false
 
-    convenience init(contact: Contact, target: AnyObject, action: Selector, favoriteAction: Selector? = nil) {
+    convenience init(contact: Contact, target: AnyObject, action: Selector, favoriteAction: Selector? = nil, editAction: Selector? = nil, deleteAction: Selector? = nil) {
         self.init(frame: .zero)
         self.phone = contact.phone
         self.contactID = contact.id
         self.target = target
         self.action = action
         self.favoriteAction = favoriteAction
+        self.editAction = editAction
+        self.deleteAction = deleteAction
         self.isFavorite = contact.isFavorite
         setupUI(contact: contact)
     }
 
     private func setupUI(contact: Contact) {
         wantsLayer = true
-
-        let phoneImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: L("call_tooltip"))
-        let iconView = NSImageView(image: phoneImg ?? NSImage())
-        iconView.contentTintColor = NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1)
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(iconView)
-
-        let nameLabel = NSTextField(labelWithString: contact.fullName)
-        nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .regular)
-        nameLabel.textColor = .white
-        nameLabel.isEditable = false
-        nameLabel.isSelectable = false
-        nameLabel.isBezeled = false
-        nameLabel.drawsBackground = false
-        nameLabel.lineBreakMode = .byTruncatingTail
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(nameLabel)
-
-        let phoneLabel = NSTextField(labelWithString: contact.phone)
-        phoneLabel.font = NSFont.systemFont(ofSize: 13)
-        phoneLabel.textColor = NSColor(white: 0.55, alpha: 1)
-        phoneLabel.isEditable = false
-        phoneLabel.isSelectable = false
-        phoneLabel.isBezeled = false
-        phoneLabel.drawsBackground = false
-        phoneLabel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(phoneLabel)
-
-        let starImg = NSImage(systemSymbolName: contact.isFavorite ? "star.fill" : "star",
-                               accessibilityDescription: contact.isFavorite ? L("favorite_remove_tooltip") : L("favorite_add_tooltip"))
         
-        favoriteButton = NSButton(image: starImg ?? NSImage(), target: nil, action: nil)
-        favoriteButton.bezelStyle = .regularSquare
-        favoriteButton.isBordered = false
-        favoriteButton.contentTintColor = contact.isFavorite ? NSColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1) : NSColor(white: 0.45, alpha: 1)
-        favoriteButton.translatesAutoresizingMaskIntoConstraints = false
-        if let cell = favoriteButton.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
-        addSubview(favoriteButton)
+        let optionsMenu = NSMenu()
+        
+        // Έλεγχος αν το μενού των Αγαπημένων είναι ενεργό στις ρυθμίσεις
+        let hideFavorites = UserDefaults.standard.bool(forKey: "hideFavoritesMenu")
+        if !hideFavorites {
+            let favTitle = contact.isFavorite ? L("favorite_remove_tooltip") : L("favorite_add_tooltip")
+            let favMenuItem = NSMenuItem(title: favTitle, action: #selector(toggleFavoriteTapped), keyEquivalent: "")
+            favMenuItem.target = self
+            optionsMenu.addItem(favMenuItem)
+            optionsMenu.addItem(NSMenuItem.separator())
+        }
+        
+        let editMenuItem = NSMenuItem(title: L("edit_contact"), action: #selector(editTapped), keyEquivalent: "")
+        editMenuItem.target = self
+        optionsMenu.addItem(editMenuItem)
+        
+        let deleteMenuItem = NSMenuItem(title: L("remove_contact_menu"), action: #selector(deleteTapped), keyEquivalent: "")
+        deleteMenuItem.target = self
+        optionsMenu.addItem(deleteMenuItem)
+        
+        self.menu = optionsMenu // Native Right Click
 
-        let line = NSView()
-        line.wantsLayer = true
-        line.layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
-        line.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(line)
+    let phoneImg = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: L("call_tooltip"))
+    let iconView = NSImageView(image: phoneImg ?? NSImage())
+    iconView.contentTintColor = NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1)
+    iconView.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(iconView)
 
-        NSLayoutConstraint.activate([
-            iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 20),
-            iconView.heightAnchor.constraint(equalToConstant: 20),
+    let nameLabel = NSTextField(labelWithString: contact.fullName)
+    nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .regular)
+    nameLabel.textColor = .white
+    nameLabel.isEditable = false
+    nameLabel.isSelectable = false
+    nameLabel.isBezeled = false
+    nameLabel.drawsBackground = false
+    nameLabel.lineBreakMode = .byTruncatingTail
+    nameLabel.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(nameLabel)
 
-            nameLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
-            nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: phoneLabel.leadingAnchor, constant: -8),
+    let phoneLabel = NSTextField(labelWithString: contact.phone)
+    phoneLabel.font = NSFont.systemFont(ofSize: 13)
+    phoneLabel.textColor = NSColor(white: 0.55, alpha: 1)
+    phoneLabel.isEditable = false
+    phoneLabel.isSelectable = false
+    phoneLabel.isBezeled = false
+    phoneLabel.drawsBackground = false
+    phoneLabel.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(phoneLabel)
+    
+    let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        let ellipsisImg = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: L("tools"))?.withSymbolConfiguration(config)?.vertical()
 
-            favoriteButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
-            favoriteButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            favoriteButton.widthAnchor.constraint(equalToConstant: 20),
-            favoriteButton.heightAnchor.constraint(equalToConstant: 20),
+        optionsButton = NSButton(image: ellipsisImg ?? NSImage(), target: self, action: #selector(showOptionsMenu))
+        optionsButton.bezelStyle = .regularSquare
+        optionsButton.isBordered = false
+        optionsButton.contentTintColor = NSColor(white: 0.55, alpha: 1)
+        optionsButton.translatesAutoresizingMaskIntoConstraints = false
+        if let cell = optionsButton.cell as? NSButtonCell { cell.imageScaling = .scaleNone }
+        addSubview(optionsButton)
+    addSubview(optionsButton)
+    let line = NSView()
+    line.wantsLayer = true
+    line.layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+    line.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(line)
 
-            phoneLabel.trailingAnchor.constraint(equalTo: favoriteButton.leadingAnchor, constant: -12),
-            phoneLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+    NSLayoutConstraint.activate([
+        iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+        iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
+        iconView.widthAnchor.constraint(equalToConstant: 20),
+        iconView.heightAnchor.constraint(equalToConstant: 20),
 
-            line.bottomAnchor.constraint(equalTo: bottomAnchor),
-            line.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 48),
-            line.trailingAnchor.constraint(equalTo: trailingAnchor),
-            line.heightAnchor.constraint(equalToConstant: 0.5),
-        ])
+        nameLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
+        nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+        nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: phoneLabel.leadingAnchor, constant: -8),
+        
+        optionsButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+        optionsButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+        optionsButton.widthAnchor.constraint(equalToConstant: 20),
+        optionsButton.heightAnchor.constraint(equalToConstant: 20),
 
-        let click = NSClickGestureRecognizer(target: self, action: #selector(rowTapped(_:)))
-        addGestureRecognizer(click)
+        phoneLabel.trailingAnchor.constraint(equalTo: optionsButton.leadingAnchor, constant: -8),
+        phoneLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+        line.bottomAnchor.constraint(equalTo: bottomAnchor),
+        line.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 48),
+        line.trailingAnchor.constraint(equalTo: trailingAnchor),
+        line.heightAnchor.constraint(equalToConstant: 0.5),
+    ])
+
+    let click = NSClickGestureRecognizer(target: self, action: #selector(rowTapped(_:)))
+    addGestureRecognizer(click)
+}
+    
+    @objc func showOptionsMenu() {
+        let location = NSPoint(x: 0, y: optionsButton.bounds.height)
+        self.menu?.popUp(positioning: nil, at: location, in: optionsButton)
+    }
+    
+    @objc func editTapped() {
+        if let editAction = editAction {
+            _ = target?.perform(editAction, with: self)
+        }
+    }
+    
+    @objc func deleteTapped() {
+        if let deleteAction = deleteAction {
+            _ = target?.perform(deleteAction, with: self)
+        }
     }
 
-    @objc func rowTapped(_ gesture: NSGestureRecognizer) {
+   @objc func rowTapped(_ gesture: NSGestureRecognizer) {
         let location = gesture.location(in: self)
         
-        let hitRect = favoriteButton.frame.insetBy(dx: -15, dy: -15)
+        let optHitRect = optionsButton.frame.insetBy(dx: -10, dy: -10)
         
-        if hitRect.contains(location) {
-            starTapped()
+        if optHitRect.contains(location) {
+            showOptionsMenu()
             return
         }
         
@@ -864,15 +1299,9 @@ class ContactRow: NSView {
         _ = target?.perform(action, with: self)
     }
 
-    @objc func starTapped() {
-        isFavorite.toggle()
-        let img = NSImage(systemSymbolName: isFavorite ? "star.fill" : "star",
-                           accessibilityDescription: isFavorite ? L("favorite_remove_tooltip") : L("favorite_add_tooltip"))
-        favoriteButton.image = img
-        favoriteButton.contentTintColor = isFavorite ? NSColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 1) : NSColor(white: 0.45, alpha: 1)
-        
+    @objc func toggleFavoriteTapped() {
         if let favoriteAction = favoriteAction {
-            NSApp.sendAction(favoriteAction, to: target, from: self)
+            _ = target?.perform(favoriteAction, with: self)
         }
     }
 }
@@ -949,4 +1378,21 @@ extension NSStackView {
 
 extension Notification.Name {
     static let contactsDidChange = Notification.Name("contactsDidChange")
+}
+
+extension NSImage {
+    func vertical() -> NSImage {
+        guard size.width > 0 && size.height > 0 else { return self }
+        let newImage = NSImage(size: NSSize(width: size.height, height: size.width))
+        newImage.isTemplate = true
+        newImage.lockFocus()
+        let transform = NSAffineTransform()
+        transform.translateX(by: size.height / 2, yBy: size.width / 2)
+        transform.rotate(byDegrees: 90)
+        transform.translateX(by: -size.width / 2, yBy: -size.height / 2)
+        transform.concat()
+        self.draw(in: NSRect(origin: .zero, size: self.size))
+        newImage.unlockFocus()
+        return newImage
+    }
 }

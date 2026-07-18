@@ -5,7 +5,7 @@ func L(_ key: String, _ arg: String = "") -> String {
     
     let strings: [String: (el: String, en: String)] = [
         "about_menu": ("Σχετικά με το HelloMac", "About HelloMac"),
-        "about_text": ("Έκδοση: 2.1.1\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone", "Version: 2.1.1\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone"),
+        "about_text": ("Έκδοση: 2.2\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone", "Version: 2.2\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone"),
         "check_updates": ("Έλεγχος για Ενημερώσεις...", "Check for Updates..."),
         "exit": ("Έξοδος", "Quit"),
         "tools": ("Εργαλεία", "Tools"),
@@ -18,7 +18,7 @@ func L(_ key: String, _ arg: String = "") -> String {
         "add_tooltip": ("Προσθήκη", "Add"),
         "remove_tooltip": ("Διαγραφή", "Delete"),
         "no_contacts": ("Δεν υπάρχουν επαφές.\nΠάτα + για να προσθέσεις.", "No contacts.\nPress + to add."),
-        "no_favorites": ("Δεν έχεις αγαπημένες επαφές.\nΠάτα το ★ σε μια επαφή.", "No favorite contacts.\nTap ★ on a contact to add one."),
+        "no_favorites": ("Δεν έχεις αγαπημένες επαφές.\nΠάτα τις 3 τελίτσες σε μια επαφή για προσθήκη.", "No favorite contacts.\nTap the 3 dots on a contact to add one."),
         "call_tooltip": ("Κλήση", "Call"),
         "favorite_add_tooltip": ("Προσθήκη στα Αγαπημένα", "Add to Favorites"),
         "favorite_remove_tooltip": ("Αφαίρεση από τα Αγαπημένα", "Remove from Favorites"),
@@ -65,7 +65,20 @@ func L(_ key: String, _ arg: String = "") -> String {
         "show_keypad_tab": ("Εμφάνιση μενού «Πληκτρολόγιο»", "Show “Keypad” menu"),
         "show_plus_tab": ("Εμφάνιση πλήκτρου «+»", "Show “+” button"),
         "all_features_disabled": ("Όλες οι λειτουργίες είναι κρυφές.", "All features are hidden."),
-        "enable_features_btn": ("Άνοιγμα Ρυθμίσεων", "Open Settings")
+        "enable_features_btn": ("Άνοιγμα Ρυθμίσεων", "Open Settings"),
+
+        "search_placeholder": ("Αναζήτηση...", "Search..."),
+        "no_search_results": ("Δεν βρέθηκαν αποτελέσματα", "No results found"),
+        "no_favorites_search": ("Δεν βρέθηκαν αποτελέσματα στα αγαπημένα\nΑναζητήστε την επαφή στις Επαφές", "No results found in favorites\nSearch for the contact in Contacts"),
+        "search_visibility": ("Εμφάνιση αναζήτησης:", "Search Bar Visibility:"),
+        "search_everywhere": ("Παντού", "Everywhere"),
+        "search_favorites": ("Μόνο στα Αγαπημένα", "Only Favorites"),
+        "search_contacts": ("Μόνο στις Επαφές", "Only Contacts"),
+        "search_hidden": ("Πουθενά", "Nowhere"),
+        "edit_contact": ("Επεξεργασία Επαφής", "Edit Contact"),
+        "save_btn": ("Αποθήκευση", "Save"),
+        "paste": ("Επικόλληση", "Paste"),
+        "call_in_progress": ("Τερματίστε την τρέχουσα κλήση για να πραγματοποιήσετε μια νέα", "Please end the current call to start a new one")
     ]
     
     guard let translation = strings[key] else { return key }

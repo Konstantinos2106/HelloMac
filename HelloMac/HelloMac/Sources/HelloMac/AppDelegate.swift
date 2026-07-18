@@ -5,7 +5,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindowController: SettingsWindowController?
     var facetimeTimer: Timer?
     
-    // Μεταβλητές για την αυτόματη λήψη
     var progressWindow: NSWindow?
     var progressBar: NSProgressIndicator?
     var progressLabel: NSTextField?
@@ -18,7 +17,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         
-        // Αυτόματος έλεγχος στο παρασκήνιο (χωρίς να ενοχλεί)
         checkForUpdates(userInitiated: false)
     }
 
@@ -34,6 +32,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
     private func buildMenuBar() {
         let mainMenu = NSMenu()
+        let isGreek = Locale.preferredLanguages.first?.hasPrefix("el") ?? true
 
         // ── HelloMac (App Menu) ──
         let appMenuItem = NSMenuItem()
@@ -46,9 +45,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(aboutItem)
         
         let settingsItem = NSMenuItem(title: L("settings_menu"), action: #selector(showSettings), keyEquivalent: ",")
-     settingsItem.target = self
-     appMenu.addItem(settingsItem)
-     appMenu.addItem(NSMenuItem.separator())
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(NSMenuItem.separator())
         
         let updateItem = NSMenuItem(title: L("check_updates"), action: #selector(menuCheckUpdates), keyEquivalent: "")
         updateItem.target = self
@@ -56,6 +55,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(withTitle: L("exit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        // ── Επεξεργασία (Edit) ──
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
+        let editMenu = NSMenu(title: isGreek ? "Επεξεργασία" : "Edit")
+        editMenuItem.submenu = editMenu
+        
+        editMenu.addItem(withTitle: isGreek ? "Αποκοπή" : "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: isGreek ? "Αντιγραφή" : "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: isGreek ? "Επικόλληση" : "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: isGreek ? "Επιλογή όλων" : "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        
+        editMenu.addItem(NSMenuItem.separator())
+        
+        let dictationItem = NSMenuItem(title: isGreek ? "Έναρξη υπαγόρευσης..." : "Start Dictation...", action: Selector(("startDictation:")), keyEquivalent: "")
+        editMenu.addItem(dictationItem)
+        
+        let emojiItem = NSMenuItem(title: isGreek ? "Emoji και σύμβολα" : "Emoji & Symbols", action: #selector(NSApplication.orderFrontCharacterPalette(_:)), keyEquivalent: "e")
+        emojiItem.keyEquivalentModifierMask = [.command, .control]
+        editMenu.addItem(emojiItem)
 
         // ── Εργαλεία ──
         let toolsMenuItem = NSMenuItem()
@@ -81,10 +100,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         addItem.target = self
         toolsMenu.addItem(addItem)
 
-        let removeItem = NSMenuItem(title: L("remove_contact_menu"), action: #selector(menuRemoveContact), keyEquivalent: "d")
-        removeItem.target = self
-        toolsMenu.addItem(removeItem)
-
         NSApp.mainMenu = mainMenu
     }
 
@@ -99,21 +114,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func showSettings() {
-     if settingsWindowController == nil {
-         settingsWindowController = SettingsWindowController()
-     }
-     settingsWindowController?.showWindow(nil)
-     settingsWindowController?.window?.makeKeyAndOrderFront(nil)
-     NSApp.activate(ignoringOtherApps: true)
- }
- @objc func showSettingsToAppearance() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
+        }
+        settingsWindowController?.showWindow(nil)
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func showSettingsToAppearance() {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
         }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
         
-        // Μαγεία: Βρίσκουμε το TabViewController και το πάμε στην 2η καρτέλα (Εμφάνιση = index 1)
         if let tabVC = settingsWindowController?.window?.contentViewController as? NSTabViewController {
             tabVC.selectedTabViewItemIndex = 1
         }
@@ -140,13 +155,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindowController?.showWindow(nil)
         mainWindowController?.openAddPublic()
     }
-
-    @objc func menuRemoveContact() {
-        mainWindowController?.showWindow(nil)
-        mainWindowController?.openRemovePublic()
-    }
     
-    // MARK: - Updater (Αυτόματη Ενημέρωση)
+    // MARK: - Updater
     @objc func menuCheckUpdates() {
         checkForUpdates(userInitiated: true)
     }
@@ -170,7 +180,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     return
                 }
 
-                // Εντοπισμός του DMG αρχείου από το API
                 var dmgDownloadUrl: String? = nil
                 if let assets = json["assets"] as? [[String: Any]] {
                     for asset in assets {
@@ -189,7 +198,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     if let dmgUrl = dmgDownloadUrl, let url = URL(string: dmgUrl) {
                         self.promptDownloadUpdate(latestVersion: latestVersion, downloadURL: url)
                     } else {
-                        // Fallback αν δεν βρει DMG, πάει στη σελίδα
                         self.promptDownloadUpdate(latestVersion: latestVersion, downloadURL: URL(string: "https://github.com/Konstantinos2106/HelloMac/releases/latest")!)
                     }
                 } else {
@@ -204,15 +212,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = L("update_available")
         alert.informativeText = L("update_text", latestVersion)
-        alert.addButton(withTitle: L("download")) // "Εγκατάσταση & Επανεκκίνηση"
+        alert.addButton(withTitle: L("download"))
         alert.addButton(withTitle: L("cancel_btn"))
         if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
 
-        if alert.runModal() == .alertFirstButtonReturn {
-            if downloadURL.absoluteString.hasSuffix(".dmg") {
-                startAutoUpdate(from: downloadURL)
-            } else {
-                NSWorkspace.shared.open(downloadURL)
+        // 1. Επιβολή Dark Mode στο Alert
+        alert.window.appearance = NSAppearance(named: .darkAqua)
+
+        // 2. Εμφάνιση ως Sheet Modal στο κεντρικό παράθυρο (αν είναι ανοιχτό)
+        if let appWindow = self.mainWindowController?.window {
+            alert.beginSheetModal(for: appWindow) { response in
+                if response == .alertFirstButtonReturn {
+                    if downloadURL.absoluteString.hasSuffix(".dmg") {
+                        self.startAutoUpdate(from: downloadURL)
+                    } else {
+                        NSWorkspace.shared.open(downloadURL)
+                    }
+                }
+            }
+        } else {
+            // Εναλλακτική εμφάνιση (fallback) αν το παράθυρο δεν είναι διαθέσιμο
+            if alert.runModal() == .alertFirstButtonReturn {
+                if downloadURL.absoluteString.hasSuffix(".dmg") {
+                    startAutoUpdate(from: downloadURL)
+                } else {
+                    NSWorkspace.shared.open(downloadURL)
+                }
             }
         }
     }
@@ -223,41 +248,47 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = text
         alert.addButton(withTitle: L("ok"))
         if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
-        alert.runModal()
+
+        // 1. Επιβολή Dark Mode στο Alert
+        alert.window.appearance = NSAppearance(named: .darkAqua)
+
+        // 2. Εμφάνιση ως Sheet Modal στο κεντρικό παράθυρο
+        if let appWindow = self.mainWindowController?.window {
+            alert.beginSheetModal(for: appWindow, completionHandler: nil)
+        } else {
+            alert.runModal()
+        }
     }
 
-    // MARK: - Η Μαγεία της Αυτόματης Εγκατάστασης (Με Κυκλάκι Φόρτωσης)
     private func startAutoUpdate(from url: URL) {
-        // 1. Δημιουργία παραθύρου προόδου
         let winRect = NSRect(x: 0, y: 0, width: 300, height: 120)
         let win = NSWindow(contentRect: winRect, styleMask: [.titled], backing: .buffered, defer: false)
         win.title = "HelloMac Updater"
         win.center()
         win.level = .floating
         
+        win.appearance = NSAppearance(named: .darkAqua)
+        
         let contentView = NSView(frame: winRect)
         
         let label = NSTextField(labelWithString: L("downloading"))
         label.frame = NSRect(x: 20, y: 70, width: 260, height: 20)
-        label.alignment = .center // Κεντράρισμα κειμένου
+        label.alignment = .center
         label.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         contentView.addSubview(label)
         self.progressLabel = label
         
-        // 2. Το "Κυκλάκι" Φόρτωσης αντί για μπάρα
-        // Τοποθετούμε το spinner στο κέντρο (x: 135 γιατί το πλάτος του παραθύρου είναι 300)
         let spinner = NSProgressIndicator(frame: NSRect(x: 135, y: 30, width: 30, height: 30))
-        spinner.style = .spinning // Αυτό το κάνει κυκλάκι
+        spinner.style = .spinning
         spinner.isIndeterminate = true
         spinner.controlSize = .regular
         contentView.addSubview(spinner)
-        spinner.startAnimation(nil) // Ξεκινάει αμέσως
+        spinner.startAnimation(nil)
         
         win.contentView = contentView
         win.makeKeyAndOrderFront(nil)
         self.progressWindow = win
         
-        // 3. Έναρξη λήψης του DMG
         let task = URLSession.shared.downloadTask(with: url) { [weak self] tempLocalUrl, response, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -289,7 +320,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         progressBar?.isIndeterminate = true
         progressBar?.startAnimation(nil)
         
-        // Το script που θα τρέξει αφού κλείσει η εφαρμογή μας
         let scriptContent = """
         #!/bin/bash
         sleep 2
@@ -304,17 +334,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let scriptPath = NSTemporaryDirectory() + "hellomac_updater.sh"
         try? scriptContent.write(toFile: scriptPath, atomically: true, encoding: .utf8)
         
-        // Εκτέλεση του script στο παρασκήνιο (ανεξάρτητα από εμάς)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = [scriptPath]
         try? process.run()
         
-        // Τερματισμός της τρέχουσας εφαρμογής για να μπορέσει το script να την αντικαταστήσει!
         NSApp.terminate(nil)
     }
 
-    // MARK: - Έξυπνος Αλγόριθμος Κλήσης & Απόκρυψης FaceTime
+    // MARK: - Παραδοσιακός Αλγόριθμος Απόκρυψης FaceTime
     var facetimeSuppressionCount = 0
 
     func suppressFaceTime() {
@@ -322,7 +350,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         facetimeTimer?.invalidate()
         facetimeSuppressionCount = 0
         
-        // Ξεκινάμε τον έλεγχο κάθε 0.3 δευτερόλεπτα
+        // Ξεκινάμε τον έλεγχο κάθε 0.3 δευτερόλεπτα (παραδοσιακό polling)
         facetimeTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] timer in
             guard let self = self else { return }
             self.facetimeSuppressionCount += 1
@@ -330,16 +358,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Βρίσκουμε αν το FaceTime τρέχει αυτή τη στιγμή
             if let facetimeApp = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.apple.FaceTime" }) {
                 
-                // Αν το FaceTime προσπαθήσει να έρθει στο προσκήνιο (το μαύρο παράθυρο)
+                // Αν το FaceTime προσπαθήσει να έρθει στο προσκήνιο, το κρύβουμε αμέσως!
                 if facetimeApp.isActive {
-                    // 1. Το κρύβουμε αστραπιαία
                     facetimeApp.hide()
-                    // 2. Επαναφέρουμε την εφαρμογή μας στο προσκήνιο για να μην καταλάβει τίποτα ο χρήστης
+                    // Επαναφέρουμε την εφαρμογή μας στο προσκήνιο
                     NSApp.activate(ignoringOtherApps: true)
                 }
             }
             
-            // Ο έλεγχος σταματάει αυτόματα μετά από 1 λεπτό
+            // Ο έλεγχος σταματάει αυτόματα μετά από 1 λεπτό (200 κύκλοι των 0.3s)
             if self.facetimeSuppressionCount >= 200 {
                 self.stopSuppressingFaceTime()
             }
@@ -350,4 +377,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         facetimeTimer?.invalidate()
         facetimeTimer = nil
         facetimeSuppressionCount = 0
-    }}
+    }
+}

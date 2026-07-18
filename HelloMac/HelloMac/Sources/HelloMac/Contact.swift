@@ -26,8 +26,6 @@ struct Contact: Codable, Identifiable {
         self.isFavorite = isFavorite
     }
 
-    // Custom decoding ώστε οι παλιές αποθηκευμένες επαφές (μόνο με "name")
-    // να μεταφέρονται αυτόματα στα νέα πεδία firstName/lastName χωρίς να χαθούν δεδομένα.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
@@ -38,7 +36,6 @@ struct Contact: Codable, Identifiable {
             firstName = first
             lastName = try container.decodeIfPresent(String.self, forKey: .lastName) ?? ""
         } else if let legacy = try container.decodeIfPresent(String.self, forKey: .legacyName) {
-            // Μοίρασμα παλιού πλήρους ονόματος σε Όνομα/Επώνυμο (πρώτη λέξη = όνομα, υπόλοιπο = επώνυμο)
             let parts = legacy.split(separator: " ", maxSplits: 1).map(String.init)
             firstName = parts.first ?? legacy
             lastName = parts.count > 1 ? parts[1] : ""
@@ -86,6 +83,15 @@ class ContactStore {
         list[idx].isFavorite.toggle()
         contacts = list
         NotificationCenter.default.post(name: .contactsDidChange, object: nil)
+    }
+    
+    func updateContact(_ updatedContact: Contact) {
+        var list = contacts
+        if let idx = list.firstIndex(where: { $0.id == updatedContact.id }) {
+            list[idx] = updatedContact
+            contacts = list
+            NotificationCenter.default.post(name: .contactsDidChange, object: nil)
+        }
     }
 }
 
