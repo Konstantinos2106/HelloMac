@@ -1,4 +1,40 @@
 import AppKit
+import Carbon
+
+// Διαχειριστής της παγκόσμιας συντόμευσης (Global HotKey)
+class HotKeyManager {
+    static let shared = HotKeyManager()
+    
+    func register() {
+        var hotKeyID = EventHotKeyID()
+        hotKeyID.signature = OSType(1234)
+        hotKeyID.id = 1
+        
+        // Ctrl + Option + Cmd + H  (kVK_ANSI_H = 4)
+        let modifiers = UInt32(cmdKey | optionKey | controlKey)
+        let keyCode = UInt32(4) 
+        
+        var hotKeyRef: EventHotKeyRef?
+        RegisterEventHotKey(keyCode, modifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
+        
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        
+        let handler: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                if let del = NSApp.delegate as? AppDelegate {
+                    del.mainWindowController?.showWindow(nil)
+                    del.mainWindowController?.window?.makeKeyAndOrderFront(nil)
+                }
+            }
+            return noErr
+        }
+        
+        // Χρήση της πραγματικής συνάρτησης αντί του macro
+        var handlerRef: EventHandlerRef? = nil
+        InstallEventHandler(GetApplicationEventTarget(), handler, 1, &eventType, nil, &handlerRef)
+    }
+}
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindowController: MainWindowController?
@@ -13,6 +49,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         buildMenuBar()
+        
+        HotKeyManager.shared.register() // Ενεργοποίηση της παγκόσμιας συντόμευσης
+        HistoryStore.shared.purgeExpiredRecords() // Καθαρισμός παλιού ιστορικού βάσει της ρύθμισης αυτόματης διαγραφής
+        
         mainWindowController = MainWindowController()
         mainWindowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -93,6 +133,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let favoritesItem = NSMenuItem(title: L("show_favorites_menu"), action: #selector(menuShowFavorites), keyEquivalent: "3")
         favoritesItem.target = self
         toolsMenu.addItem(favoritesItem)
+        
+        let historyItem = NSMenuItem(title: L("history"), action: #selector(menuShowHistory), keyEquivalent: "4")
+        historyItem.target = self
+        toolsMenu.addItem(historyItem)
 
         toolsMenu.addItem(NSMenuItem.separator())
 
@@ -103,6 +147,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = mainMenu
     }
 
+    /// Επιστρέφει το παράθυρο πάνω στο οποίο πρέπει να "κολλήσει" ένα sheet
+    /// (About, ενημερώσεις κλπ.), ώστε να μην έρχεται πάντα μπροστά το
+    /// κεντρικό παράθυρο της εφαρμογής όταν είναι ανοιχτές οι Ρυθμίσεις.
+    /// Δεν βασιζόμαστε στο NSApp.keyWindow, γιατί τη στιγμή που πατιέται ένα
+    /// στοιχείο του menu bar, το key window μπορεί στιγμιαία να μην είναι
+    /// ακόμα σταθεροποιημένο. Αντ' αυτού προτιμάμε πάντα το παράθυρο
+    /// Ρυθμίσεων αν είναι ανοιχτό/ορατό, αλλιώς το κεντρικό παράθυρο.
+    private func windowForSheet() -> NSWindow? {
+        if let settingsWindow = settingsWindowController?.window, settingsWindow.isVisible {
+            return settingsWindow
+        }
+        return mainWindowController?.window
+    }
+
     @objc func showAbout() {
         let alert = NSAlert()
         alert.messageText = "HelloMac"
@@ -110,13 +168,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let customIcon = NSImage(named: "AppIcon") { alert.icon = customIcon }
         else { alert.icon = NSApp.applicationIconImage }
         alert.addButton(withTitle: L("ok"))
-        alert.runModal()
+        alert.addButton(withTitle: L("learn_more"))
+        alert.window.appearance = NSAppearance(named: .darkAqua)
+
+        let handleResponse: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            if response == .alertSecondButtonReturn {
+                self?.showSettingsToInfo()
+            }
+        }
+
+        if let appWindow = windowForSheet() {
+            alert.beginSheetModal(for: appWindow, completionHandler: handleResponse)
+        } else {
+            handleResponse(alert.runModal())
+        }
     }
     
     @objc func showSettings() {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
         }
+        settingsWindowController?.resetUpdateStatusUI()
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -126,6 +198,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
         }
+        settingsWindowController?.resetUpdateStatusUI()
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
         
@@ -133,6 +206,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             tabVC.selectedTabViewItemIndex = 1
         }
         
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Ανοίγει τις Ρυθμίσεις κατευθείαν στην καρτέλα «Πληροφορίες» —
+    /// χρησιμοποιείται από το κουμπί «Δείτε περισσότερα» στο «Σχετικά».
+    func showSettingsToInfo() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
+        }
+        settingsWindowController?.resetUpdateStatusUI()
+        settingsWindowController?.showWindow(nil)
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+
+        if let tabVC = settingsWindowController?.window?.contentViewController as? NSTabViewController {
+            tabVC.selectedTabViewItemIndex = 3
+        }
+
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -150,6 +240,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindowController?.showWindow(nil)
         mainWindowController?.showFavoritesPublic()
     }
+    
+    @objc func menuShowHistory() {
+        mainWindowController?.showWindow(nil)
+        mainWindowController?.showHistoryPublic()
+    }
 
     @objc func menuAddContact() {
         mainWindowController?.showWindow(nil)
@@ -162,6 +257,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func checkForUpdates(userInitiated: Bool) {
+        checkForUpdates(userInitiated: userInitiated, completion: nil)
+    }
+
+    /// Αποτέλεσμα ελέγχου ενημέρωσης, για χρήση από τις Ρυθμίσεις (εμφάνιση inline, όχι popup).
+    enum UpdateCheckResult {
+        case upToDate
+        case updateAvailable(latestVersion: String, downloadURL: URL)
+        case error
+    }
+
+    /// Ελέγχει για ενημερώσεις. Αν δοθεί completion, ΔΕΝ εμφανίζει alerts μόνος του —
+    /// περνάει το αποτέλεσμα πίσω ώστε ο καλών (π.χ. οι Ρυθμίσεις) να το εμφανίσει inline.
+    private func checkForUpdates(userInitiated: Bool, completion: ((UpdateCheckResult) -> Void)?) {
         let urlString = "https://api.github.com/repos/Konstantinos2106/HelloMac/releases/latest"
         guard let url = URL(string: urlString) else { return }
 
@@ -169,14 +277,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if error != nil {
-                    if userInitiated { self.showUpdateAlert(title: L("update_error"), text: L("update_error_text")) }
+                    if let completion = completion {
+                        completion(.error)
+                    } else if userInitiated {
+                        self.showUpdateAlert(title: L("update_error"), text: L("update_error_text"))
+                    }
                     return
                 }
                 
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                       let tagName = json["tag_name"] as? String else {
-                    if userInitiated { self.showUpdateAlert(title: L("update_error"), text: L("update_error_text")) }
+                    if let completion = completion {
+                        completion(.error)
+                    } else if userInitiated {
+                        self.showUpdateAlert(title: L("update_error"), text: L("update_error_text"))
+                    }
                     return
                 }
 
@@ -195,17 +311,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
 
                 if latestVersion.compare(currentVersion, options: .numeric) == .orderedDescending {
-                    if let dmgUrl = dmgDownloadUrl, let url = URL(string: dmgUrl) {
-                        self.promptDownloadUpdate(latestVersion: latestVersion, downloadURL: url)
+                    let finalURL: URL
+                    if let dmgUrl = dmgDownloadUrl, let parsed = URL(string: dmgUrl) {
+                        finalURL = parsed
                     } else {
-                        self.promptDownloadUpdate(latestVersion: latestVersion, downloadURL: URL(string: "https://github.com/Konstantinos2106/HelloMac/releases/latest")!)
+                        finalURL = URL(string: "https://github.com/Konstantinos2106/HelloMac/releases/latest")!
+                    }
+
+                    if let completion = completion {
+                        completion(.updateAvailable(latestVersion: latestVersion, downloadURL: finalURL))
+                    } else {
+                        self.promptDownloadUpdate(latestVersion: latestVersion, downloadURL: finalURL)
                     }
                 } else {
-                    if userInitiated { self.showUpdateAlert(title: L("up_to_date"), text: L("up_to_date_text")) }
+                    if let completion = completion {
+                        completion(.upToDate)
+                    } else if userInitiated {
+                        self.showUpdateAlert(title: L("up_to_date"), text: L("up_to_date_text"))
+                    }
                 }
             }
         }
         task.resume()
+    }
+
+    /// Καλείται από τις Ρυθμίσεις. Δεν εμφανίζει popup: επιστρέφει το αποτέλεσμα inline.
+    func checkForUpdatesFromSettings(completion: @escaping (UpdateCheckResult) -> Void) {
+        checkForUpdates(userInitiated: true, completion: completion)
+    }
+
+    /// Καλείται από τις Ρυθμίσεις όταν ο χρήστης πατήσει «Εγκατάσταση».
+    /// Κλείνει πρώτα το παράθυρο Ρυθμίσεων, μετά ανοίγει το μικρό παράθυρο προόδου.
+    func beginUpdateFromSettings(downloadURL: URL) {
+        settingsWindowController?.close()
+        if downloadURL.absoluteString.hasSuffix(".dmg") {
+            startAutoUpdate(from: downloadURL)
+        } else {
+            NSWorkspace.shared.open(downloadURL)
+        }
     }
 
     private func promptDownloadUpdate(latestVersion: String, downloadURL: URL) {
@@ -216,11 +359,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: L("cancel_btn"))
         if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
 
-        // 1. Επιβολή Dark Mode στο Alert
         alert.window.appearance = NSAppearance(named: .darkAqua)
 
-        // 2. Εμφάνιση ως Sheet Modal στο κεντρικό παράθυρο (αν είναι ανοιχτό)
-        if let appWindow = self.mainWindowController?.window {
+        if let appWindow = windowForSheet() {
             alert.beginSheetModal(for: appWindow) { response in
                 if response == .alertFirstButtonReturn {
                     if downloadURL.absoluteString.hasSuffix(".dmg") {
@@ -231,7 +372,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         } else {
-            // Εναλλακτική εμφάνιση (fallback) αν το παράθυρο δεν είναι διαθέσιμο
             if alert.runModal() == .alertFirstButtonReturn {
                 if downloadURL.absoluteString.hasSuffix(".dmg") {
                     startAutoUpdate(from: downloadURL)
@@ -249,11 +389,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: L("ok"))
         if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
 
-        // 1. Επιβολή Dark Mode στο Alert
         alert.window.appearance = NSAppearance(named: .darkAqua)
 
-        // 2. Εμφάνιση ως Sheet Modal στο κεντρικό παράθυρο
-        if let appWindow = self.mainWindowController?.window {
+        if let appWindow = windowForSheet() {
             alert.beginSheetModal(for: appWindow, completionHandler: nil)
         } else {
             alert.runModal()
@@ -264,7 +402,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let winRect = NSRect(x: 0, y: 0, width: 300, height: 120)
         let win = NSWindow(contentRect: winRect, styleMask: [.titled], backing: .buffered, defer: false)
         win.title = "HelloMac Updater"
-        win.center()
+        if let mainWindow = NSApp.mainWindow ?? NSApp.windows.first(where: { $0.title == "HelloMac" }) {
+            let x = mainWindow.frame.midX - win.frame.width / 2
+            let y = mainWindow.frame.midY - win.frame.height / 2
+            win.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            win.center()
+        }
         win.level = .floating
         
         win.appearance = NSAppearance(named: .darkAqua)
@@ -342,31 +486,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
-    // MARK: - Παραδοσιακός Αλγόριθμος Απόκρυψης FaceTime
     var facetimeSuppressionCount = 0
 
     func suppressFaceTime() {
-        // Καθαρίζουμε τυχόν προηγούμενο χρονόμετρο
         facetimeTimer?.invalidate()
         facetimeSuppressionCount = 0
         
-        // Ξεκινάμε τον έλεγχο κάθε 0.3 δευτερόλεπτα (παραδοσιακό polling)
         facetimeTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] timer in
             guard let self = self else { return }
             self.facetimeSuppressionCount += 1
             
-            // Βρίσκουμε αν το FaceTime τρέχει αυτή τη στιγμή
             if let facetimeApp = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.apple.FaceTime" }) {
-                
-                // Αν το FaceTime προσπαθήσει να έρθει στο προσκήνιο, το κρύβουμε αμέσως!
                 if facetimeApp.isActive {
                     facetimeApp.hide()
-                    // Επαναφέρουμε την εφαρμογή μας στο προσκήνιο
                     NSApp.activate(ignoringOtherApps: true)
                 }
             }
             
-            // Ο έλεγχος σταματάει αυτόματα μετά από 1 λεπτό (200 κύκλοι των 0.3s)
             if self.facetimeSuppressionCount >= 200 {
                 self.stopSuppressingFaceTime()
             }

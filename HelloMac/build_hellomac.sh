@@ -11,11 +11,9 @@ ICON_SRC="$SCRIPT_DIR/phone.icns"
 
 echo "🔨 Build το $DISPLAY_NAME..."
 
-# Βρες το σωστό SDK
 SDK_PATH=$(xcrun --sdk macosx --show-sdk-path 2>/dev/null || echo "/Library/Developer/CommandLineTools/SDKs/MacOSX13.3.sdk")
 echo "📦 SDK: $SDK_PATH"
 
-# Αρχιτεκτονική (Apple Silicon ή Intel)
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
     TARGET="arm64-apple-macos11.0"
@@ -29,19 +27,20 @@ mkdir -p "$APP_PATH/Contents/MacOS"
 mkdir -p "$APP_PATH/Contents/Resources/el.lproj"
 mkdir -p "$APP_PATH/Contents/Resources/en.lproj"
 
-# Compile όλα τα .swift αρχεία μαζί με το νέο Localizer.swift
 swiftc \
     -sdk "$SDK_PATH" \
     -target "$TARGET" \
     -O \
     -framework AppKit \
     -framework Foundation \
+    -framework Carbon \
     "$SRC_DIR/main.swift" \
     "$SRC_DIR/Localizer.swift" \
     "$SRC_DIR/Contact.swift" \
     "$SRC_DIR/AppDelegate.swift" \
     "$SRC_DIR/MainWindow.swift" \
     "$SRC_DIR/SettingsWindow.swift" \
+    "$SRC_DIR/ImageCropWindow.swift" \
     -o "$BINARY_PATH"
 
 echo "✅ Compile OK"
@@ -65,9 +64,9 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundleIdentifier</key>
     <string>com.hellomac.telephone</string>
     <key>CFBundleVersion</key>
-    <string>2.2</string>
+    <string>2.3</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.2</string>
+    <string>2.3</string>
     <key>CFBundleExecutable</key>
     <string>${BINARY_NAME}</string>
     <key>CFBundlePackageType</key>
