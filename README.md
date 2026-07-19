@@ -45,9 +45,12 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 **HelloMac** solves this issue by offering a clean, lightweight, and familiar phone interface.
 
 ### ✨ Features
-* **Native macOS UI:** Design that integrates seamlessly with the operating system.
-* **Contact Management:** Add, remove, and quickly view your contacts.
-* **Classic Keypad:** Easy-to-use dialer for quick number entry.
+* **Native macOS UI:** Full Dark Mode, familiar iPhone feel.
+* **Favorites:** Quick access to your most important contacts.
+* **Contact List:** Add, remove, quick access with one click.
+* **Search:** Search functionality in your contacts and favorites.
+* **History:** Full history of your calls with date and time.
+* **Classic Keypad:** Dialpad for quick number entry.
 
 ### ⚙️ How it works (FaceTime Workaround)
 HelloMac uses a clever background mechanism. It routes calls via the `tel://` protocol using FaceTime. However, to provide the experience of a truly standalone application, HelloMac automatically hides the FaceTime window, allowing you to manage your call undisturbed.
@@ -80,9 +83,12 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 Το **HelloMac** έρχεται να λύσει αυτό το πρόβλημα, προσφέροντας ένα καθαρό, ελαφρύ και γνώριμο περιβάλλον τηλεφώνου.
 
 ### ✨ Χαρακτηριστικά
-* **Native macOS UI:** Σχεδιασμός που δένει άψογα με το λειτουργικό.
-* **Διαχείριση Επαφών:** Προσθήκη, αφαίρεση και γρήγορη προβολή των επαφών σας.
-* **Κλασικό Πληκτρολόγιο:** Εύχρηστο καντράν για γρήγορη πληκτρολόγηση αριθμών.
+* **Native macOS UI:** Πλήρης Dark Mode, οικεία αίσθηση iPhone.
+* **Αγαπημένα:** Άμεση πρόσβαση στις πιο σημαντικές επαφές σας.
+* **Λίστα Επαφών:** Προσθήκη, αφαίρεση, γρήγορη πρόσβαση με ένα κλικ.
+* **Αναζήτηση:** Λειτουργία αναζήτησης στις επαφές και στα αγαπημένα.
+* **Ιστορικό:** Πλήρες ιστορικό των κλήσεών σας με ημερομηνία και ώρα.
+* **Κλασικό Πληκτρολόγιο:** Καντράν για γρήγορη πληκτρολόγηση αριθμών.
 
 ### ⚙️ Πώς λειτουργεί (FaceTime Workaround)
 Το HelloMac χρησιμοποιεί έναν έξυπνο μηχανισμό στο παρασκήνιο. Προωθεί την κλήση μέσω του πρωτοκόλλου `tel://` χρησιμοποιώντας το FaceTime. Όμως, για να σας προσφέρει την εμπειρία μιας πραγματικά αυτόνομης εφαρμογής, το HelloMac κρύβει αυτόματα το παράθυρο του FaceTime, αφήνοντάς σας να διαχειρίζεστε την κλήση σας ανενόχλητοι.
