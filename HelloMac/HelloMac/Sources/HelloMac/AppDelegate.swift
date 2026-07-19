@@ -40,6 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindowController: MainWindowController?
     var settingsWindowController: SettingsWindowController?
     var facetimeTimer: Timer?
+    var historyPurgeTimer: Timer?
     
     var progressWindow: NSWindow?
     var progressBar: NSProgressIndicator?
@@ -52,12 +53,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         HotKeyManager.shared.register() // Ενεργοποίηση της παγκόσμιας συντόμευσης
         HistoryStore.shared.purgeExpiredRecords() // Καθαρισμός παλιού ιστορικού βάσει της ρύθμισης αυτόματης διαγραφής
+        startHistoryPurgeTimer() // Επανάληψη του καθαρισμού περιοδικά όσο η εφαρμογή παραμένει ανοιχτή
         
         mainWindowController = MainWindowController()
         mainWindowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         
         checkForUpdates(userInitiated: false)
+    }
+
+    // Τρέχει τον καθαρισμό ληγμένου ιστορικού κάθε ώρα, ώστε να μην χρειάζεται
+    // επανεκκίνηση της εφαρμογής ή νέα κλήση για να εφαρμοστεί η αυτόματη διαγραφή.
+    private func startHistoryPurgeTimer() {
+        historyPurgeTimer?.invalidate()
+        historyPurgeTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+            HistoryStore.shared.purgeExpiredRecords()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

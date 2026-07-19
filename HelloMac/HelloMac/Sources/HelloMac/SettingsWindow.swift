@@ -213,13 +213,26 @@ class MonogramColorPickerView: NSView {
         wheelButton.action = #selector(openColorWheel)
         wheelButton.toolTip = L("monogram_color_wheel")
         wheelButton.translatesAutoresizingMaskIntoConstraints = false
-        if let wheelImage = NSImage(systemSymbolName: "circle.hexagongrid.fill", accessibilityDescription: "Color wheel") {
+        let wheelSymbolCandidates = ["circle.hexagongrid.fill", "paintpalette.fill", "eyedropper.halffull"]
+        var wheelImage: NSImage? = nil
+        for symbolName in wheelSymbolCandidates {
+            if let candidate = NSImage(systemSymbolName: symbolName, accessibilityDescription: "Color wheel") {
+                wheelImage = candidate
+                break
+            }
+        }
+        if let wheelImage = wheelImage {
+            var configuredImage: NSImage? = nil
             if #available(macOS 12.0, *) {
                 let config = NSImage.SymbolConfiguration(paletteColors: [.systemRed, .systemGreen, .systemBlue])
-                wheelButton.image = wheelImage.withSymbolConfiguration(config)
-            } else {
-                wheelButton.image = wheelImage.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .regular))
+                configuredImage = wheelImage.withSymbolConfiguration(config)
             }
+            // Fall back to a plain (non-multicolor) rendering if the palette
+            // configuration produced nothing, or on pre-Monterey systems.
+            wheelButton.image = configuredImage ?? wheelImage.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)) ?? wheelImage
+        } else {
+            // Last-resort fallback so the button is never left blank.
+            wheelButton.title = "🎨"
         }
         (wheelButton.cell as? NSButtonCell)?.imageScaling = .scaleProportionallyUpOrDown
         stack.addArrangedSubview(wheelButton)
@@ -894,8 +907,10 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         for i in 1...9 {
             let row = NSStackView()
             row.orientation = .horizontal
+            row.translatesAutoresizingMaskIntoConstraints = false
             let label = NSTextField(labelWithString: "\(i):")
             label.font = NSFont.systemFont(ofSize: 14)
+            label.translatesAutoresizingMaskIntoConstraints = false
             label.widthAnchor.constraint(equalToConstant: 20).isActive = true
             
             let tf = NSTextField()
@@ -903,6 +918,7 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             tf.stringValue = UserDefaults.standard.string(forKey: "SpeedDial_\(i)") ?? ""
             tf.tag = i
             tf.delegate = self
+            tf.translatesAutoresizingMaskIntoConstraints = false
             tf.widthAnchor.constraint(equalToConstant: 240).isActive = true
             
             row.addView(label, in: .leading)
@@ -1007,6 +1023,13 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         githubLabel.addGestureRecognizer(githubClick)
         infoView.addSubview(githubLabel)
 
+        let infoVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.3"
+        let infoVersionLabel = NSTextField(labelWithString: L("current_version", infoVersionString))
+        infoVersionLabel.font = NSFont.systemFont(ofSize: 12)
+        infoVersionLabel.textColor = .secondaryLabelColor
+        infoVersionLabel.translatesAutoresizingMaskIntoConstraints = false
+        infoView.addSubview(infoVersionLabel)
+
         // Το header/περιγραφή/σύνδεσμοι οριοθετούνται με ακριβή (equalTo)
         // constraints ώστε το view να έχει ένα σαφές, φυσικό μέγεθος
         // περιεχομένου — αυτό είναι απαραίτητο για να υπολογίζεται σωστά
@@ -1031,7 +1054,10 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
             githubLabel.topAnchor.constraint(equalTo: websiteLabel.bottomAnchor, constant: 8),
             githubLabel.leadingAnchor.constraint(equalTo: headerRow.leadingAnchor),
-            githubLabel.bottomAnchor.constraint(equalTo: infoView.bottomAnchor, constant: -24),
+
+            infoVersionLabel.topAnchor.constraint(equalTo: githubLabel.bottomAnchor, constant: 16),
+            infoVersionLabel.leadingAnchor.constraint(equalTo: headerRow.leadingAnchor),
+            infoVersionLabel.bottomAnchor.constraint(equalTo: infoView.bottomAnchor, constant: -24),
 
             infoView.widthAnchor.constraint(equalToConstant: 480)
         ])

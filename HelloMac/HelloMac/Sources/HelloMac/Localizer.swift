@@ -5,7 +5,7 @@ func L(_ key: String, _ arg: String = "") -> String {
     
     let strings: [String: (el: String, en: String)] = [
         "about_menu": ("Σχετικά με το HelloMac", "About HelloMac"),
-        "about_text": ("Έκδοση: 2.3\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 2.3\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
+        "about_text": ("Έκδοση: 2.3.1\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 2.3.1\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
         "learn_more": ("Δείτε περισσότερα", "Learn More"),
         "check_updates": ("Έλεγχος για Ενημερώσεις...", "Check for Updates..."),
         "exit": ("Έξοδος", "Quit"),
