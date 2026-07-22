@@ -35,7 +35,7 @@
   &nbsp;
   <img src="Icns_Photos/HelloMac4en.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac5en.png" alt="HelloMac Keypad" width="57%">
+  <img src="Icns_Photos/HelloMac5en.png" alt="HelloMac Keypad" width="59%">
 </p>
 
 ---
