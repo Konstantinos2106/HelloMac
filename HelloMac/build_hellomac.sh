@@ -64,9 +64,9 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundleIdentifier</key>
     <string>com.hellomac.telephone</string>
     <key>CFBundleVersion</key>
-    <string>2.3.1</string>
+    <string>2.4</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.3.1</string>
+    <string>2.4</string>
     <key>CFBundleExecutable</key>
     <string>${BINARY_NAME}</string>
     <key>CFBundlePackageType</key>

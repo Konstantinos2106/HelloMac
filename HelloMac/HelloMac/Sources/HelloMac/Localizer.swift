@@ -5,10 +5,10 @@ func L(_ key: String, _ arg: String = "") -> String {
     
     let strings: [String: (el: String, en: String)] = [
         "about_menu": ("Σχετικά με το HelloMac", "About HelloMac"),
-        "about_text": ("Έκδοση: 2.3.1\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 2.3.1\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
+        "about_text": ("Έκδοση: 2.4\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 2.4\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
         "learn_more": ("Δείτε περισσότερα", "Learn More"),
         "check_updates": ("Έλεγχος για Ενημερώσεις...", "Check for Updates..."),
-        "exit": ("Έξοδος", "Quit"),
+        "exit": ("Τερματισμός HelloMac", "Quit HelloMac"),
         "tools": ("Εργαλεία", "Tools"),
         "contacts": ("Επαφές", "Contacts"),
         "keypad": ("Πλήκτρα", "Keypad"),
@@ -124,7 +124,42 @@ func L(_ key: String, _ arg: String = "") -> String {
         "history_autodelete_1_month": ("Μετά από 1 μήνα", "After 1 month"),
         "history_autodelete_3_months": ("Μετά από 3 μήνες", "After 3 months"),
         "history_autodelete_6_months": ("Μετά από 6 μήνες", "After 6 months"),
-        "history_autodelete_1_year": ("Μετά από 1 χρόνο", "After 1 year")
+        "history_autodelete_1_year": ("Μετά από 1 χρόνο", "After 1 year"),
+        
+        "file_menu": ("Αρχείο", "File"),
+        "import_contacts": ("Εισαγωγή επαφών...", "Import Contacts..."),
+        "export_contacts": ("Εξαγωγή επαφών...", "Export Contacts..."),
+        "import_export_title": ("Εισαγωγή & Εξαγωγή Επαφών (JSON)", "Import & Export Contacts (JSON)"),
+        "export_success_title": ("Επιτυχία Εξαγωγής", "Export Successful"),
+        "export_success_text": ("Οι επαφές εξήχθησαν επιτυχώς.", "Contacts were exported successfully."),
+        "import_success_title": ("Επιτυχία Εισαγωγής", "Import Successful"),
+        "import_success_text": ("Εισήχθησαν %d νέες επαφές (αγνοήθηκαν τα διπλότυπα).", "Imported %d new contacts (duplicates ignored)."),
+        "import_error_title": ("Σφάλμα Εισαγωγής", "Import Error"),
+        "import_error_text": ("Το αρχείο δεν είναι έγκυρο ή έχει καταστραφεί.", "The file is invalid or corrupted."),
+        "select_folder": ("Επιλογή Φακέλου", "Select Folder"),
+        "backup_title": ("Εισαγωγή & Εξαγωγή Επαφών με τις Φωτογραφίες τους (Φάκελος)", "Import & Export Contacts with their Photos (Folder)"),
+        "import_backup": ("Επαναφορά Φακέλου...", "Restore Folder..."),
+        "export_backup": ("Εξαγωγή Φακέλου...", "Export Folder..."),
+        
+        "tab_data": ("Δεδομένα", "Data"),
+        "help_menu": ("Βοήθεια...", "Help..."),
+        "backup_help_title": ("Βοήθεια Διαχείρισης Δεδομένων", "Data Management Help"),
+        "backup_help_text": (
+            "Εξαγωγή επαφών:\nΕξάγει τα ονόματα, τα τηλέφωνα και τα αγαπημένα σας σε ένα απλό αρχείο (.json).\n\nΕισαγωγή επαφών:\nΕισάγει τα ονόματα, τα τηλέφωνα και τα αγαπημένα σας από ένα απλό αρχείο (.json).\n\nΕξαγωγή Φακέλου:\nΕξάγει σε έναν φάκελο το αρχείο δεδομένων (.json) καθώς και όλες τις αποθηκευμένες φωτογραφίες των επαφών σας.\n\nΕισαγωγή Φακέλου:\nΕισάγει από έναν φάκελο το αρχείο δεδομένων (.json) καθώς και όλες τις αποθηκευμένες φωτογραφίες των επαφών σας.\n\n\nΚατά την εισαγωγή, η εφαρμογή προσθέτει τις νέες επαφές στη λίστα σας, αγνοώντας τυχόν διπλότυπα με βάση το τηλέφωνο.", 
+            "Export Contacts:\nExports your names, phone numbers, and favorites into a simple file (.json).\n\nImport Contacts:\nImports your names, phone numbers, and favorites from a simple file (.json).\n\nExport Folder:\nExports to a folder the data file (.json) as well as all your saved contact photos.\n\nImport Folder:\nImports from a folder the data file (.json) as well as all your saved contact photos.\n\n\nDuring import, the app adds new contacts to your list, ignoring any duplicates based on phone number."
+        ),
+        "tab_search": ("Αναζήτηση", "Search"),
+        "search_visibility_desc": ("Επιλέξτε πού θέλετε να εμφανίζεται η μπάρα αναζήτησης:", "Choose where the search bar should appear:"),
+        "search_in_contacts": ("Στις Επαφές", "In Contacts"),
+        "search_in_favorites": ("Στα Αγαπημένα", "In Favorites"),
+        "search_in_history": ("Στο Ιστορικό", "In History"),
+        "message_tooltip": ("Αποστολή μηνύματος", "Send message"),
+        "show_messages_tab": ("Εμφάνιση πλήκτρου μηνυμάτων", "Show messages button"),
+
+        // --- ΣΗΜΕΙΩΣΕΙΣ ΕΠΑΦΗΣ ---
+        "notes_placeholder": ("Σημειώσεις (προαιρετικό)", "Notes (optional)"),
+        "notes_title": ("Σημειώσεις", "Notes"),
+        "show_contact_notes_in_detail": ("Εμφάνιση σημειώσεων στις λεπτομέρειες επαφής", "Show notes in contact details"),
     ]
     
     guard let translation = strings[key] else { return key }

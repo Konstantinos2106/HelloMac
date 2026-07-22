@@ -8,8 +8,10 @@ struct Contact: Codable, Identifiable {
     var phone: String
     var isFavorite: Bool = false
     var favoritedAt: Date? = nil
+    var favoriteSortIndex: Int? = nil
     var imageFileName: String? = nil
     var monogramColorHex: String? = nil
+    var notes: String? = nil
 
     var fullName: String {
         let trimmedLast = lastName.trimmingCharacters(in: .whitespaces)
@@ -35,19 +37,21 @@ struct Contact: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, firstName, lastName, phone, isFavorite, favoritedAt, imageFileName, monogramColorHex
+        case id, firstName, lastName, phone, isFavorite, favoritedAt, favoriteSortIndex, imageFileName, monogramColorHex, notes
         case legacyName = "name"
     }
 
-    init(id: UUID = UUID(), firstName: String, lastName: String, phone: String, isFavorite: Bool = false, favoritedAt: Date? = nil, imageFileName: String? = nil, monogramColorHex: String? = nil) {
+    init(id: UUID = UUID(), firstName: String, lastName: String, phone: String, isFavorite: Bool = false, favoritedAt: Date? = nil, favoriteSortIndex: Int? = nil, imageFileName: String? = nil, monogramColorHex: String? = nil, notes: String? = nil) {
         self.id = id
         self.firstName = firstName
         self.lastName = lastName
         self.phone = phone
         self.isFavorite = isFavorite
         self.favoritedAt = favoritedAt
+        self.favoriteSortIndex = favoriteSortIndex
         self.imageFileName = imageFileName
         self.monogramColorHex = monogramColorHex
+        self.notes = notes
     }
 
     init(from decoder: Decoder) throws {
@@ -56,8 +60,10 @@ struct Contact: Codable, Identifiable {
         phone = try container.decodeIfPresent(String.self, forKey: .phone) ?? ""
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
         favoritedAt = try container.decodeIfPresent(Date.self, forKey: .favoritedAt)
+        favoriteSortIndex = try container.decodeIfPresent(Int.self, forKey: .favoriteSortIndex)
         imageFileName = try container.decodeIfPresent(String.self, forKey: .imageFileName)
         monogramColorHex = try container.decodeIfPresent(String.self, forKey: .monogramColorHex)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
 
         if let first = try container.decodeIfPresent(String.self, forKey: .firstName) {
             firstName = first
@@ -80,8 +86,10 @@ struct Contact: Codable, Identifiable {
         try container.encode(phone, forKey: .phone)
         try container.encode(isFavorite, forKey: .isFavorite)
         try container.encodeIfPresent(favoritedAt, forKey: .favoritedAt)
+        try container.encodeIfPresent(favoriteSortIndex, forKey: .favoriteSortIndex)
         try container.encodeIfPresent(imageFileName, forKey: .imageFileName)
         try container.encodeIfPresent(monogramColorHex, forKey: .monogramColorHex)
+        try container.encodeIfPresent(notes, forKey: .notes)
     }
 }
 
@@ -174,6 +182,7 @@ class ContactStore {
         guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
         list[idx].isFavorite.toggle()
         list[idx].favoritedAt = list[idx].isFavorite ? Date() : nil
+        list[idx].favoriteSortIndex = nil
         contacts = list
         NotificationCenter.default.post(name: .contactsDidChange, object: nil)
     }
@@ -185,6 +194,21 @@ class ContactStore {
             contacts = list
             NotificationCenter.default.post(name: .contactsDidChange, object: nil)
         }
+    }
+
+    /// Reorders favorites according to `orderedIDs` (the full, new front-to-back
+    /// order of favorite contact IDs as arranged by the user via drag & drop).
+    /// Assigns sequential favoriteSortIndex values so this manual order is
+    /// preserved and takes precedence over the favoritedAt-based ordering.
+    func reorderFavorites(orderedIDs: [UUID]) {
+        var list = contacts
+        for (index, id) in orderedIDs.enumerated() {
+            if let idx = list.firstIndex(where: { $0.id == id }) {
+                list[idx].favoriteSortIndex = index
+            }
+        }
+        contacts = list
+        NotificationCenter.default.post(name: .contactsDidChange, object: nil)
     }
 }
 
