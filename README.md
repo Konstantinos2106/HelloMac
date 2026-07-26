@@ -1,18 +1,14 @@
 <p align="center">
   <img src="Icns_Photos/Banner.png" alt="HelloMac Banner" width="100%">
 </p>
-
 <p align="center">
   <img src="Icns_Photos/phone.png" alt="HelloMac Icon" width="200" height="200">
 </p>
-
 <h1 align="center">HelloMac</h1>
-
 <p align="center">
   <strong>Make calls directly from your Mac via your iPhone.<br>A blazing-fast and lightweight app, featuring a classic dialpad and a full contacts list.</strong><br><br>
   <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</strong>
 </p>
-
 <p align="center">
   <a href="https://github.com/Konstantinos2106/HelloMac/releases/latest">
     <img src="https://img.shields.io/github/v/release/Konstantinos2106/HelloMac" alt="Latest Release">
@@ -39,12 +35,14 @@
 </p>
 
 ---
+
 ## About HelloMac
 
 In older versions of macOS (before version 26 'Tahoe'), there is no standalone 'Phone' app, forcing users to open FaceTime or Contacts for a simple call.<br>
 **HelloMac** solves this issue by offering a clean, lightweight, and familiar phone interface.
 
 ### ✨ Features
+
 * **Native macOS UI:** Full Dark Mode, familiar iPhone feel.
 * **Favorites:** Quick access to your most important contacts.
 * **Contact List:** Add, remove, quick access with one click.
@@ -52,28 +50,34 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 * **History:** Full history of your calls with date and time.
 * **Classic Keypad:** Dialpad for quick number entry.
 
-### ⚙️ How it works (FaceTime Workaround)
-HelloMac uses a clever background mechanism. It routes calls via the `tel://` protocol using FaceTime. However, to provide the experience of a truly standalone application, HelloMac automatically hides the FaceTime window, allowing you to manage your call undisturbed.
-
 ### 📥 Installation
+
 1. Go to the [Releases](../../releases) page.
 2. Download the latest version: `HelloMac.Χ.Χ.Χ.dmg`.
 3. Open the file and drag **HelloMac** to your `Applications` folder.
 
+### ✏️ Notes
+
+* **Compatible with:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
+* If **"Unidentified Developer"** appears on first launch, go to `Finder → Applications` (⇧⌘A), right-click HelloMac and choose `Open`, or hold down `Control` and click the app. In the dialog that appears, click `Open` again.
+* HelloMac is constantly being updated and evolved, so it may contain bugs.
+
+### ⚙️ How it works (FaceTime Workaround)
+
+HelloMac uses a clever background mechanism. It routes calls via the `tel://` protocol using FaceTime. However, to provide the experience of a truly standalone application, HelloMac automatically hides the FaceTime window, allowing you to manage your call undisturbed.
+
 ### ✉️ Contact
+
 You can contact me for suggestions and issues via email [here](mailto:hellomac.support@gmail.com).
 
-### ✏️ Notes
-* **Compatible with:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
-* If an "Unidentified Developer" message appears on first launch, follow the guide [here](PDF/Unrecognized_Creator_EL.pdf).
-* HelloMac is constantly being updated and evolved, so it may contain bugs.
-* For automatic updates you must have at least version 2.0. Previous versions do not have an automatic checking and updating mechanism.
-
 ### 📜 License
+
 This project is available under the [MIT License](LICENSE) - see the LICENSE file for details.<br>
 HelloMac is an open-source project and is not affiliated with, endorsed by, or sponsored by Apple Inc. or any other entity. iPhone, Mac, macOS, and FaceTime are trademarks of Apple Inc.
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
+
+_For automatic updates you must have at least version 2.0. Previous versions do not have an automatic checking and updating mechanism._
 
 ---
 
@@ -83,6 +87,7 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 Το **HelloMac** έρχεται να λύσει αυτό το πρόβλημα, προσφέροντας ένα καθαρό, ελαφρύ και γνώριμο περιβάλλον τηλεφώνου.
 
 ### ✨ Χαρακτηριστικά
+
 * **Native macOS UI:** Πλήρης Dark Mode, οικεία αίσθηση iPhone.
 * **Αγαπημένα:** Άμεση πρόσβαση στις πιο σημαντικές επαφές σας.
 * **Λίστα Επαφών:** Προσθήκη, αφαίρεση, γρήγορη πρόσβαση με ένα κλικ.
@@ -90,25 +95,31 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 * **Ιστορικό:** Πλήρες ιστορικό των κλήσεών σας με ημερομηνία και ώρα.
 * **Κλασικό Πληκτρολόγιο:** Καντράν για γρήγορη πληκτρολόγηση αριθμών.
 
-### ⚙️ Πώς λειτουργεί (FaceTime Workaround)
-Το HelloMac χρησιμοποιεί έναν έξυπνο μηχανισμό στο παρασκήνιο. Προωθεί την κλήση μέσω του πρωτοκόλλου `tel://` χρησιμοποιώντας το FaceTime. Όμως, για να σας προσφέρει την εμπειρία μιας πραγματικά αυτόνομης εφαρμογής, το HelloMac κρύβει αυτόματα το παράθυρο του FaceTime, αφήνοντάς σας να διαχειρίζεστε την κλήση σας ανενόχλητοι.
-
 ### 📥 Εγκατάσταση
+
 1. Μεταβείτε στη σελίδα [Releases](../../releases).
 2. Κατεβάστε το αρχείο `HelloMac.Χ.Χ.Χ.dmg`.
 3. Ανοίξτε το και σύρετε το **HelloMac** στον φάκελο `Εφαρμογές` (Applications).
 
+### ✏️ Σημειώσεις
+
+* **Συμβατό με:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
+* Αν εμφανιστεί στην πρώτη εκκίνηση **"Μη Αναγνωρισμένος Δημιουργός"**, πηγαίνετε στο `Finder → Εφαρμογές` (⇧⌘A), κάντε δεξί κλικ στο HelloMac και επιλέξτε `Άνοιγμα` ή κρατήστε πατημένο το `Control` και κάντε κλικ στην εφαρμογή. Στο παράθυρο που θα εμφανιστεί, πατήστε ξανά `Άνοιγμα`.
+* Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη.
+
+### ⚙️ Πώς λειτουργεί (FaceTime Workaround)
+
+Το HelloMac χρησιμοποιεί έναν έξυπνο μηχανισμό στο παρασκήνιο. Προωθεί την κλήση μέσω του πρωτοκόλλου `tel://` χρησιμοποιώντας το FaceTime. Όμως, για να σας προσφέρει την εμπειρία μιας πραγματικά αυτόνομης εφαρμογής, το HelloMac κρύβει αυτόματα το παράθυρο του FaceTime, αφήνοντάς σας να διαχειρίζεστε την κλήση σας ανενόχλητοι.
+
 ### ✉️ Επικοινωνία
+
 Μπορείτε να επικοινωνήσετε μαζί μου για νέες ιδέες και προβλήματα μέσω email [εδώ](mailto:hellomac.support@gmail.com).
 
-### ✏️ Σημειώσεις
-* **Συμβατό με:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
-* Σε περίπτωση που στην πρώτη εκκίνηση εμφανιστεί μήνυμα "Μη Αναγνωρισμένου Δημιουργού", ακολουθήστε τον οδηγό [εδώ](PDF/Unrecognized_Creator_EL.pdf).
-* Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη.
-* Για αυτόματες ενημερώσεις πρέπει να έχετε τουλάχιστον την έκδοση 2.0. Οι προηγούμενες εκδόσεις δεν διαθέτουν μηχανισμό αυτόματου ελέγχου και ενημέρωσης.
-
 ### 📜 Άδεια Χρήσης
+
 Αυτό το project διατίθεται υπό την [Άδεια MIT](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
 Το HelloMac είναι ένα project ανοιχτού κώδικα και δεν σχετίζεται, δεν υποστηρίζεται ούτε χρηματοδοτείται από την Apple Inc ή κάποια άλλη πηγή. Τα ονόματα iPhone, Mac, macOS και FaceTime είναι εμπορικά σήματα της Apple Inc.
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
+
+_Για αυτόματες ενημερώσεις πρέπει να έχετε τουλάχιστον την έκδοση 2.0. Οι προηγούμενες εκδόσεις δεν διαθέτουν μηχανισμό αυτόματου ελέγχου και ενημέρωσης._
