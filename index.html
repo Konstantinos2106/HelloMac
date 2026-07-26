@@ -228,28 +228,6 @@
     .req-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);}
     .req-item::before{content:'✓';color:var(--green);font-weight:700;}
 
-    .pdf-modal-overlay {
-      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 10000;
-      justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease;
-    }
-    .pdf-modal-overlay.show { opacity: 1; }
-    .pdf-modal-content {
-      position: relative; width: 90%; max-width: 900px; height: 85vh;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-      transform: translateY(20px); transition: transform 0.3s ease; overflow: hidden;
-      display: flex; flex-direction: column;
-    }
-    .pdf-modal-overlay.show .pdf-modal-content { transform: translateY(0); }
-    .pdf-close {
-      position: absolute; top: 12px; right: 12px; width: 34px; height: 34px;
-      background: var(--surface2); border: 1px solid var(--border); border-radius: 50%;
-      color: var(--text); font-size: 20px; font-weight: bold; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; z-index: 10; transition: all 0.2s;
-    }
-    .pdf-close:hover { background: #ff453a; color: white; border-color: #ff453a; }
-    
     .scroll-top-btn {
       position: fixed; bottom: 30px; right: 30px; z-index: 9000; width: 46px; height: 46px;
       background: var(--green); color: black; border: none; border-radius: 50%;
@@ -283,7 +261,6 @@
       .screenshot-card{height:auto;}
       .screenshot-card img{height:auto;}
       footer{flex-direction:column;text-align:center;}
-      .pdf-modal-content { width: 95%; height: 90vh; }
       .scroll-top-btn { display: none !important; }
     }
   </style>
@@ -629,8 +606,8 @@
             <div class="step-content">
               <h3><span data-lang="el">Σύρετε στις Εφαρμογές</span><span data-lang="en">Drag to Applications</span></h3>
               <p>
-                <span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>.<br> Αν εμφανιστεί "Μη Αναγνωρισμένος Δημιουργός", ακολουθήστε τον οδηγό <a href="#" onclick="openPdf(event)" class="step-link">εδώ</a>.</span>
-                <span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>.<br> If you see "Unidentified Developer", follow the guide <a href="#" onclick="openPdf(event)" class="step-link">here</a>.</span>
+                <span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>.<br><br> Αν εμφανιστεί στην πρώτη εκκίνηση <code>"Μη Αναγνωρισμένος Δημιουργός"</code>, πηγαίνετε στο <code>Finder → Εφαρμογές </code> (⇧⌘A), κάντε δεξί κλικ στο HelloMac και επιλέξτε <code>Άνοιγμα</code> ή κρατήστε πατημένο το <code>Control</code> και κάντε κλικ στην εφαρμογή. Στο παράθυρο που θα εμφανιστεί, πατήστε ξανά <code>Άνοιγμα</code></span>
+                <span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>.<br><br> If <code>"Unidentified Developer"</code> appears on first launch, go to <code>Finder → Applications</code> (⇧⌘A), right-click HelloMac and choose <code>Open</code>, or hold down <code>Control</code> and click the app. In the dialog that appears, click <code>Open</code> again</span>
               </p>
             </div>
           </div>
@@ -669,20 +646,6 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="pdf-modal-overlay" id="pdfModal" onclick="closePdf(event)">
-  <div class="pdf-modal-content" id="pdfContent">
-    <button class="pdf-close" onclick="closePdf(event)">×</button>
-    <object data="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/PDF/Unrecognized_Creator_EL.pdf" type="application/pdf" width="100%" height="100%" style="flex-grow: 1;">
-      <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
-        <p style="margin-bottom: 20px;"><span data-lang="el">Το πρόγραμμα περιήγησής σας δεν υποστηρίζει την ενσωματωμένη προβολή PDF.</span><span data-lang="en">Your browser does not support embedded PDF viewing.</span></p>
-        <a class="btn-primary" href="https://github.com/Konstantinos2106/HelloMac/blob/main/PDF/Unrecognized_Creator_EL.pdf" target="_blank">
-          <span data-lang="el">Προβολή στο GitHub</span><span data-lang="en">View on GitHub</span>
-        </a>
-      </div>
-    </object>
   </div>
 </div>
 
@@ -783,23 +746,6 @@ function scrollToTop() {
     docsScrollArea.scrollTo({top: 0, behavior: 'smooth'});
   } else {
     window.scrollTo({top: 0, behavior: 'smooth'});
-  }
-}
-
-// ── PDF Modal Functionality ──
-function openPdf(e) {
-  e.preventDefault();
-  const modal = document.getElementById('pdfModal');
-  modal.style.display = 'flex';
-  setTimeout(() => { modal.classList.add('show'); }, 10);
-}
-function closePdf(e) {
-  if(e.target.id === 'pdfModal' || e.target.classList.contains('pdf-close')) {
-    const modal = document.getElementById('pdfModal');
-    modal.classList.remove('show');
-    setTimeout(() => {
-      modal.style.display = 'none';
-    }, 300);
   }
 }
 
