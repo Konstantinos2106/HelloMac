@@ -334,6 +334,39 @@ class HistoryStore {
     }
 }
 
+extension Array where Element == Contact {
+    /// Ταξινομεί μια λίστα επαφών με την ίδια σειρά που χρησιμοποιεί η καρτέλα
+    /// "Αγαπημένα" στο κύριο παράθυρο: πρώτα κατά το χειροκίνητο drag & drop
+    /// order (`favoriteSortIndex`, μικρότερο πρώτα — όσες δεν έχουν οριστεί
+    /// πάνε στο τέλος), και ως fallback κατά `favoritedAt` (πιο πρόσφατο πρώτα).
+    /// Χρησιμοποιείται και από το κύριο παράθυρο και από το menu bar ώστε η
+    /// σειρά των αγαπημένων να είναι πάντα ίδια και στα δύο σημεία.
+    func sortedByFavoriteOrder() -> [Contact] {
+        sorted {
+            switch ($0.favoriteSortIndex, $1.favoriteSortIndex) {
+            case let (lhs?, rhs?):
+                return lhs < rhs
+            case (nil, nil):
+                break
+            case (nil, _):
+                return false
+            case (_, nil):
+                return true
+            }
+            switch ($0.favoritedAt, $1.favoritedAt) {
+            case let (lhs?, rhs?):
+                return lhs > rhs
+            case (nil, nil):
+                return false
+            case (nil, _):
+                return false
+            case (_, nil):
+                return true
+            }
+        }
+    }
+}
+
 extension NSColor {
     var hexString: String? {
         guard let rgb = usingColorSpace(.deviceRGB) else { return nil }
@@ -358,4 +391,55 @@ extension String {
     var sanitizedForCall: String {
         return self.filter { "0123456789+".contains($0) }
     }
+}
+
+// MARK: - Λειτουργία Απόρρητου (Privacy Mode)
+
+/// Κρύβει (θολώνει) ονόματα, τηλέφωνα και φωτογραφίες επαφών σε όλη την
+/// εφαρμογή, ώστε να μπορεί κάποιος να κάνει π.χ. κοινή χρήση οθόνης χωρίς
+/// να αποκαλύπτει προσωπικά δεδομένα. Η κατάσταση αποθηκεύεται ώστε να
+/// επιβιώνει μεταξύ επανεκκινήσεων και ενημερώνει όλη την εφαρμογή μέσω
+/// NotificationCenter όταν αλλάζει.
+final class PrivacyMode {
+    static let shared = PrivacyMode()
+    private let key = "privacyModeEnabled"
+
+    private init() {}
+
+    var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: key) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: key)
+            NotificationCenter.default.post(name: .privacyModeDidChange, object: nil)
+        }
+    }
+
+    /// Θολώνει ένα όνομα/κείμενο διατηρώντας περίπου το μήκος του, ώστε η
+    /// διάταξη να μη "χοροπηδάει" υπερβολικά. Δεν εξαφανίζει το κείμενο,
+    /// απλώς το αντικαθιστά με ένα σταθερό σύμβολο.
+    func maskedText(_ original: String) -> String {
+        let trimmed = original.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return original }
+        let count = min(max(trimmed.count, 3), 10)
+        return String(repeating: "•", count: count)
+    }
+
+    /// Θολωμένη εκδοχή για αρχικά μονογράμματος (avatar).
+    var maskedInitials: String { "••" }
+
+    /// Εμφανίζει ένα ενημερωτικό μήνυμα που ζητά από τον χρήστη να
+    /// απενεργοποιήσει τη λειτουργία απόρρητου πριν προχωρήσει σε μια
+    /// ενέργεια (π.χ. αποθήκευση/επεξεργασία στοιχείων επαφής).
+    func showBlockedAlert() {
+        let alert = NSAlert()
+        alert.messageText = L("privacy_mode_blocked_title")
+        alert.informativeText = L("privacy_mode_blocked_text")
+        alert.addButton(withTitle: L("privacy_mode_blocked_btn"))
+        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.runModal()
+    }
+}
+
+extension Notification.Name {
+    static let privacyModeDidChange = Notification.Name("privacyModeDidChange")
 }

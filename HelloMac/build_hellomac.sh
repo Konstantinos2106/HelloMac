@@ -40,7 +40,8 @@ swiftc \
     "$SRC_DIR/AppDelegate.swift" \
     "$SRC_DIR/MainWindow.swift" \
     "$SRC_DIR/SettingsWindow.swift" \
-    "$SRC_DIR/ImageCropWindow.swift" \
+    "$SRC_DIR/ImageCropPreviewWindow.swift" \
+    "$SRC_DIR/MenuBarController.swift" \
     -o "$BINARY_PATH"
 
 echo "✅ Compile OK"
@@ -50,6 +51,14 @@ if [ -f "$ICON_SRC" ]; then
     echo "🎨 Εικονίδιο OK"
 else
     echo "⚠️  Εικονίδιο δεν βρέθηκε: $ICON_SRC"
+fi
+
+MENU_ICON_SRC="$SCRIPT_DIR/menubar_icon.png"
+if [ -f "$MENU_ICON_SRC" ]; then
+    cp "$MENU_ICON_SRC" "$APP_PATH/Contents/Resources/menubar_icon.png"
+    echo "🎨 Menu Bar Εικονίδιο OK"
+else
+    echo "⚠️  Menu Bar Εικονίδιο δεν βρέθηκε: $MENU_ICON_SRC"
 fi
 
 cat > "$APP_PATH/Contents/Info.plist" << PLIST
@@ -64,9 +73,9 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundleIdentifier</key>
     <string>com.hellomac.telephone</string>
     <key>CFBundleVersion</key>
-    <string>2.4</string>
+    <string>2.5</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.4</string>
+    <string>2.5</string>
     <key>CFBundleExecutable</key>
     <string>${BINARY_NAME}</string>
     <key>CFBundlePackageType</key>

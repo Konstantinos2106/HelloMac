@@ -48,8 +48,23 @@ enum ColorWheelIcon {
 class RoundAvatarView: NSView {
     private let imageView = NSImageView()
     private let initialsLabel = NSTextField(labelWithString: "")
+    /// Ημιδιάφανο "γυάλινο" στρώμα πάνω από τη φωτογραφία, ώστε να μη
+    /// φαίνεται καθαρά το πρόσωπο της επαφής όσο είναι ενεργό το Απόρρητο.
+    private let privacyBlurOverlay = NSVisualEffectView()
     private var diameter: CGFloat
-    var onTap: (() -> Void)?
+    var onTap: (() -> Void)? {
+        didSet { updateTooltip() }
+    }
+
+    private func updateTooltip() {
+        toolTip = onTap != nil ? L("click_to_view_photo") : nil
+    }
+
+    /// Κρατάμε τα πραγματικά στοιχεία ώστε να μπορούμε να ξαναζωγραφίσουμε
+    /// σωστά (θολωμένα ή μη) όποτε αλλάζει η κατάσταση του Απόρρητου.
+    private var storedImage: NSImage?
+    private var storedInitials: String = ""
+    private var storedColorOverride: NSColor?
 
     private static let palette: [NSColor] = [
         NSColor(red: 0.35, green: 0.55, blue: 0.95, alpha: 1),
@@ -65,6 +80,7 @@ class RoundAvatarView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         setupSubviews()
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
     }
 
     required init?(coder: NSCoder) {
@@ -72,6 +88,15 @@ class RoundAvatarView: NSView {
         super.init(coder: coder)
         wantsLayer = true
         setupSubviews()
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func privacyModeChanged() {
+        applyCurrentConfiguration()
     }
 
     private func setupSubviews() {
@@ -89,6 +114,14 @@ class RoundAvatarView: NSView {
         initialsLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(initialsLabel)
 
+        privacyBlurOverlay.material = .hudWindow
+        privacyBlurOverlay.blendingMode = .withinWindow
+        privacyBlurOverlay.state = .active
+        privacyBlurOverlay.wantsLayer = true
+        privacyBlurOverlay.translatesAutoresizingMaskIntoConstraints = false
+        privacyBlurOverlay.isHidden = true
+        addSubview(privacyBlurOverlay)
+
         NSLayoutConstraint.activate([
             imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
             imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -96,6 +129,10 @@ class RoundAvatarView: NSView {
             imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
             initialsLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
             initialsLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            privacyBlurOverlay.leadingAnchor.constraint(equalTo: leadingAnchor),
+            privacyBlurOverlay.trailingAnchor.constraint(equalTo: trailingAnchor),
+            privacyBlurOverlay.topAnchor.constraint(equalTo: topAnchor),
+            privacyBlurOverlay.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
         if onTap != nil || true {
@@ -114,6 +151,9 @@ class RoundAvatarView: NSView {
         imageView.layer?.cornerRadius = radius
         imageView.layer?.cornerCurve = .circular
         imageView.layer?.masksToBounds = true
+        privacyBlurOverlay.layer?.cornerRadius = radius
+        privacyBlurOverlay.layer?.cornerCurve = .circular
+        privacyBlurOverlay.layer?.masksToBounds = true
         initialsLabel.font = NSFont.systemFont(ofSize: min(bounds.width, bounds.height) * 0.36, weight: .semibold)
     }
 
@@ -129,18 +169,32 @@ class RoundAvatarView: NSView {
     }
 
     func configure(image: NSImage?, initials: String, colorOverride: NSColor? = nil) {
-        if let image = image {
+        storedImage = image
+        storedInitials = initials
+        storedColorOverride = colorOverride
+        applyCurrentConfiguration()
+    }
+
+    /// Ζωγραφίζει το avatar σύμφωνα με τα αποθηκευμένα στοιχεία, λαμβάνοντας
+    /// υπόψη αν είναι ενεργό το Απόρρητο (Privacy Mode). Η φωτογραφία
+    /// θολώνεται αντί να εξαφανίζεται, και τα αρχικά αντικαθίστανται με "••".
+    private func applyCurrentConfiguration() {
+        let privacyOn = PrivacyMode.shared.isEnabled
+
+        if let image = storedImage {
             imageView.image = image
             imageView.isHidden = false
             initialsLabel.isHidden = true
             layer?.backgroundColor = NSColor.clear.cgColor
+            privacyBlurOverlay.isHidden = !privacyOn
         } else {
             imageView.image = nil
             imageView.isHidden = true
             initialsLabel.isHidden = false
-            initialsLabel.stringValue = initials
-            let color = colorOverride ?? RoundAvatarView.colorForInitials(initials)
+            initialsLabel.stringValue = privacyOn ? PrivacyMode.shared.maskedInitials : storedInitials
+            let color = storedColorOverride ?? RoundAvatarView.colorForInitials(storedInitials)
             layer?.backgroundColor = color.cgColor
+            privacyBlurOverlay.isHidden = true
         }
     }
 
@@ -288,12 +342,20 @@ class MonogramColorPickerView: NSView {
     }
 
     @objc private func swatchTapped(_ sender: ColorSwatchButton) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         selectedColor = sender.color
         refreshSelectionRing()
         onColorChange?(sender.color)
     }
 
     @objc private func openColorWheel() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         let panel = NSColorPanel.shared
         panel.setTarget(self)
         panel.setAction(#selector(colorPanelChanged(_:)))
@@ -363,6 +425,15 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
         self.contactToEdit = contactToEdit
         window.title = contactToEdit == nil ? L("add_contact_menu") : L("edit_contact")
         setupUI()
+        populateData()
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChangedRepopulate), name: .privacyModeDidChange, object: nil)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func privacyModeChangedRepopulate() {
         populateData()
     }
     
@@ -551,13 +622,23 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
     }
 
     private func populateData() {
+        let privacyOn = PrivacyMode.shared.isEnabled
         if let contact = contactToEdit {
-            firstNameField.stringValue = contact.firstName
-            lastNameField.stringValue = contact.lastName
-            phoneField.stringValue = contact.phone
+            if privacyOn {
+                firstNameField.stringValue = PrivacyMode.shared.maskedText(contact.firstName)
+                lastNameField.stringValue = PrivacyMode.shared.maskedText(contact.lastName)
+                phoneField.stringValue = PrivacyMode.shared.maskedText(contact.phone)
+            } else {
+                firstNameField.stringValue = contact.firstName
+                lastNameField.stringValue = contact.lastName
+                phoneField.stringValue = contact.phone
+            }
             let notes = contact.notes ?? ""
             if notes.isEmpty {
                 setNotesPlaceholderVisible(true)
+            } else if privacyOn {
+                notesTextView.string = PrivacyMode.shared.maskedText(notes)
+                setNotesPlaceholderVisible(false)
             } else {
                 notesTextView.string = notes
                 setNotesPlaceholderVisible(false)
@@ -568,6 +649,14 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
         } else {
             setNotesPlaceholderVisible(true)
         }
+
+        // Όσο είναι ενεργή η λειτουργία απόρρητου, τα πεδία στοιχείων
+        // επαφής δεν επιτρέπεται να επεξεργαστούν.
+        firstNameField.isEditable = !privacyOn
+        lastNameField.isEditable = !privacyOn
+        phoneField.isEditable = !privacyOn
+        notesTextView.isEditable = !privacyOn
+
         monogramColorPicker.setSelected(color: selectedMonogramColor)
         refreshAvatarAndPickerVisibility()
     }
@@ -600,6 +689,10 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
     }
 
     @objc private func pickImage() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -635,12 +728,20 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
     }
 
     @objc private func removePhoto() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         selectedImage = nil
         didClearImage = true
         refreshAvatarAndPickerVisibility()
     }
 
     @objc private func reCropExistingPhoto() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         guard let currentImage = selectedImage ?? contactToEdit?.image else { return }
         presentCropSheet(for: currentImage)
     }
@@ -653,6 +754,11 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
     }
 
     @objc func saveContact() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
+
         let firstName = firstNameField.stringValue.trimmingCharacters(in: .whitespaces)
         let lastName = lastNameField.stringValue.trimmingCharacters(in: .whitespaces)
         let phone = phoneField.stringValue.trimmingCharacters(in: .whitespaces)
@@ -813,6 +919,12 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private var tabContentViews: [NSView] = []
     private var resizingTabViewController: ResizingTabViewController?
     private var speedDialTextFields: [Int: NSTextField] = [:]
+    /// Κρατάει ποια πεδία ταχείας κλήσης βρίσκονται πραγματικά σε
+    /// επεξεργασία αυτή τη στιγμή (μετά από πραγματικό κλικ/εστίαση από τον
+    /// χρήστη), ώστε το "τέλος επεξεργασίας" να μην αποθηκεύσει κατά λάθος
+    /// το εμφανιζόμενο όνομα επαφής (που δείχνει το πεδίο όταν δεν
+    /// επεξεργάζεται) ως να ήταν ο αριθμός τηλεφώνου.
+    private var speedDialFieldsActivelyEditing: Set<Int> = []
 
     convenience init() {
         let window = NSWindow(
@@ -836,6 +948,39 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         
         self.init(window: window)
         setupUI()
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChangedRefreshSpeedDial), name: .privacyModeDidChange, object: nil)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    /// Ξαναδείχνει τα πεδία ταχείας κλήσης (θολωμένα ή μη, επεξεργάσιμα ή
+    /// όχι) όταν αλλάζει η κατάσταση της λειτουργίας απόρρητου ενώ το
+    /// παράθυρο Ρυθμίσεων είναι ήδη ανοιχτό.
+    @objc private func privacyModeChangedRefreshSpeedDial() {
+        let privacyOn = PrivacyMode.shared.isEnabled
+        for (i, tf) in speedDialTextFields {
+            tf.isEditable = !privacyOn
+            let savedValue = UserDefaults.standard.string(forKey: "SpeedDial_\(i)") ?? ""
+            if let contact = ContactStore.shared.contacts.first(where: { $0.phone.sanitizedForCall == savedValue.sanitizedForCall && !savedValue.isEmpty }) {
+                if privacyOn {
+                    tf.stringValue = PrivacyMode.shared.maskedText(contact.fullName)
+                    tf.toolTip = nil
+                } else {
+                    tf.stringValue = contact.fullName
+                    tf.toolTip = contact.phone
+                }
+            } else {
+                if privacyOn && !savedValue.isEmpty {
+                    tf.stringValue = PrivacyMode.shared.maskedText(savedValue)
+                    tf.toolTip = nil
+                } else {
+                    tf.stringValue = savedValue
+                    tf.toolTip = savedValue.isEmpty ? nil : savedValue
+                }
+            }
+        }
     }
     
     private func setupUI() {
@@ -920,6 +1065,18 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         let appearanceVC = NSViewController()
         let appearanceView = NSView()
         
+        let menuBarRow = NSStackView()
+        menuBarRow.orientation = .horizontal
+        let menuBarLabel = NSTextField(labelWithString: L("show_menu_bar_icon"))
+        menuBarLabel.font = NSFont.systemFont(ofSize: 14)
+        menuBarRow.addView(menuBarLabel, in: .leading)
+        let menuBarSwitch = NSSwitch()
+        menuBarSwitch.target = self
+        menuBarSwitch.action = #selector(toggleFeature(_:))
+        menuBarSwitch.identifier = NSUserInterfaceItemIdentifier("showMenuBarIcon")
+        menuBarSwitch.state = UserDefaults.standard.bool(forKey: "showMenuBarIcon") ? .on : .off
+        menuBarRow.addView(menuBarSwitch, in: .trailing)
+
         let favoritesRow = NSStackView()
         favoritesRow.orientation = .horizontal
         let favoritesLabel = NSTextField(labelWithString: L("show_favorites_tab"))
@@ -980,6 +1137,18 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         plusSwitch.state = UserDefaults.standard.bool(forKey: "hidePlusButton") ? .off : .on
         plusRow.addView(plusSwitch, in: .trailing)
         
+        let menuBarPlusRow = NSStackView()
+        menuBarPlusRow.orientation = .horizontal
+        let menuBarPlusLabel = NSTextField(labelWithString: L("show_menu_bar_plus_tab"))
+        menuBarPlusLabel.font = NSFont.systemFont(ofSize: 14)
+        menuBarPlusRow.addView(menuBarPlusLabel, in: .leading)
+        let menuBarPlusSwitch = NSSwitch()
+        menuBarPlusSwitch.target = self
+        menuBarPlusSwitch.action = #selector(toggleFeature(_:))
+        menuBarPlusSwitch.identifier = NSUserInterfaceItemIdentifier("showMenuBarPlusButton")
+        menuBarPlusSwitch.state = UserDefaults.standard.bool(forKey: "hideMenuBarPlusButton") ? .off : .on
+        menuBarPlusRow.addView(menuBarPlusSwitch, in: .trailing)
+        
         let messagesRow = NSStackView()
         messagesRow.orientation = .horizontal
         let messagesLabel = NSTextField(labelWithString: L("show_messages_tab"))
@@ -1004,7 +1173,7 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         detailNotesSwitch.state = UserDefaults.standard.bool(forKey: "hideContactNotesInDetail") ? .off : .on
         detailNotesRow.addView(detailNotesSwitch, in: .trailing)
 
-        let appearanceStack = NSStackView(views: [favoritesRow, historyRow, contactsRow, keypadRow, plusRow, messagesRow, detailNotesRow])
+        let appearanceStack = NSStackView(views: [menuBarRow, favoritesRow, historyRow, contactsRow, keypadRow, plusRow, menuBarPlusRow, messagesRow, detailNotesRow])
         appearanceStack.orientation = .vertical
         appearanceStack.spacing = 14
         appearanceStack.translatesAutoresizingMaskIntoConstraints = false
@@ -1014,14 +1183,16 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             appearanceStack.centerXAnchor.constraint(equalTo: appearanceView.centerXAnchor),
             appearanceStack.topAnchor.constraint(equalTo: appearanceView.topAnchor, constant: 28),
             appearanceStack.bottomAnchor.constraint(equalTo: appearanceView.bottomAnchor, constant: -28),
+            menuBarRow.widthAnchor.constraint(equalToConstant: 360),
             favoritesRow.widthAnchor.constraint(equalToConstant: 360),
             historyRow.widthAnchor.constraint(equalToConstant: 360),
             contactsRow.widthAnchor.constraint(equalToConstant: 360),
             keypadRow.widthAnchor.constraint(equalToConstant: 360),
             plusRow.widthAnchor.constraint(equalToConstant: 360),
-            appearanceView.widthAnchor.constraint(equalToConstant: 540),
+            menuBarPlusRow.widthAnchor.constraint(equalToConstant: 360),
             messagesRow.widthAnchor.constraint(equalToConstant: 360),
-            detailNotesRow.widthAnchor.constraint(equalToConstant: 360)
+            detailNotesRow.widthAnchor.constraint(equalToConstant: 360),
+            appearanceView.widthAnchor.constraint(equalToConstant: 540)
         ])
         
         appearanceVC.view = appearanceView
@@ -1178,14 +1349,25 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             tf.placeholderString = L("phone_placeholder")
             let savedValue = UserDefaults.standard.string(forKey: "SpeedDial_\(i)") ?? ""
             if let contact = ContactStore.shared.contacts.first(where: { $0.phone.sanitizedForCall == savedValue.sanitizedForCall && !savedValue.isEmpty }) {
-                tf.stringValue = contact.fullName
-                tf.toolTip = contact.phone
+                if PrivacyMode.shared.isEnabled {
+                    tf.stringValue = PrivacyMode.shared.maskedText(contact.fullName)
+                    tf.toolTip = nil
+                } else {
+                    tf.stringValue = contact.fullName
+                    tf.toolTip = contact.phone
+                }
             } else {
-                tf.stringValue = savedValue
-                tf.toolTip = savedValue.isEmpty ? nil : savedValue
+                if PrivacyMode.shared.isEnabled && !savedValue.isEmpty {
+                    tf.stringValue = PrivacyMode.shared.maskedText(savedValue)
+                    tf.toolTip = nil
+                } else {
+                    tf.stringValue = savedValue
+                    tf.toolTip = savedValue.isEmpty ? nil : savedValue
+                }
             }
             tf.tag = i
             tf.delegate = self
+            tf.isEditable = !PrivacyMode.shared.isEnabled
             tf.translatesAutoresizingMaskIntoConstraints = false
             tf.widthAnchor.constraint(equalToConstant: 210).isActive = true 
             speedDialTextFields[i] = tf 
@@ -1548,6 +1730,11 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     }
 
     @objc private func toggleFeature(_ sender: NSSwitch) {
+        if PrivacyMode.shared.isEnabled {
+            sender.state = sender.state == .on ? .off : .on
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         if sender.identifier?.rawValue == "showContactsMenu" {
             UserDefaults.standard.set(sender.state == .off, forKey: "hideContactsMenu")
         } else if sender.identifier?.rawValue == "showKeypadMenu" {
@@ -1566,18 +1753,33 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             UserDefaults.standard.set(sender.state == .off, forKey: "hideContactNotesInDetail")
         } else if sender.identifier?.rawValue == "showMessagesButton" {
             UserDefaults.standard.set(sender.state == .off, forKey: "hideMessagesButton")
+        } else if sender.identifier?.rawValue == "showMenuBarIcon" {
+            UserDefaults.standard.set(sender.state == .on, forKey: "showMenuBarIcon")
+        } else if sender.identifier?.rawValue == "showMenuBarPlusButton" {
+            UserDefaults.standard.set(sender.state == .off, forKey: "hideMenuBarPlusButton")
         }
         
         NotificationCenter.default.post(name: NSNotification.Name("UpdateUIVisibility"), object: nil)
     }
     
     @objc private func toggleSearchFeature(_ sender: NSSwitch) {
+        if PrivacyMode.shared.isEnabled {
+            sender.state = sender.state == .on ? .off : .on
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         guard let key = sender.identifier?.rawValue else { return }
         UserDefaults.standard.set(sender.state == .off, forKey: key)
         NotificationCenter.default.post(name: NSNotification.Name("UpdateUIVisibility"), object: nil)
     }
 
     @objc private func historyAutoDeleteChanged(_ sender: NSPopUpButton) {
+        if PrivacyMode.shared.isEnabled {
+            let savedIndex = UserDefaults.standard.integer(forKey: HistoryAutoDeleteInterval.defaultsKey)
+            sender.selectItem(at: savedIndex)
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         UserDefaults.standard.set(sender.indexOfSelectedItem, forKey: HistoryAutoDeleteInterval.defaultsKey)
         HistoryStore.shared.purgeExpiredRecords()
     }
@@ -1586,6 +1788,14 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     func controlTextDidBeginEditing(_ obj: Notification) {
         if let tf = obj.object as? NSTextField, tf.tag >= 1, tf.tag <= 9 {
+            if PrivacyMode.shared.isEnabled {
+                // Δεν επιτρέπεται η επεξεργασία ταχείας κλήσης όσο είναι
+                // ενεργή η λειτουργία απόρρητου.
+                tf.window?.makeFirstResponder(nil)
+                PrivacyMode.shared.showBlockedAlert()
+                return
+            }
+            speedDialFieldsActivelyEditing.insert(tf.tag)
             // Όταν κάνεις κλικ, δείξε πάλι τον αριθμό για να τον επεξεργαστείς
             let savedValue = UserDefaults.standard.string(forKey: "SpeedDial_\(tf.tag)") ?? ""
             tf.stringValue = savedValue
@@ -1594,6 +1804,27 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     func controlTextDidChange(_ obj: Notification) {
         if let tf = obj.object as? NSTextField, tf.tag >= 1, tf.tag <= 9 {
+            if PrivacyMode.shared.isEnabled {
+                return
+            }
+            // Ασφάλεια: αγνόησε αλλαγές που δεν προήλθαν από ενεργή
+            // επεξεργασία του χρήστη (π.χ. προγραμματιστική ανανέωση της
+            // εμφάνισης του πεδίου με το όνομα της επαφής). Χωρίς αυτό, η
+            // ανανέωση θα πυροδοτούσε αυτό το notification, θα φιλτράριζε
+            // το όνομα σε κενό/μερικό string, και θα κατέστρεφε τον ήδη
+            // σωστά αποθηκευμένο αριθμό τηλεφώνου.
+            guard speedDialFieldsActivelyEditing.contains(tf.tag) else { return }
+
+            // Επιτρέπονται μόνο ψηφία και το σύμβολο "+" (αριθμός τηλεφώνου),
+            // όχι γράμματα ή άλλοι χαρακτήρες.
+            let allowedCharacters = CharacterSet(charactersIn: "+0123456789")
+            let currentText = tf.stringValue
+            let filteredText = currentText.unicodeScalars.filter { allowedCharacters.contains($0) }
+            let newText = String(String.UnicodeScalarView(filteredText))
+            if currentText != newText {
+                tf.stringValue = newText
+            }
+
             // Όριο 20 χαρακτήρες
             if tf.stringValue.count > 20 {
                 tf.stringValue = String(tf.stringValue.prefix(20))
@@ -1606,7 +1837,27 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     
     func controlTextDidEndEditing(_ obj: Notification) {
         if let tf = obj.object as? NSTextField, tf.tag >= 1, tf.tag <= 9 {
-            let savedValue = tf.stringValue
+            if PrivacyMode.shared.isEnabled {
+                // Ασφάλεια: μην αποθηκεύσεις ποτέ τιμή πεδίου ταχείας κλήσης
+                // όσο είναι ενεργό το Απόρρητο, ό,τι κι αν προκάλεσε το τέλος
+                // επεξεργασίας — ξαναδείξε την σωστή (θολωμένη) τιμή.
+                speedDialFieldsActivelyEditing.remove(tf.tag)
+                privacyModeChangedRefreshSpeedDial()
+                return
+            }
+            // Ασφάλεια: αν αυτό το πεδίο δεν πέρασε ποτέ από πραγματική
+            // έναρξη επεξεργασίας (π.χ. το macOS πυροδότησε "τέλος
+            // επεξεργασίας" ενώ το πεδίο έδειχνε ακόμη το όνομα της
+            // αντιστοιχισμένης επαφής), μην αποθηκεύσεις τίποτα — θα
+            // κατέστρεφε τον ήδη σωστά αποθηκευμένο αριθμό τηλεφώνου.
+            guard speedDialFieldsActivelyEditing.contains(tf.tag) else { return }
+            speedDialFieldsActivelyEditing.remove(tf.tag)
+
+            let allowedCharacters = CharacterSet(charactersIn: "+0123456789")
+            let savedValue = String(String.UnicodeScalarView(tf.stringValue.unicodeScalars.filter { allowedCharacters.contains($0) }))
+            if tf.stringValue != savedValue {
+                tf.stringValue = savedValue
+            }
             UserDefaults.standard.set(savedValue, forKey: "SpeedDial_\(tf.tag)")
             
             // Μόλις κάνεις κλικ αλλού, κάνε το πάλι Όνομα (και τον αριθμό Tooltip)
@@ -1622,6 +1873,11 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     // --- ΛΕΙΤΟΥΡΓΙΕΣ ΜΕΝΟΥ (PICKER) ---
 
     @objc private func showContactPicker(_ sender: NSButton) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
+
         let menu = NSMenu()
         
         let contacts = ContactStore.shared.contacts.sorted { 

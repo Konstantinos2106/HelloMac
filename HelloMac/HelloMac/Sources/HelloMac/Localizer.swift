@@ -5,13 +5,14 @@ func L(_ key: String, _ arg: String = "") -> String {
     
     let strings: [String: (el: String, en: String)] = [
         "about_menu": ("Σχετικά με το HelloMac", "About HelloMac"),
-        "about_text": ("Έκδοση: 2.4\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 2.4\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
+        "about_text": ("Έκδοση: 2.5\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 2.5\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
         "learn_more": ("Δείτε περισσότερα", "Learn More"),
         "check_updates": ("Έλεγχος για Ενημερώσεις...", "Check for Updates..."),
         "exit": ("Τερματισμός HelloMac", "Quit HelloMac"),
         "tools": ("Εργαλεία", "Tools"),
         "contacts": ("Επαφές", "Contacts"),
         "keypad": ("Πλήκτρα", "Keypad"),
+        "dialer_title": ("Πλήκτρα", "Keypad"),
         "favorites": ("Αγαπημένα", "Favorites"),
         "history": ("Ιστορικό", "History"),
         "add_contact_menu": ("Προσθήκη Επαφής", "Add Contact"),
@@ -95,6 +96,8 @@ func L(_ key: String, _ arg: String = "") -> String {
         "save_btn": ("Αποθήκευση", "Save"),
         "paste": ("Επικόλληση", "Paste"),
         "call_in_progress": ("Τερματίστε την τρέχουσα κλήση για να πραγματοποιήσετε μια νέα", "Please end the current call to start a new one"),
+        "show_menu_bar_icon": ("Εμφάνιση εικονιδίου στη γραμμή μενού", "Show menu bar icon"),
+        "open_hellomac": ("Άνοιγμα HelloMac", "Open HelloMac"),
 
         // --- ΦΩΤΟΓΡΑΦΙΑ ΕΠΑΦΗΣ / DETAIL PANEL ---
         "choose_photo": ("Επιλογή φωτογραφίας", "Choose photo"),
@@ -160,6 +163,22 @@ func L(_ key: String, _ arg: String = "") -> String {
         "notes_placeholder": ("Σημειώσεις (προαιρετικό)", "Notes (optional)"),
         "notes_title": ("Σημειώσεις", "Notes"),
         "show_contact_notes_in_detail": ("Εμφάνιση σημειώσεων στις λεπτομέρειες επαφής", "Show notes in contact details"),
+        
+        // --- ΛΕΙΤΟΥΡΓΙΑ ΑΠΟΡΡΗΤΟΥ (PRIVACY MODE) ---
+        "privacy_mode_menu": ("Λειτουργία Απορρήτου", "Privacy Mode"),
+        "privacy_mode_active_tooltip": ("Η λειτουργία απορρήτου είναι ενεργή — πάτα για απενεργοποίηση", "Privacy mode is on — tap to turn off"),
+        "privacy_mode_disable_title": ("Απενεργοποίηση Απορρήτου", "Turn Off Privacy Mode"),
+        "privacy_mode_disable_text": ("Σίγουρα θέλεις να απενεργοποιήσεις τη λειτουργία απορρήτου;\nΤα ονόματα, τα τηλέφωνα και οι φωτογραφίες των επαφών θα ξαναγίνουν ορατά παντού.", "Are you sure you want to turn off privacy mode?\nContact names, phone numbers, and photos will become visible again everywhere."),
+        "privacy_mode_disable_btn": ("Απενεργοποίηση", "Turn Off"),
+        "privacy_mode_blocked_title": ("Ενεργή Λειτουργία Απορρήτου", "Privacy Mode Is On"),
+        "privacy_mode_blocked_text": ("Απενεργοποίησε τη λειτουργία απορρήτου για να κάνεις αυτή την ενέργεια.", "Turn off privacy mode to do this."),
+        "privacy_mode_blocked_btn": ("Εντάξει", "OK"),
+        "privacy_mode_search_disabled": ("Απενεργοποιήστε τη λειτουργία απορρήτου\nγια να δείτε τα αποτελέσματα της αναζήτησης", "Turn off privacy mode to see search results"),
+        "privacy_mode_enable_title": ("Ενεργοποίηση Απορρήτου", "Enable Privacy Mode"),
+        "privacy_mode_enable_text": ("Η ενεργοποίηση θα κρύψει τα ονόματα, τα τηλέφωνα και τις φωτογραφίες των επαφών σας παντού στην εφαρμογή", "Enabling this will hide contact names, phone numbers, and photos everywhere in the app."),
+        "privacy_mode_enable_btn": ("Ενεργοποίηση", "Enable"),
+        
+        "show_menu_bar_plus_tab": ("Εμφάνιση πλήκτρου «+» (Γραμμή Μενού)", "Show “+” button (Menu Bar)"),
     ]
     
     guard let translation = strings[key] else { return key }

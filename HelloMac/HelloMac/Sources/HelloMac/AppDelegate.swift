@@ -48,8 +48,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var progressLabel: NSTextField?
     var downloadObservation: NSKeyValueObservation?
     var updateActivityScheduler: NSBackgroundActivityScheduler?
+    var privacyModeMenuItem: NSMenuItem?
+    var menuBarController: MenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.register(defaults: ["showMenuBarIcon": true]) // Το εικονίδιο στη γραμμή μενού είναι ενεργό από προεπιλογή
         NSApp.setActivationPolicy(.regular)
         buildMenuBar()
         
@@ -57,6 +60,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HistoryStore.shared.purgeExpiredRecords() // Καθαρισμός παλιού ιστορικού βάσει της ρύθμισης αυτόματης διαγραφής
         startHistoryPurgeTimer() // Επανάληψη του καθαρισμού περιοδικά όσο η εφαρμογή παραμένει ανοιχτή
         
+        menuBarController = MenuBarController()
         mainWindowController = MainWindowController()
         mainWindowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -197,17 +201,85 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         addItem.target = self
         toolsMenu.addItem(addItem)
 
+        toolsMenu.addItem(NSMenuItem.separator())
+
+        let privacyItem = NSMenuItem(title: L("privacy_mode_menu"), action: #selector(togglePrivacyMode), keyEquivalent: "p")
+        privacyItem.keyEquivalentModifierMask = [.command, .shift]
+        privacyItem.target = self
+        privacyItem.state = PrivacyMode.shared.isEnabled ? .on : .off
+        toolsMenu.addItem(privacyItem)
+        privacyModeMenuItem = privacyItem
+
         NSApp.mainMenu = mainMenu
+
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeDidChangeSyncMenu), name: .privacyModeDidChange, object: nil)
     }
 
-    /// Επιστρέφει το παράθυρο πάνω στο οποίο πρέπει να "κολλήσει" ένα sheet
-    /// (About, ενημερώσεις κλπ.), ώστε να μην έρχεται πάντα μπροστά το
-    /// κεντρικό παράθυρο της εφαρμογής όταν είναι ανοιχτές οι Ρυθμίσεις.
-    private func windowForSheet() -> NSWindow? {
-        if let settingsWindow = settingsWindowController?.window, settingsWindow.isVisible {
-            return settingsWindow
+    // MARK: - Privacy Mode
+    @objc func togglePrivacyMode() {
+        if PrivacyMode.shared.isEnabled {
+            let alert = NSAlert()
+            alert.messageText = L("privacy_mode_disable_title")
+            alert.informativeText = L("privacy_mode_disable_text")
+            alert.addButton(withTitle: L("privacy_mode_disable_btn"))
+            alert.addButton(withTitle: L("cancel_btn"))
+            alert.buttons[0].hasDestructiveAction = true
+            alert.window.appearance = NSAppearance(named: .darkAqua)
+
+            let handle: (NSApplication.ModalResponse) -> Void = { response in
+                guard response == .alertFirstButtonReturn else { return }
+                PrivacyMode.shared.isEnabled = false
+            }
+
+            if let appWindow = windowForSheet() {
+                alert.beginSheetModal(for: appWindow, completionHandler: handle)
+            } else {
+                handle(alert.runModal())
+            }
+        } else {
+            let alert = NSAlert()
+            alert.messageText = L("privacy_mode_enable_title")
+            alert.informativeText = L("privacy_mode_enable_text")
+            alert.addButton(withTitle: L("privacy_mode_enable_btn"))
+            alert.addButton(withTitle: L("cancel_btn"))
+            alert.window.appearance = NSAppearance(named: .darkAqua)
+
+            let handle: (NSApplication.ModalResponse) -> Void = { response in
+                guard response == .alertFirstButtonReturn else { return }
+                PrivacyMode.shared.isEnabled = true
+            }
+
+            if let appWindow = windowForSheet() {
+                alert.beginSheetModal(for: appWindow, completionHandler: handle)
+            } else {
+                handle(alert.runModal())
+            }
         }
-        return mainWindowController?.window
+    }
+
+    @objc private func privacyModeDidChangeSyncMenu() {
+        privacyModeMenuItem?.state = PrivacyMode.shared.isEnabled ? .on : .off
+    }
+
+    private func windowForSheet() -> NSWindow? {
+        // Οι λειτουργίες που καταλήγουν εδώ (π.χ. Λειτουργία Απορρήτου, About κλπ.)
+        // εμφανίζουν κάτι μέσα στην εφαρμογή (alert/sheet). Φέρνουμε λοιπόν την
+        // εφαρμογή και το σχετικό παράθυρο σε πρώτο πλάνο πριν εμφανιστεί το alert,
+        // ώστε να μη μένει κρυμμένο πίσω από άλλα παράθυρα. Αυτό ΔΕΝ επηρεάζει τις
+        // απλές κλήσεις (π.χ. callContact/callHistory) που δεν περνάνε από εδώ.
+        let window: NSWindow?
+        if let settingsWindow = settingsWindowController?.window, settingsWindow.isVisible {
+            window = settingsWindow
+        } else {
+            window = mainWindowController?.window
+        }
+
+        if let window = window {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+        }
+
+        return window
     }
 
     @objc func showAbout() {
@@ -589,6 +661,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Import / Export Contacts
     @objc func exportContacts() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.json]
         savePanel.nameFieldStringValue = "HelloMac_Contacts.json"
@@ -611,6 +687,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func importContacts() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         let openPanel = NSOpenPanel()
         openPanel.allowedContentTypes = [.json]
         openPanel.canChooseFiles = true
@@ -650,6 +730,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     // MARK: - Import / Export Full Backup (with Photos)
     @objc func exportBackup() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         let savePanel = NSSavePanel()
         savePanel.prompt = L("save_btn") 
         
@@ -696,6 +780,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func importBackup() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         let openPanel = NSOpenPanel()
         openPanel.canChooseFiles = false
         openPanel.canChooseDirectories = true

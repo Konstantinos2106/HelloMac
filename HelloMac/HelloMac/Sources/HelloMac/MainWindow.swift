@@ -165,6 +165,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     
     private var historySearchField: NSSearchField!
 
+    private var privacyModeButton: NSButton!
+
     func showContactsPublic()  { showContacts() }
     func showFavoritesPublic() { showFavorites() }
     func showHistoryPublic()   { showHistory() }
@@ -193,11 +195,74 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         self.init(window: window)
         window.delegate = self
         setupUI()
+        setupPrivacyModeAccessory()
         
         NotificationCenter.default.addObserver(self, selector: #selector(updateUIVisibility), name: NSNotification.Name("UpdateUIVisibility"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(updatePrivacyModeButtonVisibility), name: .privacyModeDidChange, object: nil)
         updateUIVisibility()
+        updatePrivacyModeButtonVisibility()
         DispatchQueue.main.async {
             window.makeFirstResponder(nil)
+        }
+    }
+
+    /// Προσθέτει ένα μικρό κουμπί-"ασπίδα" ψηλά, δίπλα στο κουμπί κλεισίματος
+    /// του παραθύρου, το οποίο εμφανίζεται ΜΟΝΟ όσο είναι ενεργό το Απόρρητο
+    /// (Privacy Mode) και επιτρέπει γρήγορη απενεργοποίηση με επιβεβαίωση.
+    private func setupPrivacyModeAccessory() {
+        let accessoryVC = NSTitlebarAccessoryViewController()
+        accessoryVC.layoutAttribute = .right
+
+        let button = NSButton(frame: NSRect(x: 0, y: 0, width: 26, height: 22))
+        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        let img = NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: L("privacy_mode_active_tooltip"))?
+            .withSymbolConfiguration(config)
+        button.image = img
+        button.imagePosition = .imageOnly
+        button.isBordered = false
+        button.bezelStyle = .regularSquare
+        button.contentTintColor = NSColor(red: 1.0, green: 0.65, blue: 0.2, alpha: 1)
+        button.toolTip = L("privacy_mode_active_tooltip")
+        button.target = self
+        button.action = #selector(privacyModeButtonTapped)
+        button.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 30, height: 22))
+        container.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            button.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            button.widthAnchor.constraint(equalToConstant: 26),
+            button.heightAnchor.constraint(equalToConstant: 22),
+        ])
+
+        accessoryVC.view = container
+        window?.addTitlebarAccessoryViewController(accessoryVC)
+        privacyModeButton = button
+    }
+
+    @objc private func updatePrivacyModeButtonVisibility() {
+        privacyModeButton?.isHidden = !PrivacyMode.shared.isEnabled
+    }
+
+    @objc private func privacyModeButtonTapped() {
+        let alert = NSAlert()
+        alert.messageText = L("privacy_mode_disable_title")
+        alert.informativeText = L("privacy_mode_disable_text")
+        alert.addButton(withTitle: L("privacy_mode_disable_btn"))
+        alert.addButton(withTitle: L("cancel_btn"))
+        alert.buttons[0].hasDestructiveAction = true
+        alert.window.appearance = NSAppearance(named: .darkAqua)
+
+        let handle: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .alertFirstButtonReturn else { return }
+            PrivacyMode.shared.isEnabled = false
+        }
+
+        if let appWindow = self.window {
+            alert.beginSheetModal(for: appWindow, completionHandler: handle)
+        } else {
+            handle(alert.runModal())
         }
     }
 
@@ -407,6 +472,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(refreshAll), name: .contactsDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshAll), name: .privacyModeDidChange, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(refreshHistory), name: NSNotification.Name("historyDidChange"), object: nil)
     }
 
@@ -544,7 +610,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             stackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
             
             emptyContactsLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-            emptyContactsLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20)
+            emptyContactsLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20),
+            emptyContactsLabel.leadingAnchor.constraint(greaterThanOrEqualTo: contactsView.leadingAnchor, constant: 24),
+            emptyContactsLabel.trailingAnchor.constraint(lessThanOrEqualTo: contactsView.trailingAnchor, constant: -24)
         ])
 
         refreshContacts()
@@ -613,7 +681,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             favoritesStackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
             
             emptyFavoritesLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-            emptyFavoritesLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20)
+            emptyFavoritesLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20),
+            emptyFavoritesLabel.leadingAnchor.constraint(greaterThanOrEqualTo: favoritesView.leadingAnchor, constant: 24),
+            emptyFavoritesLabel.trailingAnchor.constraint(lessThanOrEqualTo: favoritesView.trailingAnchor, constant: -24)
         ])
 
         refreshFavorites()
@@ -691,7 +761,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         historyStackView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
         
         emptyHistoryLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-        emptyHistoryLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20)
+        emptyHistoryLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor, constant: -20),
+        emptyHistoryLabel.leadingAnchor.constraint(greaterThanOrEqualTo: historyView.leadingAnchor, constant: 24),
+        emptyHistoryLabel.trailingAnchor.constraint(lessThanOrEqualTo: historyView.trailingAnchor, constant: -24)
     ])
 
     refreshHistory()
@@ -1054,6 +1126,19 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         if UserDefaults.standard.bool(forKey: "enableSpeedDial"), number.count == 1 {
             if let num = Int(number), num >= 1, num <= 9 {
                 if let target = UserDefaults.standard.string(forKey: "SpeedDial_\(num)"), !target.isEmpty {
+                    // Ασφάλεια: αν η αποθηκευμένη τιμή δεν είναι πραγματικός
+                    // αριθμός τηλεφώνου (π.χ. παλιά/λανθασμένη αποθήκευση
+                    // ονόματος αντί για τηλέφωνο), μην καλέσεις με αυτήν —
+                    // το macOS θα ανοίξει FaceTime αντί να χρησιμοποιήσει τον
+                    // μηχανισμό κλήσης της εφαρμογής.
+                    guard !target.sanitizedForCall.isEmpty else {
+                        makeCall(to: number)
+                        return
+                    }
+                    if PrivacyMode.shared.isEnabled {
+                        PrivacyMode.shared.showBlockedAlert()
+                        return
+                    }
                     makeCall(to: target)
                     displayLabel.stringValue = ""
                     updateDisplayFont()
@@ -1081,6 +1166,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let allContacts = ContactStore.shared.contacts
         let searchString = contactsSearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
+
+        if PrivacyMode.shared.isEnabled && !searchString.isEmpty {
+            emptyContactsLabel.stringValue = L("privacy_mode_search_disabled")
+            emptyContactsLabel.isHidden = false
+            return
+        }
         
         let filtered = (searchString.isEmpty ? allContacts : allContacts.filter {
             $0.fullName.lowercased().contains(searchString) || $0.phone.contains(searchString)
@@ -1111,6 +1202,13 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         favoritesStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let allFavorites = ContactStore.shared.favorites
         let searchString = favoritesSearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
+
+        if PrivacyMode.shared.isEnabled && !searchString.isEmpty {
+            emptyFavoritesLabel.stringValue = L("privacy_mode_search_disabled")
+            emptyFavoritesLabel.isLinkActive = false
+            emptyFavoritesLabel.isHidden = false
+            return
+        }
         
         let filtered = (searchString.isEmpty ? allFavorites : allFavorites.filter {
             $0.fullName.lowercased().contains(searchString) || $0.phone.contains(searchString)
@@ -1163,6 +1261,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         historyStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let allRecords = HistoryStore.shared.records
         let searchString = historySearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
+
+        if PrivacyMode.shared.isEnabled && !searchString.isEmpty {
+            emptyHistoryLabel.stringValue = L("privacy_mode_search_disabled")
+            emptyHistoryLabel.isHidden = false
+            return
+        }
     
         let filtered = searchString.isEmpty ? allRecords : allRecords.filter { record in
             let nameMatch = record.contactName?.lowercased().contains(searchString) ?? false
@@ -1190,10 +1294,18 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     }
 
     @objc func callRow(_ sender: ContactRow) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         makeCall(to: sender.phone)
     }
 
     @objc func callHistoryRow(_ sender: HistoryRow) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         makeCall(to: sender.phone)
     }
 
@@ -1210,18 +1322,29 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
         if let appWindow = self.window {
             alert.beginSheetModal(for: appWindow) { response in
-                if response == .alertFirstButtonReturn {
-                    HistoryStore.shared.clear()
+                guard response == .alertFirstButtonReturn else { return }
+                if PrivacyMode.shared.isEnabled {
+                    PrivacyMode.shared.showBlockedAlert()
+                    return
                 }
+                HistoryStore.shared.clear()
             }
         } else {
             if alert.runModal() == .alertFirstButtonReturn {
+                if PrivacyMode.shared.isEnabled {
+                    PrivacyMode.shared.showBlockedAlert()
+                    return
+                }
                 HistoryStore.shared.clear()
             }
         }
     }
 
     @objc func toggleFavoriteRow(_ sender: ContactRow) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         ContactStore.shared.toggleFavorite(id: sender.contactID)
     }
     
@@ -1297,7 +1420,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     private func deleteContact(_ contact: Contact) {
         let alert = NSAlert()
         alert.messageText = L("delete_alert_title")
-        alert.informativeText = L("delete_alert_text", contact.fullName)
+        alert.informativeText = L("delete_alert_text", PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName)
         alert.addButton(withTitle: L("delete_btn"))
         alert.addButton(withTitle: L("cancel_btn"))
         alert.buttons[0].hasDestructiveAction = true
@@ -1307,6 +1430,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         if let appWindow = self.window {
             alert.beginSheetModal(for: appWindow) { response in
                 guard response == .alertFirstButtonReturn else { return }
+                if PrivacyMode.shared.isEnabled {
+                    PrivacyMode.shared.showBlockedAlert()
+                    return
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
                     var contacts = ContactStore.shared.contacts
                     contacts.removeAll { $0.id == contact.id }
@@ -1316,6 +1443,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             }
         } else {
             if alert.runModal() == .alertFirstButtonReturn {
+                if PrivacyMode.shared.isEnabled {
+                    PrivacyMode.shared.showBlockedAlert()
+                    return
+                }
                 var contacts = ContactStore.shared.contacts
                 contacts.removeAll { $0.id == contact.id }
                 ContactStore.shared.contacts = contacts
@@ -1325,6 +1456,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     }
 
     func makeCall(to phone: String) {
+        // Ασφάλεια: αν δεν υπάρχει ούτε ένα ψηφίο (π.χ. η τιμή είναι στην
+        // πραγματικότητα ένα όνομα και όχι αριθμός τηλεφώνου), μην ανοίξεις
+        // καθόλου το tel: URL — το macOS θα το προωθήσει στο FaceTime αντί
+        // να χρησιμοποιήσει τον μηχανισμό κλήσης της εφαρμογής.
+        guard !phone.sanitizedForCall.isEmpty else { return }
+
         let urlString = "tel:\(phone.sanitizedForCall)"
         guard let url = URL(string: urlString) else { return }
         
@@ -1651,6 +1788,8 @@ class ContactRow: NSView {
     private var optionsButton: NSButton!
     private var isFavorite: Bool = false
     private var messageButton: NSButton!
+    private var nameLabelRef: NSTextField!
+    private var realFullName: String = ""
 
     /// When true (Favorites list only), this row can be dragged to reorder.
     var isDraggable: Bool = false
@@ -1680,7 +1819,8 @@ private func setupUI(contact: Contact) {
         addSubview(avatarView)
 
         // Κρατάμε ΜΟΝΟ το όνομα, χωρίς το τηλέφωνο και χωρίς το StackView
-        let nameLabel = NSTextField(labelWithString: contact.fullName)
+        realFullName = contact.fullName
+        let nameLabel = NSTextField(labelWithString: PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName)
         nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .medium)
         nameLabel.textColor = .white
         nameLabel.isEditable = false
@@ -1690,12 +1830,14 @@ private func setupUI(contact: Contact) {
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(nameLabel) // Το προσθέτουμε απευθείας
+        nameLabelRef = nameLabel
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
 
         // Κουμπί Μηνύματος
         let msgConfig = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
         let msgImg = NSImage(systemSymbolName: "message.fill", accessibilityDescription: L("message_tooltip"))?.withSymbolConfiguration(msgConfig)
         
-        messageButton = NSButton(image: msgImg ?? NSImage(), target: self, action: #selector(messageTapped))
+        messageButton = NSButton(image: msgImg ?? NSImage(), target: nil, action: nil)
         messageButton.bezelStyle = .regularSquare
         messageButton.isBordered = false
         messageButton.contentTintColor = NSColor(white: 0.55, alpha: 1)
@@ -1708,7 +1850,7 @@ private func setupUI(contact: Contact) {
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
         let ellipsisImg = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: L("tools"))?.withSymbolConfiguration(config)?.vertical()
 
-        optionsButton = NSButton(image: ellipsisImg ?? NSImage(), target: self, action: #selector(showOptionsMenu))
+        optionsButton = NSButton(image: ellipsisImg ?? NSImage(), target: nil, action: nil)
         optionsButton.bezelStyle = .regularSquare
         optionsButton.isBordered = false
         optionsButton.contentTintColor = NSColor(white: 0.55, alpha: 1)
@@ -1787,6 +1929,10 @@ private func setupUI(contact: Contact) {
     }
 
     @objc func messageTapped() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         if let url = URL(string: "sms://\(phone.sanitizedForCall)") {
             NSWorkspace.shared.open(url)
         }
@@ -1830,6 +1976,14 @@ private func setupUI(contact: Contact) {
         image.unlockFocus()
         return image
     }
+
+    @objc private func privacyModeChanged() {
+        nameLabelRef?.stringValue = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(realFullName) : realFullName
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 }
 
 extension NSPasteboard.PasteboardType {
@@ -1859,6 +2013,8 @@ class HistoryRow: NSView {
     var phone: String = ""
     private var target: AnyObject?
     private var action: Selector?
+    private var nameLabelRef: NSTextField!
+    private var realDisplayName: String = ""
 
     convenience init(record: CallRecord, target: AnyObject, action: Selector, avatarStyle: AvatarStyle = .phoneIcon) {
         self.init(frame: .zero)
@@ -1911,7 +2067,8 @@ class HistoryRow: NSView {
         addSubview(avatarView)
 
         let displayName = record.contactName ?? record.phone
-        let nameLabel = NSTextField(labelWithString: displayName)
+        realDisplayName = displayName
+        let nameLabel = NSTextField(labelWithString: PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(displayName) : displayName)
         nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .regular)
         nameLabel.textColor = .white
         nameLabel.isEditable = false
@@ -1921,6 +2078,8 @@ class HistoryRow: NSView {
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(nameLabel)
+        nameLabelRef = nameLabel
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
 
         let df = DateFormatter()
         df.dateStyle = .short
@@ -1977,6 +2136,14 @@ class HistoryRow: NSView {
         })
         _ = target?.perform(action, with: self)
     }
+
+    @objc private func privacyModeChanged() {
+        nameLabelRef?.stringValue = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(realDisplayName) : realDisplayName
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 }
 
 class ContactDetailPanelView: NSView {
@@ -1987,6 +2154,7 @@ class ContactDetailPanelView: NSView {
     var onDelete: ((Contact) -> Void)?
 
     private var currentContact: Contact?
+    private var imagePreviewWindowController: ImagePreviewWindowController?
 
     private let avatarView = RoundAvatarView(diameter: 84)
     private let nameLabel = NSTextField(labelWithString: "")
@@ -2020,10 +2188,40 @@ class ContactDetailPanelView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         setup()
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
     }
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setup()
+        NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func privacyModeChanged() {
+        guard let contact = currentContact else { return }
+        applyPrivacyDisplayedText(for: contact)
+        if let image = contact.image, !PrivacyMode.shared.isEnabled {
+            avatarView.onTap = { [weak self] in
+                self?.presentImagePreview(image)
+            }
+        } else {
+            avatarView.onTap = nil
+        }
+    }
+
+    private func applyPrivacyDisplayedText(for contact: Contact) {
+        if PrivacyMode.shared.isEnabled {
+            nameLabel.stringValue = PrivacyMode.shared.maskedText(contact.fullName)
+            phoneLabel.stringValue = PrivacyMode.shared.maskedText(contact.phone)
+        } else {
+            nameLabel.stringValue = contact.fullName
+            phoneLabel.stringValue = contact.phone
+        }
+        let trimmedNotes = contact.notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        notesTextView.string = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(trimmedNotes) : trimmedNotes
     }
 
     private func setup() {
@@ -2292,8 +2490,14 @@ class ContactDetailPanelView: NSView {
     func configure(contact: Contact, history: [CallRecord]) {
         currentContact = contact
         avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor)
-        nameLabel.stringValue = contact.fullName
-        phoneLabel.stringValue = contact.phone
+        if let image = contact.image, !PrivacyMode.shared.isEnabled {
+            avatarView.onTap = { [weak self] in
+                self?.presentImagePreview(image)
+            }
+        } else {
+            avatarView.onTap = nil
+        }
+        applyPrivacyDisplayedText(for: contact)
         messageButton.isHidden = UserDefaults.standard.bool(forKey: "hideMessagesButton")
 
         favoriteButton.isHidden = UserDefaults.standard.bool(forKey: "hideFavoritesMenu")
@@ -2305,7 +2509,7 @@ class ContactDetailPanelView: NSView {
         let notesEnabled = !UserDefaults.standard.bool(forKey: "hideContactNotesInDetail")
         let trimmedNotes = contact.notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let showNotes = notesEnabled && !trimmedNotes.isEmpty
-        notesTextView.string = trimmedNotes
+        notesTextView.string = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(trimmedNotes) : trimmedNotes
         notesCard.isHidden = !showNotes
         notesCardTopToActions.isActive = showNotes
         dividerTopToNotesCard.isActive = showNotes
@@ -2342,17 +2546,36 @@ class ContactDetailPanelView: NSView {
 
     @objc private func closeTapped() { onClose?() }
 
+    private func presentImagePreview(_ image: NSImage) {
+        guard let parentWindow = self.window else { return }
+        let controller = ImagePreviewWindowController(image: image)
+        imagePreviewWindowController = controller
+        controller.present(on: parentWindow)
+    }
+
     @objc private func callTapped() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         guard let contact = currentContact else { return }
         onCall?(contact.phone)
     }
     
     @objc private func messageTapped() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         guard let contact = currentContact, let url = URL(string: "sms://\(contact.phone.sanitizedForCall)") else { return }
         NSWorkspace.shared.open(url)
     }
 
     @objc private func favoriteTapped() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         guard let contact = currentContact else { return }
         onFavoriteToggle?(contact.id)
     }
@@ -2368,6 +2591,10 @@ class ContactDetailPanelView: NSView {
     }
 
     @objc private func historyRowTapped(_ sender: HistoryRow) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
         onCall?(sender.phone)
     }
 }
