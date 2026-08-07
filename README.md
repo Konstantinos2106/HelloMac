@@ -61,6 +61,7 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 * **Compatible with:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
 * If **"Unidentified Developer"** appears on first launch, go to `Finder → Applications` (⇧⌘A), right-click HelloMac and choose `Open`, or hold down `Control` and click the app. In the dialog that appears, click `Open` again.
 * HelloMac is constantly being updated and evolved, so it may contain bugs.
+* Sveltia CMS Administration: https://konstantinos2106.github.io/HelloMac/admin/
 
 ### ⚙️ How it works (FaceTime Workaround)
 
@@ -106,6 +107,7 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 * **Συμβατό με:** macOS Big Sur, macOS Monterey, macOS Ventura, macOS Sonoma, macOS Sequoia
 * Αν εμφανιστεί στην πρώτη εκκίνηση **"Μη Αναγνωρισμένος Δημιουργός"**, πηγαίνετε στο `Finder → Εφαρμογές` (⇧⌘A), κάντε δεξί κλικ στο HelloMac και επιλέξτε `Άνοιγμα` ή κρατήστε πατημένο το `Control` και κάντε κλικ στην εφαρμογή. Στο παράθυρο που θα εμφανιστεί, πατήστε ξανά `Άνοιγμα`.
 * Το HelloMac ανανεώνεται συνεχώς, εξελίσσεται και μπορεί να περιέχει και λάθη.
+* Διαχείριση Sveltia CMS: https://konstantinos2106.github.io/HelloMac/admin/
 
 ### ⚙️ Πώς λειτουργεί (FaceTime Workaround)
 
