@@ -1,0 +1,22 @@
+backend:
+  name: github
+  repo: Konstantinos2106/HelloMac
+  branch: main
+
+media_folder: "Icns_Photos"
+public_folder: "Icns_Photos"
+
+collections:
+  - name: "settings"
+    label: "Ρυθμίσεις Σελίδας"
+    files:
+      - file: "settings.json"
+        label: "Ενότητες & Εμφάνιση"
+        name: "visibility"
+        fields:
+          - { label: "Εμφάνιση: Χαρακτηριστικά (Αρχική)", name: "show_features", widget: "boolean", default: true }
+          - { label: "Εμφάνιση: Εισαγωγή (Docs)", name: "show_doc_intro", widget: "boolean", default: true }
+          - { label: "Εμφάνιση: Χαρακτηριστικά (Docs)", name: "show_doc_features", widget: "boolean", default: true }
+          - { label: "Εμφάνιση: Στιγμιότυπα (Docs)", name: "show_doc_screenshots", widget: "boolean", default: true }
+          - { label: "Εμφάνιση: Εγκατάσταση (Docs)", name: "show_doc_install", widget: "boolean", default: true }
+          - { label: "Εμφάνιση: Ενημερώσεις (Docs)", name: "show_doc_release", widget: "boolean", default: true }
