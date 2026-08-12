@@ -43,12 +43,17 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 
 ### ✨ Features
 
-* **Native macOS UI:** Full Dark Mode, familiar iPhone feel.
-* **Favorites:** Quick access to your most important contacts.
-* **Contact List:** Add, remove, quick access with one click.
-* **Search:** Search functionality in your contacts and favorites.
-* **History:** Full history of your calls with date and time.
-* **Classic Keypad:** Dialpad for quick number entry.
+* **Native macOS UI:** Full Dark & Light Mode support, Native Vibrancy effect (translucency), and a familiar iPhone feel.
+* **macOS Contacts (iCloud):** Direct synchronization with your native Apple Contacts.
+* **Menu Bar & Privacy Mode:** One-click calling from the menu bar and screen-share protection that hides sensitive data.
+* **Call from Anywhere:** Highlight any number and call instantly via macOS System Services.
+* **Favorites & Contact List:** Quick access, drag & drop sorting, add/edit functionality, and smart zoom for profile photos.
+* **Search & History:** Smart search functionality and full call history with date and time.
+* **Classic & Speed Dial Keypad:** Dialpad for quick entry and speed dial support (assign contacts to keys 1-9).
+* **Call Reminders & Notes:** Set custom alerts and keep personalized text notes for your contacts.
+* **SMS & iMessage:** Instantly send messages directly via the native macOS Messages app.
+* **Accessibility & Time Zone:** High contrast, text scaling, black & white view, and manual time zone selection.
+* **Backups & Auto-Updates:** Create full local data backups and enjoy smart background updates.
 
 ### 📥 Installation
 
@@ -89,12 +94,17 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 
 ### ✨ Χαρακτηριστικά
 
-* **Native macOS UI:** Πλήρης Dark Mode, οικεία αίσθηση iPhone.
-* **Αγαπημένα:** Άμεση πρόσβαση στις πιο σημαντικές επαφές σας.
-* **Λίστα Επαφών:** Προσθήκη, αφαίρεση, γρήγορη πρόσβαση με ένα κλικ.
-* **Αναζήτηση:** Λειτουργία αναζήτησης στις επαφές και στα αγαπημένα.
-* **Ιστορικό:** Πλήρες ιστορικό των κλήσεών σας με ημερομηνία και ώρα.
-* **Κλασικό Πληκτρολόγιο:** Καντράν για γρήγορη πληκτρολόγηση αριθμών.
+* **Native macOS UI:** Πλήρης υποστήριξη Dark & Light Mode, εφέ ημιδιαφάνειας (Vibrancy) και οικεία αίσθηση iPhone.
+* **Επαφές macOS (iCloud):** Άμεσος συγχρονισμός με τις εγγενείς επαφές της Apple (iCloud).
+* **Menu Bar & Λειτουργία Απορρήτου:** Κλήσεις από την πάνω μπάρα και προστασία απόκρυψης δεδομένων κατά την κοινή χρήση οθόνης.
+* **Κλήση από Παντού:** Μαρκάρετε οποιονδήποτε αριθμό και καλέστε άμεσα μέσω των Υπηρεσιών Συστήματος (System Services).
+* **Αγαπημένα & Λίστα Επαφών:** Γρήγορη πρόσβαση, drag & drop ταξινόμηση, προσθήκη/επεξεργασία, και έξυπνο ζουμ φωτογραφιών.
+* **Αναζήτηση & Ιστορικό:** Λειτουργία έξυπνης αναζήτησης και πλήρες ιστορικό των κλήσεών σας με ημερομηνία και ώρα.
+* **Κλασικό Πληκτρολόγιο & Ταχεία Κλήση:** Καντράν για γρήγορη πληκτρολόγηση και υποστήριξη ταχείας κλήσης (στα πλήκτρα 1-9).
+* **Υπενθυμίσεις & Σημειώσεις:** Ορίστε ειδοποιήσεις μελλοντικών κλήσεων και κρατήστε προσωπικές σημειώσεις για τις επαφές σας.
+* **SMS & iMessage:** Άμεση αποστολή μηνυμάτων μέσω της εγγενούς εφαρμογής Μηνύματα του macOS.
+* **Προσβασιμότητα & Ζώνη Ώρας:** Υψηλή αντίθεση, μεγέθυνση κειμένου, ασπρόμαυρη προβολή και χειροκίνητη επιλογή ζώνης ώρας.
+* **Αντίγραφα Ασφαλείας & Αυτόματες Ενημερώσεις:** Τοπικά αντίγραφα ασφαλείας δεδομένων και έξυπνες ενημερώσεις στο παρασκήνιο.
 
 ### 📥 Εγκατάσταση
 
