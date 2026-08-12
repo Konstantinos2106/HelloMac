@@ -1,4 +1,4 @@
- <?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -9,9 +9,9 @@
     <key>CFBundleIdentifier</key>
     <string>com.hellomac.telephone</string>
     <key>CFBundleVersion</key>
-    <string>2.5</string>
+    <string>3.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.5</string>
+    <string>3.0</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>LSUIElement</key>
@@ -22,6 +22,26 @@
     <array>
         <string>el</string>
         <string>en</string>
+    </array>
+    <key>NSContactsUsageDescription</key>
+    <string>Απαιτείται πρόσβαση στις Επαφές για την εμφάνιση επαφών και την πραγματοποίηση κλήσεων. Τα δεδομένα επαφών αναγιγνώσκονται αποκλειστικά τοπικά και δεν αποστέλλονται πουθενά.</string>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Κλήση με το HelloMac</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>callWithHelloMac</string>
+            <key>NSPortName</key>
+            <string>HelloMac</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>NSStringPboardType</string>
+            </array>
+        </dict>
     </array>
 </dict>
 </plist>

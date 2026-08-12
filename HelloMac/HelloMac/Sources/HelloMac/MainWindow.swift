@@ -37,14 +37,13 @@ class ClickableLabel: NSTextField {
 class CleanFieldEditor: NSTextView {
     override func menu(for event: NSEvent) -> NSMenu? {
         let defaultMenu = super.menu(for: event) ?? NSMenu()
-        let isGreek = Locale.preferredLanguages.first?.hasPrefix("el") ?? true
         let newMenu = NSMenu()
         
         newMenu.allowsContextMenuPlugIns = false
         
-        newMenu.addItem(NSMenuItem(title: isGreek ? "Αποκοπή" : "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: ""))
-        newMenu.addItem(NSMenuItem(title: isGreek ? "Αντιγραφή" : "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: ""))
-        newMenu.addItem(NSMenuItem(title: isGreek ? "Επικόλληση" : "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: ""))
+        newMenu.addItem(NSMenuItem(title: L("cut"), action: #selector(NSText.cut(_:)), keyEquivalent: ""))
+        newMenu.addItem(NSMenuItem(title: L("copy"), action: #selector(NSText.copy(_:)), keyEquivalent: ""))
+        newMenu.addItem(NSMenuItem(title: L("paste"), action: #selector(NSText.paste(_:)), keyEquivalent: ""))
         
         var googleItem: NSMenuItem?
         for item in defaultMenu.items {
@@ -52,7 +51,7 @@ class CleanFieldEditor: NSTextView {
             let title = item.title.lowercased()
             if actionStr.contains("WebSearch") || actionStr.contains("Google") || title.contains("google") {
                 googleItem = item.copy() as? NSMenuItem
-                googleItem?.title = isGreek ? "Αναζήτηση με το Google" : "Search with Google"
+                googleItem?.title = L("search_with_google")
             }
         }
         
@@ -60,7 +59,7 @@ class CleanFieldEditor: NSTextView {
         let selectedRange = self.selectedRange()
         if selectedRange.length > 0 {
             shareItem = NSMenuItem(
-                title: isGreek ? "Κοινοποίηση..." : "Share...", 
+                title: L("share_menu"), 
                 action: #selector(openSharePicker(_:)), 
                 keyEquivalent: ""
             )
@@ -133,15 +132,22 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     private var favoritesButton: NSButton!
     private var historyButton: NSButton!
     private var dialButton: NSButton!
+    private var currentActiveTabIdentifier: String = "clock.fill"
     
     private var displayLabel: NSTextField!
     
     private var contactsSearchField: NSSearchField!
     private var favoritesSearchField: NSSearchField!
+    private var contactsGroupFilterIconButton: NSButton!
+    private var groupFilterPopover: NSPopover?
+    private var selectedGroupFilterIDs: Set<UUID> = []
 
     private var contactsScrollView: NSScrollView!
     private var favoritesScrollView: NSScrollView!
     private var historyScrollView: NSScrollView!
+    private var lastContactsSearchString: String = ""
+    private var lastFavoritesSearchString: String = ""
+    private var lastHistorySearchString: String = ""
     
     private var addWindowController: AddContactWindowController?
     private var editWindowController: AddContactWindowController?
@@ -151,6 +157,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     private var emptyContactsLabel: NSTextField!
     private var emptyFavoritesLabel: ClickableLabel!
     private var emptyHistoryLabel: NSTextField!
+    private var contactsTitleLabel: NSTextField!
+    private var favoritesTitleLabel: NSTextField!
+    private var historyTitleLabel: NSTextField!
 
     private var callToastView: NSView?
     private var callToastHideWorkItem: DispatchWorkItem?
@@ -166,6 +175,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     private var historySearchField: NSSearchField!
 
     private var privacyModeButton: NSButton!
+    private var speedDialButton: NSButton!
+    private var speedDialPopover: NSPopover?
+
+    private var bellButton: NSButton!
+    private var notificationsWindowController: NotificationsWindowController?
 
     func showContactsPublic()  { showContacts() }
     func showFavoritesPublic() { showFavorites() }
@@ -176,7 +190,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
     convenience init() {
         let window = NonFullScreenWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 335, height: 650),
+            contentRect: NSRect(x: 0, y: 0, width: 335, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -187,72 +201,102 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         
         window.appearance = NSAppearance(named: .darkAqua) 
         window.isReleasedWhenClosed = false
-        window.backgroundColor = NSColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1)
-        window.minSize = NSSize(width: 300, height: 550)
+        window.backgroundColor = nil
+        window.minSize = NSSize(width: 300, height: 580)
         window.maxSize = NSSize(width: 1200, height: 900)
         window.collectionBehavior = [.managed, .fullScreenNone]
         
         self.init(window: window)
         window.delegate = self
         setupUI()
-        setupPrivacyModeAccessory()
+        setupTitleBarAccessories()
         
-        NotificationCenter.default.addObserver(self, selector: #selector(updateUIVisibility), name: NSNotification.Name("UpdateUIVisibility"), object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(updatePrivacyModeButtonVisibility), name: .privacyModeDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(updateUIVisibility(_:)), name: NSNotification.Name("UpdateUIVisibility"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(updateTitleBarAccessoryVisibility), name: .privacyModeDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(updateTitleBarAccessoryVisibility), name: .speedDialSettingsDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshBellButtonState), name: .reminderHistoryDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshBellButtonState), name: .remindersSettingsDidChange, object: nil)
         updateUIVisibility()
-        updatePrivacyModeButtonVisibility()
+        updateTitleBarAccessoryVisibility()
+        refreshBellButtonState()
         DispatchQueue.main.async {
             window.makeFirstResponder(nil)
         }
     }
 
-    /// Προσθέτει ένα μικρό κουμπί-"ασπίδα" ψηλά, δίπλα στο κουμπί κλεισίματος
-    /// του παραθύρου, το οποίο εμφανίζεται ΜΟΝΟ όσο είναι ενεργό το Απόρρητο
-    /// (Privacy Mode) και επιτρέπει γρήγορη απενεργοποίηση με επιβεβαίωση.
-    private func setupPrivacyModeAccessory() {
+    private func setupTitleBarAccessories() {
         let accessoryVC = NSTitlebarAccessoryViewController()
         accessoryVC.layoutAttribute = .right
 
-        let button = NSButton(frame: NSRect(x: 0, y: 0, width: 26, height: 22))
-        let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
-        let img = NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: L("privacy_mode_active_tooltip"))?
-            .withSymbolConfiguration(config)
-        button.image = img
-        button.imagePosition = .imageOnly
-        button.isBordered = false
-        button.bezelStyle = .regularSquare
-        button.contentTintColor = NSColor(red: 1.0, green: 0.65, blue: 0.2, alpha: 1)
-        button.toolTip = L("privacy_mode_active_tooltip")
-        button.target = self
-        button.action = #selector(privacyModeButtonTapped)
-        button.translatesAutoresizingMaskIntoConstraints = false
+        let eyeConfig = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        let eyeImg = NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: L("privacy_mode_active_tooltip"))?
+            .withSymbolConfiguration(eyeConfig)
+        let eyeButton = NSButton(frame: NSRect(x: 0, y: 0, width: 26, height: 22))
+        eyeButton.image = eyeImg
+        eyeButton.imagePosition = .imageOnly
+        eyeButton.isBordered = false
+        eyeButton.bezelStyle = .regularSquare
+        eyeButton.contentTintColor = NSColor(red: 1.0, green: 0.65, blue: 0.2, alpha: 1)
+        eyeButton.toolTip = L("privacy_mode_active_tooltip")
+        eyeButton.target = self
+        eyeButton.action = #selector(privacyModeButtonTapped)
+        eyeButton.translatesAutoresizingMaskIntoConstraints = false
+        eyeButton.widthAnchor.constraint(equalToConstant: 26).isActive = true
+        eyeButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 30, height: 22))
-        container.addSubview(button)
+        let boltConfig = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        let boltImg = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: L("speed_dial_active_tooltip"))?
+            .withSymbolConfiguration(boltConfig)
+        let boltButton = NSButton(frame: NSRect(x: 0, y: 0, width: 26, height: 22))
+        boltButton.image = boltImg
+        boltButton.imagePosition = .imageOnly
+        boltButton.isBordered = false
+        boltButton.bezelStyle = .regularSquare
+        boltButton.contentTintColor = NSColor.systemYellow
+        boltButton.toolTip = L("speed_dial_active_tooltip")
+        boltButton.target = self
+        boltButton.action = #selector(speedDialButtonTapped)
+        boltButton.translatesAutoresizingMaskIntoConstraints = false
+        boltButton.widthAnchor.constraint(equalToConstant: 26).isActive = true
+        boltButton.heightAnchor.constraint(equalToConstant: 22).isActive = true
+
+        let stack = NSStackView(views: [eyeButton, boltButton])
+        stack.orientation = .horizontal
+        stack.spacing = 0
+        stack.alignment = .centerY
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 60, height: 22))
+        container.addSubview(stack)
         NSLayoutConstraint.activate([
-            button.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            button.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            button.widthAnchor.constraint(equalToConstant: 26),
-            button.heightAnchor.constraint(equalToConstant: 22),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor),
+            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         accessoryVC.view = container
         window?.addTitlebarAccessoryViewController(accessoryVC)
-        privacyModeButton = button
+        privacyModeButton = eyeButton
+        speedDialButton = boltButton
     }
 
-    @objc private func updatePrivacyModeButtonVisibility() {
+    @objc private func updateTitleBarAccessoryVisibility() {
+        let isDialerActive = currentActiveTabIdentifier == "circle.grid.3x3.fill"
+        speedDialButton?.isHidden = !(isDialerActive && UserDefaults.standard.bool(forKey: "enableSpeedDial"))
         privacyModeButton?.isHidden = !PrivacyMode.shared.isEnabled
     }
 
     @objc private func privacyModeButtonTapped() {
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = L("privacy_mode_disable_title")
         alert.informativeText = L("privacy_mode_disable_text")
         alert.addButton(withTitle: L("privacy_mode_disable_btn"))
         alert.addButton(withTitle: L("cancel_btn"))
         alert.buttons[0].hasDestructiveAction = true
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
         let handle: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .alertFirstButtonReturn else { return }
@@ -264,6 +308,57 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         } else {
             handle(alert.runModal())
         }
+    }
+
+    @objc private func speedDialButtonTapped() {
+        guard let button = speedDialButton else { return }
+        presentSpeedDialPopover(relativeTo: button)
+    }
+
+    private func presentSpeedDialPopover(relativeTo view: NSView) {
+        let vc = SpeedDialPickerPopoverViewController()
+        vc.onNumberSelected = { [weak self] phone in
+            self?.speedDialPopover?.close()
+            guard let self = self else { return }
+            if PrivacyMode.shared.isEnabled {
+                PrivacyMode.shared.showBlockedAlert()
+                return
+            }
+            self.makeCall(to: phone)
+        }
+        vc.onManageTapped = { [weak self] in
+            self?.speedDialPopover?.close()
+            (NSApp.delegate as? AppDelegate)?.showSettingsToSpeedDial()
+        }
+        let popover = NSPopover()
+        popover.contentViewController = vc
+        popover.behavior = .semitransient
+        popover.appearance = AccessibilityManager.shared.preferredWindowAppearance
+
+        if let windowFrame = window?.frame {
+            _ = vc.view
+            let popoverWidth = max(vc.view.frame.width, 260)
+            let margin: CGFloat = 8
+
+            let buttonRectInWindow = view.convert(view.bounds, to: nil)
+            let buttonOrigin = window!.convertPoint(toScreen: buttonRectInWindow.origin)
+            let buttonFrameOnScreen = NSRect(origin: buttonOrigin, size: buttonRectInWindow.size)
+
+            let windowMinXOnScreen = windowFrame.minX + margin
+            let desiredMinXOnScreen = buttonFrameOnScreen.maxX - popoverWidth
+            let anchorMinXOnScreen = max(windowMinXOnScreen, desiredMinXOnScreen)
+
+            let anchorRect = NSRect(
+                x: anchorMinXOnScreen - buttonFrameOnScreen.minX,
+                y: 0,
+                width: buttonFrameOnScreen.maxX - anchorMinXOnScreen,
+                height: view.bounds.height
+            )
+            popover.show(relativeTo: anchorRect, of: view, preferredEdge: .maxY)
+        } else {
+            popover.show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
+        }
+        speedDialPopover = popover
     }
 
     private func setupUI() {
@@ -296,6 +391,20 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         detailPanelView.onDelete = { [weak self] contact in
             self?.deleteContact(contact)
         }
+        detailPanelView.onAddToNewContact = { [weak self] phone in
+            self?.editWindowController = AddContactWindowController(prefillPhone: phone)
+            self?.editWindowController?.showWindow(nil)
+            self?.editWindowController?.window?.makeKeyAndOrderFront(nil)
+        }
+        detailPanelView.onReminder = { [weak self] contact in
+            self?.openReminderSetup(for: contact)
+        }
+        detailPanelView.jumpToContact = { [weak self] contactID in
+            self?.showContactDetail(forContactID: contactID)
+        }
+        detailPanelView.onApplyGroupFilter = { [weak self] groupID in
+            self?.applyGroupFilterFromDetail(groupID)
+        }
         outerContentView.addSubview(detailPanelView)
 
         detailPanelWidthConstraint = detailPanelView.widthAnchor.constraint(equalToConstant: 0)
@@ -321,9 +430,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
         let contentView = mainContentView
 
-        let tabBar = NSView()
-        tabBar.wantsLayer = true
-        tabBar.layer?.backgroundColor = NSColor(red: 0.145, green: 0.145, blue: 0.155, alpha: 1).cgColor
+        let tabBar = NSVisualEffectView()
+        tabBar.material = .underWindowBackground
+        tabBar.blendingMode = .withinWindow
+        tabBar.state = .active
         tabBar.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(tabBar)
 
@@ -387,7 +497,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         warningIcon.translatesAutoresizingMaskIntoConstraints = false
         
         let emptyLabel = NSTextField(labelWithString: L("all_features_disabled"))
-        emptyLabel.font = NSFont.systemFont(ofSize: 14)
+        emptyLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 14)
         emptyLabel.textColor = NSColor(white: 0.6, alpha: 1)
         emptyLabel.alignment = .center
         emptyLabel.isEditable = false
@@ -471,9 +581,13 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             showDialer()
         }
         
-        NotificationCenter.default.addObserver(self, selector: #selector(refreshAll), name: .contactsDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleContactsDidChange(_:)), name: .contactsDidChange, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(refreshAll), name: .privacyModeDidChange, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(refreshHistory), name: NSNotification.Name("historyDidChange"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshHistory), name: .appTimeZoneDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(groupsDidChange), name: .contactGroupsDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyAccessibilityToWholeWindow), name: .accessibilitySettingsDidChange, object: nil)
+        applyAccessibilityToWholeWindow()
     }
 
     @objc private func focusSearchField() {
@@ -493,6 +607,26 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
+    private func currentScrollOffsetFromTop(_ scrollView: NSScrollView?) -> CGFloat? {
+        guard let scrollView = scrollView, let documentView = scrollView.documentView else { return nil }
+        let visibleY = scrollView.contentView.bounds.origin.y
+        if documentView.isFlipped {
+            return visibleY
+        } else {
+            let maxY = max(0, documentView.bounds.height - scrollView.contentView.bounds.height)
+            return maxY - visibleY
+        }
+    }
+
+    private func restoreScrollOffsetFromTop(_ offset: CGFloat?, in scrollView: NSScrollView?) {
+        guard let offset = offset, let scrollView = scrollView, let documentView = scrollView.documentView else { return }
+        let clampedMaxOffset = max(0, documentView.bounds.height - scrollView.contentView.bounds.height)
+        let clampedOffset = min(max(0, offset), clampedMaxOffset)
+        let y: CGFloat = documentView.isFlipped ? clampedOffset : (clampedMaxOffset - clampedOffset)
+        scrollView.contentView.scroll(to: NSPoint(x: 0, y: y))
+        scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
+
     @objc private func refreshAll() {
         if isDetailPanelOpen, let id = currentDetailContactID,
            !ContactStore.shared.contacts.contains(where: { $0.id == id }) {
@@ -508,15 +642,80 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         refreshHistory()
         syncDetailPanelAfterDataChange()
     }
+    
+    @objc private func handleContactsDidChange(_ notification: Notification) {
+        let isFavoriteToggle = notification.userInfo?["isFavoriteToggle"] as? Bool ?? false
+        
+        if isDetailPanelOpen, let id = currentDetailContactID,
+           !ContactStore.shared.contacts.contains(where: { $0.id == id }) {
+            hideContactDetail { [weak self] in
+                if !isFavoriteToggle { self?.refreshContacts() }
+                self?.refreshFavorites()
+                if !isFavoriteToggle { self?.refreshHistory() }
+            }
+            return
+        }
+        if !isFavoriteToggle {
+            refreshContacts()
+            refreshHistory()
+        }
+        refreshFavorites()
+        syncDetailPanelAfterDataChange()
+    }
+
+    @objc private func applyAccessibilityToStaticLabels() {
+        let a11y = AccessibilityManager.shared
+        contactsTitleLabel?.font = a11y.adjustedFont(baseSize: 17, weight: .bold)
+        favoritesTitleLabel?.font = a11y.adjustedFont(baseSize: 17, weight: .bold)
+        historyTitleLabel?.font = a11y.adjustedFont(baseSize: 17, weight: .bold)
+        emptyContactsLabel?.font = a11y.adjustedFont(baseSize: 13)
+        emptyFavoritesLabel?.font = a11y.adjustedFont(baseSize: 13)
+        emptyHistoryLabel?.font = a11y.adjustedFont(baseSize: 13)
+    }
+
+    @objc private func applyAccessibilityToWholeWindow() {
+        applyAccessibilityToStaticLabels()
+        guard let window = window else { return }
+        let a11y = AccessibilityManager.shared
+        a11y.applyPreferredAppearance(to: window)
+        window.a11yBaseBackgroundColor = nil
+        window.a11yHasCapturedBackgroundColor = true
+        if a11y.isGrayscaleEnabled && a11y.isEffectivelyColorInverted {
+            window.backgroundColor = .white
+        } else if a11y.isGrayscaleEnabled {
+            window.backgroundColor = .black
+        } else {
+            window.backgroundColor = nil
+        }
+
+        guard let contentView = window.contentView else { return }
+        AccessibilityManager.shared.applyToViewTree(contentView)
+        updateTabColors(active: currentActiveTabIdentifier)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.updateTabColors(active: self.currentActiveTabIdentifier)
+        }
+    }
 
     private func syncDetailPanelAfterDataChange() {
-        guard isDetailPanelOpen, let id = currentDetailContactID else { return }
-        if let contact = ContactStore.shared.contacts.first(where: { $0.id == id }) {
-            let history = HistoryStore.shared.records(forContactID: id)
-            detailPanelView.configure(contact: contact, history: history)
-            resizeDetailPanelIfNeeded()
-        } else {
-            hideContactDetail()
+        guard isDetailPanelOpen else { return }
+        if let id = currentDetailContactID {
+            if let contact = ContactStore.shared.contacts.first(where: { $0.id == id }) {
+                let history = HistoryStore.shared.records(forContactID: id, phone: contact.phone)
+                detailPanelView.configure(contact: contact, history: history)
+                resizeDetailPanelIfNeeded()
+            } else {
+                hideContactDetail()
+            }
+        } else if let phone = currentDetailUnknownPhone {
+            let target = phone.sanitizedForCall
+            if let contact = ContactStore.shared.contacts.first(where: { $0.phone.sanitizedForCall == target }) {
+                showContactDetail(forContactID: contact.id)
+            } else {
+                let history = HistoryStore.shared.records(forPhone: phone)
+                detailPanelView.configure(unknownPhone: phone, history: history)
+                resizeDetailPanelIfNeeded()
+            }
         }
     }
 
@@ -541,9 +740,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
     private func setupContactsView() {
         let titleLabel = NSTextField(labelWithString: L("contacts"))
-        titleLabel.font = NSFont.boldSystemFont(ofSize: 17)
+        titleLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 17, weight: .bold)
         titleLabel.textColor = .white
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        contactsTitleLabel = titleLabel
         contactsView.addSubview(titleLabel)
 
         let addImg = NSImage(systemSymbolName: "person.badge.plus", accessibilityDescription: L("add_tooltip"))
@@ -554,12 +754,41 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         addBtn.translatesAutoresizingMaskIntoConstraints = false
         if let cell = addBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
         contactsView.addSubview(addBtn)
+
+        let bellBtn = NSButton(image: NSImage(systemSymbolName: "bell", accessibilityDescription: L("notifications_tooltip")) ?? NSImage(), target: self, action: #selector(openNotifications))
+        bellBtn.bezelStyle = .regularSquare
+        bellBtn.isBordered = false
+        bellBtn.contentTintColor = NSColor.systemPurple
+        bellBtn.translatesAutoresizingMaskIntoConstraints = false
+        if let cell = bellBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
+        bellBtn.isHidden = UserDefaults.standard.bool(forKey: "hideGeneralReminderButton") || !ReminderManager.shared.isEnabled
+        contactsView.addSubview(bellBtn)
+        bellButton = bellBtn
         
         contactsSearchField = NSSearchField()
         contactsSearchField.placeholderString = L("search_placeholder")
         contactsSearchField.translatesAutoresizingMaskIntoConstraints = false
         contactsSearchField.delegate = self
         contactsView.addSubview(contactsSearchField)
+
+        let groupFilterColor = NSColor(red: 0.2, green: 0.8, blue: 0.6, alpha: 1)
+
+        let groupFilterImg = NSImage(systemSymbolName: "person.3", accessibilityDescription: L("groups_filter_tooltip"))
+        let groupFilterBtn = NSButton(image: groupFilterImg ?? NSImage(), target: self, action: #selector(groupFilterIconTapped))
+        groupFilterBtn.bezelStyle = .regularSquare
+        groupFilterBtn.isBordered = false
+
+        groupFilterBtn.contentTintColor = groupFilterColor
+        groupFilterBtn.translatesAutoresizingMaskIntoConstraints = false
+
+        if let cell = groupFilterBtn.cell as? NSButtonCell { cell.imageScaling = .scaleProportionallyUpOrDown }
+
+        groupFilterBtn.wantsLayer = true
+        groupFilterBtn.layer?.cornerRadius = 13
+        groupFilterBtn.isHidden = true
+
+        contactsView.addSubview(groupFilterBtn)
+        contactsGroupFilterIconButton = groupFilterBtn
 
         let scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -580,7 +809,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyContactsLabel = NSTextField(labelWithString: L("no_contacts"))
         emptyContactsLabel.alignment = .center
         emptyContactsLabel.textColor = NSColor(white: 0.5, alpha: 1)
-        emptyContactsLabel.font = NSFont.systemFont(ofSize: 13)
+        emptyContactsLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 13)
         emptyContactsLabel.maximumNumberOfLines = 2
         emptyContactsLabel.isEditable = false
         emptyContactsLabel.isSelectable = false
@@ -597,12 +826,21 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             addBtn.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor, constant: -14),
             addBtn.widthAnchor.constraint(equalToConstant: 26),
             addBtn.heightAnchor.constraint(equalToConstant: 26),
+
+            bellBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            bellBtn.trailingAnchor.constraint(equalTo: addBtn.leadingAnchor, constant: -14),
+            bellBtn.widthAnchor.constraint(equalToConstant: 26),
+            bellBtn.heightAnchor.constraint(equalToConstant: 26),
+
+            groupFilterBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            groupFilterBtn.trailingAnchor.constraint(equalTo: bellBtn.leadingAnchor, constant: -14),
+            groupFilterBtn.widthAnchor.constraint(equalToConstant: 36),
+            groupFilterBtn.heightAnchor.constraint(equalToConstant: 26),
             
             contactsSearchField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
             contactsSearchField.leadingAnchor.constraint(equalTo: contactsView.leadingAnchor, constant: 16),
             contactsSearchField.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor, constant: -16),
 
-            scrollView.topAnchor.constraint(equalTo: contactsSearchField.bottomAnchor, constant: 8),
             scrollView.leadingAnchor.constraint(equalTo: contactsView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: contactsView.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: contactsView.bottomAnchor),
@@ -615,14 +853,18 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             emptyContactsLabel.trailingAnchor.constraint(lessThanOrEqualTo: contactsView.trailingAnchor, constant: -24)
         ])
 
+        scrollView.topAnchor.constraint(equalTo: contactsSearchField.bottomAnchor, constant: 8).isActive = true
+
+        refreshGroupFilterVisibility()
         refreshContacts()
     }
 
     private func setupFavoritesView() {
         let titleLabel = NSTextField(labelWithString: L("favorites"))
-        titleLabel.font = NSFont.boldSystemFont(ofSize: 17)
+        titleLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 17, weight: .bold)
         titleLabel.textColor = .white
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        favoritesTitleLabel = titleLabel
         favoritesView.addSubview(titleLabel)
         
         favoritesSearchField = NSSearchField()
@@ -654,7 +896,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyFavoritesLabel = ClickableLabel(labelWithString: L("no_favorites"))
         emptyFavoritesLabel.alignment = .center
         emptyFavoritesLabel.textColor = NSColor(white: 0.5, alpha: 1)
-        emptyFavoritesLabel.font = NSFont.systemFont(ofSize: 13)
+        emptyFavoritesLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 13)
         emptyFavoritesLabel.maximumNumberOfLines = 2
         emptyFavoritesLabel.isEditable = false
         emptyFavoritesLabel.isSelectable = false
@@ -691,9 +933,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     
     private func setupHistoryView() {
     let titleLabel = NSTextField(labelWithString: L("history"))
-    titleLabel.font = NSFont.boldSystemFont(ofSize: 17)
+    titleLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 17, weight: .bold)
     titleLabel.textColor = .white
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
+    self.historyTitleLabel = titleLabel
     historyView.addSubview(titleLabel)
 
     let clearImg = NSImage(systemSymbolName: "trash", accessibilityDescription: L("clear_history"))
@@ -730,7 +973,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     emptyHistoryLabel = NSTextField(labelWithString: L("no_history"))
     emptyHistoryLabel.alignment = .center
     emptyHistoryLabel.textColor = NSColor(white: 0.5, alpha: 1)
-    emptyHistoryLabel.font = NSFont.systemFont(ofSize: 13)
+    emptyHistoryLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 13)
     emptyHistoryLabel.maximumNumberOfLines = 2
     emptyHistoryLabel.isEditable = false
     emptyHistoryLabel.isSelectable = false
@@ -752,7 +995,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         historySearchField.leadingAnchor.constraint(equalTo: historyView.leadingAnchor, constant: 16),
         historySearchField.trailingAnchor.constraint(equalTo: historyView.trailingAnchor, constant: -16),
 
-        // Μοναδικό και σωστό top anchor κάτω από την αναζήτηση
         scrollView.topAnchor.constraint(equalTo: historySearchField.bottomAnchor, constant: 8),
         scrollView.leadingAnchor.constraint(equalTo: historyView.leadingAnchor),
         scrollView.trailingAnchor.constraint(equalTo: historyView.trailingAnchor),
@@ -962,6 +1204,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         stack.spacing = 2
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.isUserInteractionEnabled = false
+        stack.identifier = a11ySelfManagedIdentifier
 
         btn.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -1030,8 +1273,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     }
 
     private func updateTabColors(active: String) {
-        let blue = NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1)
-        let gray = NSColor(white: 0.5, alpha: 1)
+        currentActiveTabIdentifier = active
+        let a11y = AccessibilityManager.shared
+        let blue = a11y.isGrayscaleEnabled
+            ? NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1).desaturated()
+            : NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1)
+        let gray = a11y.adjustedColor(NSColor(white: 0.5, alpha: 1))
         for btn in [contactsButton, favoritesButton, historyButton, dialButton] {
             guard let btn = btn else { continue }
             let isActive = btn.identifier?.rawValue == active
@@ -1045,9 +1292,13 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
                 }
             }
         }
+        updateTitleBarAccessoryVisibility()
     }
 
     @objc func keyPressed(_ sender: DialerKey) {
+        if let firstChar = sender.digit.first {
+            DialerSound.playAppKeypadSoundIfEnabled(digit: firstChar)
+        }
         if displayLabel.stringValue.count < 20 { // Όριο 20 ψηφία
             displayLabel.stringValue += sender.digit
             updateDisplayFont()
@@ -1055,6 +1306,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     }
 
     func keyCaptureDidType(digit: String) {
+        if let firstChar = digit.first {
+            DialerSound.playAppKeypadSoundIfEnabled(digit: firstChar)
+        }
         if displayLabel.stringValue.count < 20 { // Όριο 20 ψηφία
             displayLabel.stringValue += digit
             updateDisplayFont()
@@ -1075,7 +1329,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
     func controlTextDidChange(_ obj: Notification) {
         if let field = obj.object as? NSSearchField {
-            // Όριο 50 χαρακτήρες στην αναζήτηση
             if field.stringValue.count > 50 {
                 field.stringValue = String(field.stringValue.prefix(50))
             }
@@ -1126,11 +1379,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         if UserDefaults.standard.bool(forKey: "enableSpeedDial"), number.count == 1 {
             if let num = Int(number), num >= 1, num <= 9 {
                 if let target = UserDefaults.standard.string(forKey: "SpeedDial_\(num)"), !target.isEmpty {
-                    // Ασφάλεια: αν η αποθηκευμένη τιμή δεν είναι πραγματικός
-                    // αριθμός τηλεφώνου (π.χ. παλιά/λανθασμένη αποθήκευση
-                    // ονόματος αντί για τηλέφωνο), μην καλέσεις με αυτήν —
-                    // το macOS θα ανοίξει FaceTime αντί να χρησιμοποιήσει τον
-                    // μηχανισμό κλήσης της εφαρμογής.
                     guard !target.sanitizedForCall.isEmpty else {
                         makeCall(to: number)
                         return
@@ -1162,15 +1410,109 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         }
     }
 
+    @objc func refreshGroupFilterVisibility() {
+        guard let iconButton = contactsGroupFilterIconButton else { return }
+        let groups = ContactGroupStore.shared.sortedGroups
+
+        let shouldShow = ContactGroupStore.shared.isEnabled
+        iconButton.isHidden = !shouldShow
+
+        selectedGroupFilterIDs = Set(selectedGroupFilterIDs.filter { id in groups.contains(where: { $0.id == id }) })
+        
+        if !shouldShow {
+            selectedGroupFilterIDs.removeAll()
+        }
+
+        let isActive = shouldShow && !selectedGroupFilterIDs.isEmpty
+        let symbolName = isActive ? "person.3.fill" : "person.3"
+        let groupFilterColor = NSColor(red: 0.2, green: 0.8, blue: 0.6, alpha: 1)
+        iconButton.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: L("groups_filter_tooltip"))
+        iconButton.contentTintColor = groupFilterColor
+
+        updateSearchPlaceholder()
+    }
+    
+    private func updateSearchPlaceholder() {
+        guard let field = contactsSearchField else { return }
+        if selectedGroupFilterIDs.isEmpty {
+            field.placeholderString = L("search_placeholder")
+        } else if selectedGroupFilterIDs.count == 1,
+                  let firstID = selectedGroupFilterIDs.first,
+                  let group = ContactGroupStore.shared.group(withID: firstID) {
+            let displayName = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(group.name) : group.name
+            field.placeholderString = L("search_in_group_placeholder", displayName)
+        } else {
+            field.placeholderString = L("search_in_selected_groups")
+        }
+    }
+
+    @objc private func groupFilterIconTapped() {
+        guard let button = contactsGroupFilterIconButton else { return }
+        presentGroupFilterPickerPopover(relativeTo: button)
+    }
+
+    private func presentGroupFilterPickerPopover(relativeTo view: NSView) {
+        let groups = ContactGroupStore.shared.sortedGroups
+        let vc = GroupFilterPickerPopoverViewController(groups: groups, selectedGroupIDs: selectedGroupFilterIDs)
+        vc.presentingWindow = self.window
+        vc.onSelectionChanged = { [weak self] newSelection, didSelectAll in
+            self?.selectedGroupFilterIDs = newSelection
+            self?.refreshGroupFilterVisibility()
+            self?.refreshContacts()
+            if didSelectAll {
+                self?.groupFilterPopover?.close()
+            }
+        }
+        vc.onManageGroupsTapped = { [weak self] in
+            self?.groupFilterPopover?.close()
+            (NSApp.delegate as? AppDelegate)?.showSettingsToGroups()
+        }
+        let popover = NSPopover()
+        popover.contentViewController = vc
+        popover.behavior = .semitransient
+        popover.appearance = AccessibilityManager.shared.preferredWindowAppearance
+        popover.show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
+        groupFilterPopover = popover
+    }
+    
+    func applyGroupFilterFromDetail(_ groupID: UUID) {
+        showContacts()
+        selectedGroupFilterIDs = [groupID]
+        refreshGroupFilterVisibility()
+        refreshContacts()
+    }
+
+    @objc private func groupsDidChange() {
+        let oldSelection = selectedGroupFilterIDs
+        refreshGroupFilterVisibility()
+        if oldSelection != selectedGroupFilterIDs {
+            refreshContacts()
+        }
+        
+        syncDetailPanelAfterDataChange()
+    }
+
     @objc func refreshContacts() {
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let allContacts = ContactStore.shared.contacts
         let searchString = contactsSearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
+        let searchChanged = searchString != lastContactsSearchString
+        lastContactsSearchString = searchString
+        let preservedOffset = searchChanged ? nil : currentScrollOffsetFromTop(contactsScrollView)
+
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        var allContacts = ContactStore.shared.contacts
 
         if PrivacyMode.shared.isEnabled && !searchString.isEmpty {
             emptyContactsLabel.stringValue = L("privacy_mode_search_disabled")
             emptyContactsLabel.isHidden = false
             return
+        }
+
+        let isGroupFilterActive = ContactGroupStore.shared.isEnabled && !selectedGroupFilterIDs.isEmpty
+
+        if ContactGroupStore.shared.isEnabled, !selectedGroupFilterIDs.isEmpty {
+            allContacts = allContacts.filter { contact in
+                !selectedGroupFilterIDs.isDisjoint(with: contact.groupIDs)
+            }
         }
         
         let filtered = (searchString.isEmpty ? allContacts : allContacts.filter {
@@ -1180,7 +1522,18 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         }
         
         if allContacts.isEmpty {
-            emptyContactsLabel.stringValue = L("no_contacts")
+            if isGroupFilterActive {
+                if selectedGroupFilterIDs.count == 1,
+                   let groupID = selectedGroupFilterIDs.first,
+                   let group = ContactGroupStore.shared.group(withID: groupID) {
+                    let displayName = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(group.name) : group.name
+                    emptyContactsLabel.stringValue = L("no_group_filter_results_single", displayName)
+                } else {
+                    emptyContactsLabel.stringValue = L("no_group_filter_results_multiple")
+                }
+            } else {
+                emptyContactsLabel.stringValue = L("no_contacts")
+            }
             emptyContactsLabel.isHidden = false
         } else if filtered.isEmpty {
             emptyContactsLabel.stringValue = L("no_search_results")
@@ -1189,19 +1542,32 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             emptyContactsLabel.isHidden = true
         }
         
+        RoundAvatarView.resetColorSequence()
         for contact in filtered {
             let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)), editAction: #selector(editContactRow(_:)), deleteAction: #selector(deleteContactRow(_:)), detailAction: #selector(showContactDetail(_:)))
             stackView.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
             row.heightAnchor.constraint(equalToConstant: 58).isActive = true
         }
-        DispatchQueue.main.async { [weak self] in self?.scrollToTop(self?.contactsScrollView) }
+        AccessibilityManager.shared.applyToViewTree(stackView)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if searchChanged {
+                self.scrollToTop(self.contactsScrollView)
+            } else {
+                self.restoreScrollOffsetFromTop(preservedOffset, in: self.contactsScrollView)
+            }
+        }
     }
 
     @objc func refreshFavorites() {
+        let searchString = favoritesSearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
+        let searchChanged = searchString != lastFavoritesSearchString
+        lastFavoritesSearchString = searchString
+        let preservedOffset = searchChanged ? nil : currentScrollOffsetFromTop(favoritesScrollView)
+
         favoritesStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let allFavorites = ContactStore.shared.favorites
-        let searchString = favoritesSearchField.stringValue.trimmingCharacters(in: .whitespaces).lowercased()
 
         if PrivacyMode.shared.isEnabled && !searchString.isEmpty {
             emptyFavoritesLabel.stringValue = L("privacy_mode_search_disabled")
@@ -1248,13 +1614,22 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             emptyFavoritesLabel.isHidden = true
         }
         
+        RoundAvatarView.resetColorSequence()
         for contact in filtered {
             let row = ContactRow(contact: contact, target: self, action: #selector(callRow(_:)), favoriteAction: #selector(toggleFavoriteRow(_:)), editAction: #selector(editContactRow(_:)), deleteAction: #selector(deleteContactRow(_:)), detailAction: #selector(showContactDetail(_:)), isDraggable: searchString.isEmpty)
             favoritesStackView.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: favoritesStackView.widthAnchor).isActive = true
             row.heightAnchor.constraint(equalToConstant: 58).isActive = true
         }
-        DispatchQueue.main.async { [weak self] in self?.scrollToTop(self?.favoritesScrollView) }
+        AccessibilityManager.shared.applyToViewTree(favoritesStackView)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if searchChanged {
+                self.scrollToTop(self.favoritesScrollView)
+            } else {
+                self.restoreScrollOffsetFromTop(preservedOffset, in: self.favoritesScrollView)
+            }
+        }
     }
 
     @objc func refreshHistory() {
@@ -1269,7 +1644,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         }
     
         let filtered = searchString.isEmpty ? allRecords : allRecords.filter { record in
-            let nameMatch = record.contactName?.lowercased().contains(searchString) ?? false
+            let liveName = HistoryRow.resolveContact(for: record)?.fullName ?? record.contactName
+            let nameMatch = liveName?.lowercased().contains(searchString) ?? false
             let phoneMatch = record.phone.contains(searchString)
             return nameMatch || phoneMatch
         }
@@ -1283,13 +1659,14 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         } else {
             emptyHistoryLabel.isHidden = true
             for record in filtered {
-                let row = HistoryRow(record: record, target: self, action: #selector(callHistoryRow(_:)), avatarStyle: .contactPhoto)
+                let row = HistoryRow(record: record, target: self, action: #selector(callHistoryRow(_:)), avatarStyle: .contactPhoto, optionsAction: #selector(showHistoryRowOptions(_:)))
                 historyStackView.addArrangedSubview(row)
                 row.widthAnchor.constraint(equalTo: historyStackView.widthAnchor).isActive = true
                 row.heightAnchor.constraint(equalToConstant: 58).isActive = true
             }
         }
         DispatchQueue.main.async { [weak self] in self?.scrollToTop(self?.historyScrollView) }
+        AccessibilityManager.shared.applyToViewTree(historyStackView)
         syncDetailPanelAfterDataChange()
     }
 
@@ -1309,16 +1686,26 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         makeCall(to: sender.phone)
     }
 
+    @objc func showHistoryRowOptions(_ sender: HistoryRow) {
+        if let contactID = sender.contactID,
+           let contact = ContactStore.shared.contacts.first(where: { $0.id == contactID }) {
+            showContactDetail(forContactID: contact.id)
+        } else {
+            showContactDetail(forUnknownPhone: sender.phone)
+        }
+    }
+
     @objc func clearHistory() {
         guard !HistoryStore.shared.records.isEmpty else { return }
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = L("clear_history_alert_title")
         alert.informativeText = L("clear_history_alert_text")
         alert.addButton(withTitle: L("clear_history"))
         alert.addButton(withTitle: L("cancel_btn"))
         alert.buttons[0].hasDestructiveAction = true
 
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
         if let appWindow = self.window {
             alert.beginSheetModal(for: appWindow) { response in
@@ -1349,13 +1736,41 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     }
     
     private var currentDetailContactID: UUID?
+    private var currentDetailUnknownPhone: String?
 
     @objc func showContactDetail(_ sender: ContactRow) {
-        guard let contact = ContactStore.shared.contacts.first(where: { $0.id == sender.contactID }) else { return }
-        currentDetailContactID = contact.id
-        let history = HistoryStore.shared.records(forContactID: contact.id)
-        detailPanelView.configure(contact: contact, history: history)
+        showContactDetail(forContactID: sender.contactID)
+    }
 
+    func showContactDetail(forContactID contactID: UUID) {
+
+        if isDetailPanelOpen && currentDetailContactID == contactID {
+            hideContactDetail()
+            return
+        }
+        guard let contact = ContactStore.shared.contacts.first(where: { $0.id == contactID }) else { return }
+        currentDetailContactID = contact.id
+        currentDetailUnknownPhone = nil
+        let history = HistoryStore.shared.records(forContactID: contact.id, phone: contact.phone)
+        detailPanelView.configure(contact: contact, history: history)
+        AccessibilityManager.shared.applyToViewTree(detailPanelView)
+        openDetailPanelIfNeeded()
+    }
+
+    func showContactDetail(forUnknownPhone phone: String) {
+        if isDetailPanelOpen && currentDetailUnknownPhone == phone {
+            hideContactDetail()
+            return
+        }
+        currentDetailContactID = nil
+        currentDetailUnknownPhone = phone
+        let history = HistoryStore.shared.records(forPhone: phone)
+        detailPanelView.configure(unknownPhone: phone, history: history)
+        AccessibilityManager.shared.applyToViewTree(detailPanelView)
+        openDetailPanelIfNeeded()
+    }
+
+    private func openDetailPanelIfNeeded() {
         guard !isDetailPanelOpen, let window = window else {
             return
         }
@@ -1383,6 +1798,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         }
         isDetailPanelOpen = false
         currentDetailContactID = nil
+        currentDetailUnknownPhone = nil
         detailPanelWidthConstraint.constant = 0
 
         var frame = window.frame
@@ -1399,8 +1815,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     private func refreshDetailPanelIfShowing(id: UUID) {
         guard isDetailPanelOpen, currentDetailContactID == id,
               let contact = ContactStore.shared.contacts.first(where: { $0.id == id }) else { return }
-        let history = HistoryStore.shared.records(forContactID: id)
+        let history = HistoryStore.shared.records(forContactID: id, phone: contact.phone)
         detailPanelView.configure(contact: contact, history: history)
+        resizeDetailPanelIfNeeded()
     }
 
     @objc func editContactRow(_ sender: ContactRow) {
@@ -1417,15 +1834,34 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         }
     }
 
+    private var reminderSetupWindowController: NotificationsWindowController?
+    private func openReminderSetup(for contact: Contact) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
+        guard ReminderManager.shared.isEnabled else { return }
+        reminderSetupWindowController = NotificationsWindowController(filterContact: contact)
+        reminderSetupWindowController?.shouldCascadeWindows = false
+        if let notifWin = reminderSetupWindowController?.window, let mainWin = self.window {
+            let x = mainWin.frame.midX - notifWin.frame.width / 2
+            let y = mainWin.frame.midY - notifWin.frame.height / 2
+            notifWin.setFrameOrigin(NSPoint(x: x, y: y))
+        }
+        reminderSetupWindowController?.showWindow(nil)
+        reminderSetupWindowController?.window?.makeKeyAndOrderFront(nil)
+    }
+
     private func deleteContact(_ contact: Contact) {
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = L("delete_alert_title")
         alert.informativeText = L("delete_alert_text", PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName)
         alert.addButton(withTitle: L("delete_btn"))
         alert.addButton(withTitle: L("cancel_btn"))
         alert.buttons[0].hasDestructiveAction = true
 
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
         if let appWindow = self.window {
             alert.beginSheetModal(for: appWindow) { response in
@@ -1456,10 +1892,6 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     }
 
     func makeCall(to phone: String) {
-        // Ασφάλεια: αν δεν υπάρχει ούτε ένα ψηφίο (π.χ. η τιμή είναι στην
-        // πραγματικότητα ένα όνομα και όχι αριθμός τηλεφώνου), μην ανοίξεις
-        // καθόλου το tel: URL — το macOS θα το προωθήσει στο FaceTime αντί
-        // να χρησιμοποιήσει τον μηχανισμό κλήσης της εφαρμογής.
         guard !phone.sanitizedForCall.isEmpty else { return }
 
         let urlString = "tel:\(phone.sanitizedForCall)"
@@ -1473,12 +1905,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         if !(isDetailPanelOpen && currentDetailContactID != nil && match?.id == currentDetailContactID) {
             hideContactDetail { [weak self] in
                 NSWorkspace.shared.open(url)
-                self?.showCallInProgressToast()
+                self?.showToast(message: L("call_in_progress"))
                 HistoryStore.shared.addRecord(phone: phone, name: match?.fullName, contactID: match?.id)
             }
         } else {
             NSWorkspace.shared.open(url)
-            showCallInProgressToast()
+            showToast(message: L("call_in_progress"))
             HistoryStore.shared.addRecord(phone: phone, name: match?.fullName, contactID: match?.id)
         }
     }
@@ -1520,22 +1952,20 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         callToastTopConstraint?.isActive = true
     }
 
-    private func showCallInProgressToast() {
+    func showToast(message: String) {
         guard let contentView = window?.contentView else { return }
-
         callToastHideWorkItem?.cancel()
-
+        let label: NSTextField
         if callToastView == nil {
             let toast = NSView()
             toast.wantsLayer = true
-            toast.layer?.backgroundColor = NSColor(white: 0.12, alpha: 0.92).cgColor
             toast.layer?.cornerRadius = 10
             toast.translatesAutoresizingMaskIntoConstraints = false
             toast.alphaValue = 0
 
-            let label = NSTextField(labelWithString: L("call_in_progress"))
-            label.font = NSFont.systemFont(ofSize: 11, weight: .medium)
-            label.textColor = NSColor(white: 0.92, alpha: 1)
+            label = NSTextField(labelWithString: message)
+            label.tag = 999
+            label.font = AccessibilityManager.shared.adjustedFont(baseSize: 11, weight: .medium)
             label.isEditable = false
             label.isSelectable = false
             label.isBezeled = false
@@ -1566,6 +1996,22 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             ])
 
             callToastView = toast
+        } else {
+            label = callToastView?.viewWithTag(999) as? NSTextField ?? NSTextField()
+            label.stringValue = message
+        }
+        let a11y = AccessibilityManager.shared
+        callToastView?.layer?.backgroundColor = a11y.adjustedBackgroundOrTextColor(NSColor(white: 0.12, alpha: 0.92)).cgColor
+        label.textColor = a11y.adjustedBackgroundOrTextColor(NSColor(white: 0.92, alpha: 1))
+        
+        if a11y.isEffectivelyColorInverted {
+            callToastView?.layer?.borderWidth = max(a11y.highContrastBorderWidth, 1)
+            callToastView?.layer?.borderColor = NSColor(white: 0, alpha: 0.15).cgColor
+        } else if a11y.isHighContrastEnabled {
+            callToastView?.layer?.borderWidth = a11y.highContrastBorderWidth
+            callToastView?.layer?.borderColor = a11y.highContrastBorderColor
+        } else {
+            callToastView?.layer?.borderWidth = 0
         }
 
         repositionCallToast()
@@ -1587,21 +2033,38 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             })
         }
         callToastHideWorkItem = hideWorkItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: hideWorkItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5, execute: hideWorkItem)
     }
-
+    
     @objc func openAdd() {
         addWindowController = AddContactWindowController(contactToEdit: nil)
         addWindowController?.showWindow(nil)
         addWindowController?.window?.makeKeyAndOrderFront(nil)
     }
+
+    @objc func openNotifications() {
+        if notificationsWindowController == nil {
+            notificationsWindowController = NotificationsWindowController()
+        }
+        notificationsWindowController?.showWindow(nil)
+        if let notifWin = notificationsWindowController?.window, let mainWin = self.window {
+            let x = mainWin.frame.midX - notifWin.frame.width / 2
+            let y = mainWin.frame.midY - notifWin.frame.height / 2
+            notifWin.setFrameOrigin(NSPoint(x: x, y: y))
+        }
+        notificationsWindowController?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc func refreshBellButtonState() {
+        guard let bellButton = bellButton else { return }
+        bellButton.image = NSImage(systemSymbolName: "bell", accessibilityDescription: L("notifications_tooltip"))
+        bellButton.isHidden = UserDefaults.standard.bool(forKey: "hideGeneralReminderButton") || !ReminderManager.shared.isEnabled
+    }
     
-    @objc private func updateUIVisibility() {
+    @objc private func updateUIVisibility(_ notification: Notification? = nil) {
         contactsSearchField.stringValue = ""
         favoritesSearchField.stringValue = ""
         historySearchField.stringValue = ""
-        refreshAll()
-        
         let hideContacts = UserDefaults.standard.bool(forKey: "hideContactsMenu")
         let hideKeypad = UserDefaults.standard.bool(forKey: "hideKeypadMenu")
         let hideFavorites = UserDefaults.standard.bool(forKey: "hideFavoritesMenu")
@@ -1609,61 +2072,76 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         let hidePlus = UserDefaults.standard.bool(forKey: "hidePlusButton")
         let hideAll = hideContacts && hideKeypad && hideFavorites && hideHistory
 
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            context.allowsImplicitAnimation = true
-            
-            self.contactsButton.isHidden = hideContacts
-            self.dialButton.isHidden = hideKeypad
-            self.favoritesButton.isHidden = hideFavorites
-            self.historyButton.isHidden = hideHistory
-            self.plusButton?.isHidden = hidePlus
-            
-            self.contactsSearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInContacts")
-            self.favoritesSearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInFavorites")
-            self.historySearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInHistory")
-            
-            if hideAll {
-                self.contactsView.isHidden = true
-                self.dialerView.isHidden = true
-                self.favoritesView.isHidden = true
-                self.historyView.isHidden = true
-                self.emptyStateView.isHidden = false
-            } else {
-                self.emptyStateView.isHidden = true
+        self.contactsButton.isHidden = hideContacts
+        self.dialButton.isHidden = hideKeypad
+        self.favoritesButton.isHidden = hideFavorites
+        self.historyButton.isHidden = hideHistory
+        self.plusButton?.isHidden = hidePlus
+        self.bellButton?.isHidden = UserDefaults.standard.bool(forKey: "hideGeneralReminderButton") || !ReminderManager.shared.isEnabled
 
-                let currentlyVisibleGotDisabled =
-                    (!self.contactsView.isHidden && hideContacts) ||
-                    (!self.favoritesView.isHidden && hideFavorites) ||
-                    (!self.historyView.isHidden && hideHistory) ||
-                    (!self.dialerView.isHidden && hideKeypad)
+        self.contactsSearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInContacts")
+        self.favoritesSearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInFavorites")
+        self.historySearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInHistory")
+        refreshGroupFilterVisibility()
 
-                if currentlyVisibleGotDisabled {
-                    if !hideFavorites { self.showFavorites() }
-                    else if !hideHistory { self.showHistory() }
-                    else if !hideContacts { self.showContacts() }
-                    else if !hideKeypad { self.showDialer() }
-                }
-            }
+        if hideAll {
+            self.contactsView.isHidden = true
+            self.dialerView.isHidden = true
+            self.favoritesView.isHidden = true
+            self.historyView.isHidden = true
+            self.emptyStateView.isHidden = false
+        } else {
+            self.emptyStateView.isHidden = true
 
-            self.repositionCallToast()
+            let currentlyVisibleGotDisabled =
+                (!self.contactsView.isHidden && hideContacts) ||
+                (!self.favoritesView.isHidden && hideFavorites) ||
+                (!self.historyView.isHidden && hideHistory) ||
+                (!self.dialerView.isHidden && hideKeypad)
 
-            if let id = self.currentDetailContactID {
-                self.refreshDetailPanelIfShowing(id: id)
+            if currentlyVisibleGotDisabled {
+                if !hideFavorites { self.showFavorites() }
+                else if !hideHistory { self.showHistory() }
+                else if !hideContacts { self.showContacts() }
+                else if !hideKeypad { self.showDialer() }
             }
         }
+
+        self.repositionCallToast()
+        let needsFullRebuild = (notification?.userInfo?["needsFullRebuild"] as? Bool) ?? true
+        if needsFullRebuild {
+            refreshAll()
+        }
+
+        syncDetailPanelAfterDataChange()
     }
 
     func windowShouldZoom(_ window: NSWindow, toFrame newFrame: NSRect) -> Bool {
         return window.isZoomed
     }
+
+    func windowDidEndLiveResize(_ notification: Notification) {
+        guard let window = self.window,
+              let appDelegate = NSApp.delegate as? AppDelegate,
+              !appDelegate.isApplyingUIScale else { return }
+        let scale = AccessibilityManager.shared.uiScaleFactor
+        let currentSize = window.frame.size
+        appDelegate.naturalWindowSize = NSSize(width: currentSize.width / scale,
+                                                height: currentSize.height / scale)
+    }
+    func windowWillClose(_ notification: Notification) {
+        notificationsWindowController?.close()
+        notificationsWindowController = nil
+        reminderSetupWindowController?.close()
+        reminderSetupWindowController = nil
+        addWindowController?.close()
+        addWindowController = nil
+        editWindowController?.close()
+        editWindowController = nil
+    }
 }
 
-/// A vertical NSStackView used ONLY for the Favorites list, which accepts
-/// drag & drop of ContactRow items to let the user reorder their favorites.
 class FavoritesDropStackView: NSStackView {
-    /// Called with the full, new top-to-bottom order of favorite contact IDs
-    /// once a drop completes.
     var onReorder: (([UUID]) -> Void)?
 
     private var dropIndicator: NSView?
@@ -1702,9 +2180,6 @@ class FavoritesDropStackView: NSStackView {
         dropIndicator = nil
     }
 
-    /// Index (0...rowCount) at which a row dropped at the given Y (in this
-    /// view's flipped coordinate space assumption from NSStackView's document
-    /// view usage) should be inserted.
     private func insertionIndex(forDraggingLocation location: NSPoint) -> Int {
         let rows = arrangedSubviews
         for (index, row) in rows.enumerated() {
@@ -1762,7 +2237,6 @@ class FavoritesDropStackView: NSStackView {
 
         let location = convert(sender.draggingLocation, from: nil)
         var toIndex = insertionIndex(forDraggingLocation: location)
-        // Adjust target index to account for removing the dragged row first.
         if toIndex > fromIndex { toIndex -= 1 }
         toIndex = max(0, min(toIndex, rows.count - 1))
 
@@ -1790,8 +2264,11 @@ class ContactRow: NSView {
     private var messageButton: NSButton!
     private var nameLabelRef: NSTextField!
     private var realFullName: String = ""
+    private var messageButtonWidthConstraint: NSLayoutConstraint?
+    private var messageButtonHeightConstraint: NSLayoutConstraint?
+    private var optionsButtonWidthConstraint: NSLayoutConstraint?
+    private var optionsButtonHeightConstraint: NSLayoutConstraint?
 
-    /// When true (Favorites list only), this row can be dragged to reorder.
     var isDraggable: Bool = false
     private var dragStartLocation: NSPoint?
 
@@ -1818,22 +2295,25 @@ private func setupUI(contact: Contact) {
         avatarView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(avatarView)
 
-        // Κρατάμε ΜΟΝΟ το όνομα, χωρίς το τηλέφωνο και χωρίς το StackView
         realFullName = contact.fullName
         let nameLabel = NSTextField(labelWithString: PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName)
-        nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .medium)
+        nameLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 15, weight: .medium)
         nameLabel.textColor = .white
         nameLabel.isEditable = false
         nameLabel.isSelectable = false
         nameLabel.isBezeled = false
         nameLabel.drawsBackground = false
         nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.maximumNumberOfLines = 1
+        nameLabel.cell?.truncatesLastVisibleLine = true
+        nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(nameLabel) // Το προσθέτουμε απευθείας
+        addSubview(nameLabel)
         nameLabelRef = nameLabel
         NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(accessibilitySettingsChanged), name: .accessibilitySettingsDidChange, object: nil)
 
-        // Κουμπί Μηνύματος
         let msgConfig = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
         let msgImg = NSImage(systemSymbolName: "message.fill", accessibilityDescription: L("message_tooltip"))?.withSymbolConfiguration(msgConfig)
         
@@ -1846,7 +2326,6 @@ private func setupUI(contact: Contact) {
         if let cell = messageButton.cell as? NSButtonCell { cell.imageScaling = .scaleNone }
         addSubview(messageButton)
 
-        // Κουμπί Επιλογών (3 τελίτσες)
         let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
         let ellipsisImg = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: L("tools"))?.withSymbolConfiguration(config)?.vertical()
 
@@ -1864,32 +2343,47 @@ private func setupUI(contact: Contact) {
         line.translatesAutoresizingMaskIntoConstraints = false
         addSubview(line)
 
+        let a11y = AccessibilityManager.shared
+        let hitInset = a11y.hitTargetInset
+        let buttonSize: CGFloat = 28 + hitInset
+
+        let messageWidthConstraint = messageButton.widthAnchor.constraint(equalToConstant: buttonSize)
+        let messageHeightConstraint = messageButton.heightAnchor.constraint(equalToConstant: buttonSize)
+        let optionsWidthConstraint = optionsButton.widthAnchor.constraint(equalToConstant: buttonSize)
+        let optionsHeightConstraint = optionsButton.heightAnchor.constraint(equalToConstant: buttonSize)
+        messageButtonWidthConstraint = messageWidthConstraint
+        messageButtonHeightConstraint = messageHeightConstraint
+        optionsButtonWidthConstraint = optionsWidthConstraint
+        optionsButtonHeightConstraint = optionsHeightConstraint
+
         NSLayoutConstraint.activate([
             avatarView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
             avatarView.centerYAnchor.constraint(equalTo: centerYAnchor),
             avatarView.widthAnchor.constraint(equalToConstant: 34),
             avatarView.heightAnchor.constraint(equalToConstant: 34),
 
-            // Δένουμε το Όνομα απευθείας δίπλα στο Avatar και το κεντράρουμε κάθετα
             nameLabel.leadingAnchor.constraint(equalTo: avatarView.trailingAnchor, constant: 12),
             nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
             nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: messageButton.leadingAnchor, constant: -6),
             
             messageButton.trailingAnchor.constraint(equalTo: optionsButton.leadingAnchor, constant: -2),
             messageButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            messageButton.widthAnchor.constraint(equalToConstant: 28),
-            messageButton.heightAnchor.constraint(equalToConstant: 28),
+            messageWidthConstraint,
+            messageHeightConstraint,
 
             optionsButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
             optionsButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-            optionsButton.widthAnchor.constraint(equalToConstant: 28),
-            optionsButton.heightAnchor.constraint(equalToConstant: 28),
+            optionsWidthConstraint,
+            optionsHeightConstraint,
 
             line.bottomAnchor.constraint(equalTo: bottomAnchor),
             line.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 58),
             line.trailingAnchor.constraint(equalTo: trailingAnchor),
             line.heightAnchor.constraint(equalToConstant: 0.5),
         ])
+
+        a11y.applyHighContrastBorder(to: messageButton, cornerRadius: 6)
+        a11y.applyHighContrastBorder(to: optionsButton, cornerRadius: 6)
 
         let click = NSClickGestureRecognizer(target: self, action: #selector(rowTapped(_:)))
         addGestureRecognizer(click)
@@ -1981,6 +2475,19 @@ private func setupUI(contact: Contact) {
         nameLabelRef?.stringValue = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(realFullName) : realFullName
     }
 
+    @objc private func accessibilitySettingsChanged() {
+        let a11y = AccessibilityManager.shared
+        nameLabelRef?.font = a11y.adjustedFont(baseSize: 15, weight: .medium)
+        let buttonSize: CGFloat = 28 + a11y.hitTargetInset
+        messageButtonWidthConstraint?.constant = buttonSize
+        messageButtonHeightConstraint?.constant = buttonSize
+        optionsButtonWidthConstraint?.constant = buttonSize
+        optionsButtonHeightConstraint?.constant = buttonSize
+        a11y.applyHighContrastBorder(to: messageButton, cornerRadius: 6)
+        a11y.applyHighContrastBorder(to: optionsButton, cornerRadius: 6)
+        needsLayout = true
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
@@ -2011,16 +2518,33 @@ class HistoryRow: NSView {
     }
 
     var phone: String = ""
+    var contactID: UUID?
     private var target: AnyObject?
     private var action: Selector?
+    private var optionsAction: Selector?
+    private var optionsButton: NSButton!
     private var nameLabelRef: NSTextField!
+    private var timeLabelRef: NSTextField!
     private var realDisplayName: String = ""
+    private var optionsButtonWidthConstraint: NSLayoutConstraint?
+    private var optionsButtonHeightConstraint: NSLayoutConstraint?
+    var optionsButtonView: NSView? { optionsButton }
+    static func resolveContact(for record: CallRecord) -> Contact? {
+        if let id = record.contactID, let contact = ContactStore.shared.contacts.first(where: { $0.id == id }) {
+            return contact
+        }
+        let target = record.phone.sanitizedForCall
+        guard !target.isEmpty else { return nil }
+        return ContactStore.shared.contacts.first(where: { $0.phone.sanitizedForCall == target })
+    }
 
-    convenience init(record: CallRecord, target: AnyObject, action: Selector, avatarStyle: AvatarStyle = .phoneIcon) {
+    convenience init(record: CallRecord, target: AnyObject, action: Selector, avatarStyle: AvatarStyle = .phoneIcon, optionsAction: Selector? = nil) {
         self.init(frame: .zero)
         self.phone = record.phone
+        self.contactID = HistoryRow.resolveContact(for: record)?.id ?? record.contactID
         self.target = target
         self.action = action
+        self.optionsAction = optionsAction
         setupUI(record: record, avatarStyle: avatarStyle)
     }
 
@@ -2052,9 +2576,7 @@ class HistoryRow: NSView {
             avatarView = iconContainer
 
         case .contactPhoto:
-            let matchedContact = record.contactID.flatMap { id in
-                ContactStore.shared.contacts.first(where: { $0.id == id })
-            }
+            let matchedContact = HistoryRow.resolveContact(for: record)
             let roundAvatar = RoundAvatarView(diameter: 34)
             if let contact = matchedContact {
                 roundAvatar.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor)
@@ -2065,27 +2587,32 @@ class HistoryRow: NSView {
         }
         avatarView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(avatarView)
-
-        let displayName = record.contactName ?? record.phone
+        let displayName = HistoryRow.resolveContact(for: record)?.fullName ?? record.contactName ?? record.phone
         realDisplayName = displayName
         let nameLabel = NSTextField(labelWithString: PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(displayName) : displayName)
-        nameLabel.font = NSFont.systemFont(ofSize: 15, weight: .regular)
+        nameLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 15, weight: .regular)
         nameLabel.textColor = .white
         nameLabel.isEditable = false
         nameLabel.isSelectable = false
         nameLabel.isBezeled = false
         nameLabel.drawsBackground = false
         nameLabel.lineBreakMode = .byTruncatingTail
+        nameLabel.maximumNumberOfLines = 1
+        nameLabel.cell?.truncatesLastVisibleLine = true
+        nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(nameLabel)
         nameLabelRef = nameLabel
         NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(accessibilitySettingsChanged), name: .accessibilitySettingsDidChange, object: nil)
 
         let df = DateFormatter()
         df.dateStyle = .short
         df.timeStyle = .short
+        df.timeZone = AppTimeZone.current
         let timeLabel = NSTextField(labelWithString: df.string(from: record.date))
-        timeLabel.font = NSFont.systemFont(ofSize: 12)
+        timeLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 12)
         timeLabel.textColor = NSColor(white: 0.55, alpha: 1)
         timeLabel.isEditable = false
         timeLabel.isSelectable = false
@@ -2093,12 +2620,30 @@ class HistoryRow: NSView {
         timeLabel.drawsBackground = false
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(timeLabel)
+        timeLabelRef = timeLabel
+        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        let ellipsisImg = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: L("tools"))?.withSymbolConfiguration(config)?.vertical()
+        optionsButton = NSButton(image: ellipsisImg ?? NSImage(), target: nil, action: nil)
+        optionsButton.bezelStyle = .regularSquare
+        optionsButton.isBordered = false
+        optionsButton.contentTintColor = NSColor(white: 0.55, alpha: 1)
+        optionsButton.translatesAutoresizingMaskIntoConstraints = false
+        optionsButton.isHidden = optionsAction == nil
+        if let cell = optionsButton.cell as? NSButtonCell { cell.imageScaling = .scaleNone }
+        addSubview(optionsButton)
         
         let line = NSView()
         line.wantsLayer = true
         line.layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
         line.translatesAutoresizingMaskIntoConstraints = false
         addSubview(line)
+
+        let a11y = AccessibilityManager.shared
+        let buttonSize: CGFloat = 28 + a11y.hitTargetInset
+        let widthConstraint = optionsButton.widthAnchor.constraint(equalToConstant: buttonSize)
+        let heightConstraint = optionsButton.heightAnchor.constraint(equalToConstant: buttonSize)
+        optionsButtonWidthConstraint = widthConstraint
+        optionsButtonHeightConstraint = heightConstraint
 
         NSLayoutConstraint.activate([
             avatarView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
@@ -2110,8 +2655,13 @@ class HistoryRow: NSView {
             nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
             nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: timeLabel.leadingAnchor, constant: -8),
             
-            timeLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            timeLabel.trailingAnchor.constraint(equalTo: optionsButton.leadingAnchor, constant: optionsAction == nil ? 16 : -6),
             timeLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            optionsButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            optionsButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            widthConstraint,
+            heightConstraint,
 
             line.bottomAnchor.constraint(equalTo: bottomAnchor),
             line.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 58),
@@ -2119,11 +2669,32 @@ class HistoryRow: NSView {
             line.heightAnchor.constraint(equalToConstant: 0.5),
         ])
 
+        a11y.applyHighContrastBorder(to: optionsButton, cornerRadius: 6)
+        wantsLayer = true
+        layer?.cornerRadius = a11y.isHighContrastEnabled ? 8 : 0
+        layer?.borderWidth = a11y.highContrastBorderWidth
+        layer?.borderColor = a11y.highContrastBorderColor
+
         let click = NSClickGestureRecognizer(target: self, action: #selector(rowTapped(_:)))
         addGestureRecognizer(click)
     }
 
+    @objc func showOptionsMenu() {
+        if let optionsAction = optionsAction {
+            _ = target?.perform(optionsAction, with: self)
+        }
+    }
+
     @objc func rowTapped(_ gesture: NSGestureRecognizer) {
+        let location = gesture.location(in: self)
+        if optionsAction != nil {
+            let optHitRect = optionsButton.frame.insetBy(dx: -10, dy: -10)
+            if optHitRect.contains(location) {
+                showOptionsMenu()
+                return
+            }
+        }
+
         wantsLayer = true
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.08
@@ -2141,6 +2712,21 @@ class HistoryRow: NSView {
         nameLabelRef?.stringValue = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(realDisplayName) : realDisplayName
     }
 
+    @objc private func accessibilitySettingsChanged() {
+        let a11y = AccessibilityManager.shared
+        nameLabelRef?.font = a11y.adjustedFont(baseSize: 15, weight: .regular)
+        timeLabelRef?.font = a11y.adjustedFont(baseSize: 12)
+        let buttonSize: CGFloat = 28 + a11y.hitTargetInset
+        optionsButtonWidthConstraint?.constant = buttonSize
+        optionsButtonHeightConstraint?.constant = buttonSize
+        a11y.applyHighContrastBorder(to: optionsButton, cornerRadius: 6)
+        wantsLayer = true
+        layer?.cornerRadius = a11y.isHighContrastEnabled ? 8 : 0
+        layer?.borderWidth = a11y.highContrastBorderWidth
+        layer?.borderColor = a11y.highContrastBorderColor
+        needsLayout = true
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }
@@ -2152,8 +2738,10 @@ class ContactDetailPanelView: NSView {
     var onFavoriteToggle: ((UUID) -> Void)?
     var onEdit: ((Contact) -> Void)?
     var onDelete: ((Contact) -> Void)?
+    var onAddToNewContact: ((String) -> Void)?
 
     private var currentContact: Contact?
+    private var currentUnknownPhone: String?
     private var imagePreviewWindowController: ImagePreviewWindowController?
 
     private let avatarView = RoundAvatarView(diameter: 84)
@@ -2163,20 +2751,19 @@ class ContactDetailPanelView: NSView {
     private let favoriteButton = CircleActionButton()
     private let editButton = CircleActionButton()
     private let deleteButton = CircleActionButton()
+    private let addToContactButton = CircleActionButton()
     private let historyTitleLabel = NSTextField(labelWithString: "")
     private let historyScrollView = NSScrollView()
     private let historyStack = NSStackView()
     private let emptyHistoryLabel = NSTextField(labelWithString: "")
     private let historyDivider = NSView()
     private let messageButton = CircleActionButton()
+    private let reminderButton = CircleActionButton()
+    var onReminder: ((Contact) -> Void)?
     private var actionsStack: NSStackView!
-    // Reference spacing between buttons when there were 4 buttons (the original,
-    // "well-balanced" layout). Used as a minimum so more buttons never end up
-    // cramped closer together than this, and the side margins stay fixed.
     private let actionsStackMinSpacing: CGFloat = 18
     private let actionsStackSideMargin: CGFloat = 16
 
-    // --- Σημειώσεις επαφής ---
     private let notesCard = NSView()
     private let notesTitleLabel = NSTextField(labelWithString: "")
     private let notesScrollView = NSScrollView()
@@ -2184,16 +2771,36 @@ class ContactDetailPanelView: NSView {
     private var notesCardTopToActions: NSLayoutConstraint!
     private var dividerTopToNotesCard: NSLayoutConstraint!
     private var dividerTopToActions: NSLayoutConstraint!
+    private var notesHeightConstraint: NSLayoutConstraint!
+    private let groupBadgeButton = NSButton()
+    private var groupBadgeWidthConstraint: NSLayoutConstraint?
+    private var groupsPopover: NSPopover?
+    private var currentContactGroups: [ContactGroup] = []
 
     override init(frame: NSRect) {
         super.init(frame: frame)
         setup()
         NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(accessibilitySettingsChanged), name: .accessibilitySettingsDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reminderHistoryChanged), name: .reminderHistoryDidChange, object: nil)
     }
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setup()
         NotificationCenter.default.addObserver(self, selector: #selector(privacyModeChanged), name: .privacyModeDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(accessibilitySettingsChanged), name: .accessibilitySettingsDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reminderHistoryChanged), name: .reminderHistoryDidChange, object: nil)
+    }
+    static func hasUpcomingReminder(for contact: Contact) -> Bool {
+        ReminderHistoryStore.shared.upcoming.contains {
+            if let contactID = $0.contactID { return contactID == contact.id }
+            return $0.phone.sanitizedForCall == contact.phone.sanitizedForCall
+        }
+    }
+
+    @objc private func reminderHistoryChanged() {
+        guard let contact = currentContact else { return }
+        reminderButton.bellFilled = Self.hasUpcomingReminder(for: contact)
     }
 
     deinit {
@@ -2201,15 +2808,38 @@ class ContactDetailPanelView: NSView {
     }
 
     @objc private func privacyModeChanged() {
-        guard let contact = currentContact else { return }
-        applyPrivacyDisplayedText(for: contact)
-        if let image = contact.image, !PrivacyMode.shared.isEnabled {
-            avatarView.onTap = { [weak self] in
-                self?.presentImagePreview(image)
+        if let contact = currentContact {
+            applyPrivacyDisplayedText(for: contact)
+            if let image = contact.image, !PrivacyMode.shared.isEnabled {
+                avatarView.onTap = { [weak self] in
+                    self?.presentImagePreview(image)
+                }
+            } else {
+                avatarView.onTap = nil
             }
-        } else {
-            avatarView.onTap = nil
+        } else if let phone = currentUnknownPhone {
+            nameLabel.stringValue = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(phone) : phone
         }
+    }
+
+    @objc private func accessibilitySettingsChanged() {
+        let a11y = AccessibilityManager.shared
+        nameLabel.font = a11y.adjustedFont(baseSize: 18, weight: .bold)
+        phoneLabel.font = a11y.adjustedFont(baseSize: 13)
+        notesTitleLabel.font = a11y.adjustedFont(baseSize: 11, weight: .semibold)
+        notesTextView.font = a11y.adjustedFont(baseSize: 13)
+        notesTextView.textColor = a11y.isEffectivelyColorInverted ? .black : NSColor(white: 0.92, alpha: 1)
+        historyTitleLabel.font = a11y.adjustedFont(baseSize: 12, weight: .semibold)
+        emptyHistoryLabel.font = a11y.adjustedFont(baseSize: 12)
+        notesCard.layer?.borderWidth = a11y.isHighContrastEnabled ? a11y.highContrastBorderWidth : 1
+        notesCard.layer?.borderColor = a11y.isHighContrastEnabled
+            ? a11y.highContrastBorderColor
+            : NSColor(white: 1, alpha: 0.08).cgColor
+        if let primary = currentContactGroups.first {
+            let badgeAlpha: CGFloat = a11y.isEffectivelyColorInverted ? 1.0 : 0.85
+            groupBadgeButton.layer?.backgroundColor = (primary.color ?? NSColor.systemIndigo).withAlphaComponent(badgeAlpha).cgColor
+        }
+        needsLayout = true
     }
 
     private func applyPrivacyDisplayedText(for contact: Contact) {
@@ -2226,8 +2856,20 @@ class ContactDetailPanelView: NSView {
 
     private func setup() {
     wantsLayer = true
-    layer?.backgroundColor = NSColor(red: 0.13, green: 0.13, blue: 0.145, alpha: 1).cgColor
     layer?.masksToBounds = true
+
+    let backgroundEffect = NSVisualEffectView()
+    backgroundEffect.material = .underWindowBackground
+    backgroundEffect.blendingMode = .withinWindow
+    backgroundEffect.state = .active
+    backgroundEffect.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(backgroundEffect)
+    NSLayoutConstraint.activate([
+        backgroundEffect.topAnchor.constraint(equalTo: topAnchor),
+        backgroundEffect.bottomAnchor.constraint(equalTo: bottomAnchor),
+        backgroundEffect.leadingAnchor.constraint(equalTo: leadingAnchor),
+        backgroundEffect.trailingAnchor.constraint(equalTo: trailingAnchor),
+    ])
 
     let closeConfig = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
     let closeImg = NSImage(systemSymbolName: "xmark", accessibilityDescription: L("close_details"))?.withSymbolConfiguration(closeConfig)
@@ -2238,21 +2880,39 @@ class ContactDetailPanelView: NSView {
     closeButton.translatesAutoresizingMaskIntoConstraints = false
     addSubview(closeButton)
 
+    groupBadgeButton.bezelStyle = .regularSquare
+    groupBadgeButton.isBordered = false
+    groupBadgeButton.wantsLayer = true
+    groupBadgeButton.layer?.cornerRadius = 10
+    groupBadgeButton.font = AccessibilityManager.shared.adjustedFont(baseSize: 11, weight: .semibold)
+    groupBadgeButton.contentTintColor = .white
+    groupBadgeButton.alignment = .center
+    groupBadgeButton.target = self
+    groupBadgeButton.action = #selector(groupBadgeTapped)
+    groupBadgeButton.toolTip = L("groups_detail_badge_tooltip")
+    groupBadgeButton.translatesAutoresizingMaskIntoConstraints = false
+    groupBadgeButton.isHidden = true
+    addSubview(groupBadgeButton)
+
     avatarView.translatesAutoresizingMaskIntoConstraints = false
     addSubview(avatarView)
 
-    nameLabel.font = NSFont.boldSystemFont(ofSize: 18)
+    nameLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 18, weight: .bold)
     nameLabel.textColor = .white
     nameLabel.alignment = .center
     nameLabel.isEditable = false
     nameLabel.isSelectable = true
     nameLabel.isBezeled = false
     nameLabel.drawsBackground = false
-    nameLabel.lineBreakMode = .byTruncatingTail
+    nameLabel.lineBreakMode = .byWordWrapping
+    nameLabel.maximumNumberOfLines = 0
+    nameLabel.cell?.truncatesLastVisibleLine = false
+    nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
     nameLabel.translatesAutoresizingMaskIntoConstraints = false
     addSubview(nameLabel)
 
-    phoneLabel.font = NSFont.systemFont(ofSize: 13)
+    phoneLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 13)
     phoneLabel.textColor = NSColor(white: 0.55, alpha: 1)
     phoneLabel.alignment = .center
     phoneLabel.isEditable = false
@@ -2279,19 +2939,22 @@ class ContactDetailPanelView: NSView {
         ])
     }
 
-    // --- ΕΔΩ ΕΙΝΑΙ Η ΠΡΟΣΘΗΚΗ ΓΙΑ ΤΗΝ ΚΛΗΣΗ ---
     styleCircleButton(callButton, glyph: .phone,
                        color: NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1), accessibility: L("call_tooltip"))
     callButton.target = self
     callButton.action = #selector(callTapped)
     addSubview(callButton)
-    // ------------------------------------------
 
     styleCircleButton(messageButton, glyph: .message,
                        color: NSColor.systemBlue, accessibility: L("message_tooltip"))
     messageButton.target = self
     messageButton.action = #selector(messageTapped)
     addSubview(messageButton)
+
+    styleCircleButton(reminderButton, glyph: .bell, color: NSColor.systemPurple, accessibility: L("set_reminder_tooltip"))
+    reminderButton.target = self
+    reminderButton.action = #selector(reminderTapped)
+    addSubview(reminderButton)
 
     styleCircleButton(favoriteButton, glyph: .star,
                        color: NSColor.systemOrange, accessibility: L("favorite_add_tooltip"))
@@ -2311,7 +2974,13 @@ class ContactDetailPanelView: NSView {
     deleteButton.action = #selector(deleteTapped)
     addSubview(deleteButton)
 
-    let actionsStack = NSStackView(views: [callButton, messageButton, favoriteButton, editButton, deleteButton])
+    styleCircleButton(addToContactButton, glyph: .addContact,
+                       color: NSColor.systemBlue, accessibility: L("add_number_to_new_contact"))
+    addToContactButton.target = self
+    addToContactButton.action = #selector(addToNewContactTapped)
+    addSubview(addToContactButton)
+
+    let actionsStack = NSStackView(views: [callButton, messageButton, reminderButton, favoriteButton, editButton, deleteButton, addToContactButton])
     actionsStack.orientation = .horizontal
     actionsStack.distribution = .equalSpacing
     actionsStack.spacing = actionsStackMinSpacing
@@ -2323,8 +2992,13 @@ class ContactDetailPanelView: NSView {
     notesCard.wantsLayer = true
     notesCard.layer?.backgroundColor = NSColor(white: 1, alpha: 0.055).cgColor
     notesCard.layer?.cornerRadius = 10
-    notesCard.layer?.borderWidth = 1
-    notesCard.layer?.borderColor = NSColor(white: 1, alpha: 0.08).cgColor
+    do {
+        let a11y = AccessibilityManager.shared
+        notesCard.layer?.borderWidth = a11y.isHighContrastEnabled ? a11y.highContrastBorderWidth : 1
+        notesCard.layer?.borderColor = a11y.isHighContrastEnabled
+            ? a11y.highContrastBorderColor
+            : NSColor(white: 1, alpha: 0.08).cgColor
+    }
     notesCard.translatesAutoresizingMaskIntoConstraints = false
     notesCard.isHidden = true
     addSubview(notesCard)
@@ -2336,7 +3010,7 @@ class ContactDetailPanelView: NSView {
     notesCard.addSubview(notesIconView)
 
     notesTitleLabel.stringValue = L("notes_title")
-    notesTitleLabel.font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+    notesTitleLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 11, weight: .semibold)
     notesTitleLabel.textColor = NSColor(white: 0.5, alpha: 1)
     notesTitleLabel.isEditable = false
     notesTitleLabel.isSelectable = false
@@ -2356,8 +3030,8 @@ class ContactDetailPanelView: NSView {
     notesTextView.isSelectable = true
     notesTextView.drawsBackground = false
     notesTextView.backgroundColor = .clear
-    notesTextView.font = NSFont.systemFont(ofSize: 13)
-    notesTextView.textColor = NSColor(white: 0.92, alpha: 1)
+    notesTextView.font = AccessibilityManager.shared.adjustedFont(baseSize: 13)
+    notesTextView.textColor = AccessibilityManager.shared.isEffectivelyColorInverted ? .black : NSColor(white: 0.92, alpha: 1)
     notesTextView.textContainerInset = NSSize(width: 0, height: 0)
     notesTextView.textContainer?.lineFragmentPadding = 0
     notesTextView.isVerticallyResizable = true
@@ -2365,6 +3039,7 @@ class ContactDetailPanelView: NSView {
     notesTextView.autoresizingMask = [.width]
     notesTextView.textContainer?.widthTracksTextView = true
     notesScrollView.documentView = notesTextView
+    notesHeightConstraint = notesScrollView.heightAnchor.constraint(equalToConstant: 80)
 
     NSLayoutConstraint.activate([
         notesIconView.topAnchor.constraint(equalTo: notesCard.topAnchor, constant: 12),
@@ -2380,7 +3055,7 @@ class ContactDetailPanelView: NSView {
         notesScrollView.leadingAnchor.constraint(equalTo: notesCard.leadingAnchor, constant: 12),
         notesScrollView.trailingAnchor.constraint(equalTo: notesCard.trailingAnchor, constant: -12),
         notesScrollView.bottomAnchor.constraint(equalTo: notesCard.bottomAnchor, constant: -12),
-        notesScrollView.heightAnchor.constraint(equalToConstant: 80),
+        notesHeightConstraint,
     ])
 
     let divider = historyDivider
@@ -2390,7 +3065,7 @@ class ContactDetailPanelView: NSView {
     addSubview(divider)
     
     historyTitleLabel.stringValue = L("recent_calls")
-    historyTitleLabel.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+    historyTitleLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 12, weight: .semibold)
     historyTitleLabel.textColor = NSColor(white: 0.5, alpha: 1)
     historyTitleLabel.isEditable = false
     historyTitleLabel.isSelectable = false
@@ -2413,7 +3088,7 @@ class ContactDetailPanelView: NSView {
     historyScrollView.documentView = historyStack
 
     emptyHistoryLabel.stringValue = L("no_calls_yet")
-    emptyHistoryLabel.font = NSFont.systemFont(ofSize: 12)
+    emptyHistoryLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 12)
     emptyHistoryLabel.textColor = NSColor(white: 0.45, alpha: 1)
     emptyHistoryLabel.alignment = .center
     emptyHistoryLabel.isEditable = false
@@ -2428,6 +3103,11 @@ class ContactDetailPanelView: NSView {
         closeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
         closeButton.widthAnchor.constraint(equalToConstant: 20),
         closeButton.heightAnchor.constraint(equalToConstant: 20),
+
+        groupBadgeButton.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+        groupBadgeButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+        groupBadgeButton.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -8),
+        groupBadgeButton.heightAnchor.constraint(equalToConstant: 20),
 
         avatarView.topAnchor.constraint(equalTo: topAnchor, constant: 40),
         avatarView.centerXAnchor.constraint(equalTo: centerXAnchor),
@@ -2466,29 +3146,25 @@ class ContactDetailPanelView: NSView {
         emptyHistoryLabel.topAnchor.constraint(equalTo: historyScrollView.topAnchor, constant: 20),
     ])
 
-    // Toggleable vertical chain: when notes are visible, notesCard sits
-    // between actionsStack and the divider; otherwise the divider attaches
-    // directly to actionsStack, exactly as before this feature existed.
     notesCardTopToActions = notesCard.topAnchor.constraint(equalTo: actionsStack.bottomAnchor, constant: 20)
     dividerTopToNotesCard = divider.topAnchor.constraint(equalTo: notesCard.bottomAnchor, constant: 20)
     dividerTopToActions = divider.topAnchor.constraint(equalTo: actionsStack.bottomAnchor, constant: 24)
     dividerTopToActions.isActive = true
 }
 
-    /// Minimum panel width needed so every currently-visible action button fits
-    /// with the original, fixed spacing (no stretching, no cropping).
     var requiredActionsWidth: CGFloat {
-        let buttons = [callButton, messageButton, favoriteButton, editButton, deleteButton]
-        let visibleCount = buttons.filter { !$0.isHidden }.count
-        guard visibleCount > 0 else { return 0 }
-        let buttonWidth: CGFloat = 44
-        let totalButtonsWidth = CGFloat(visibleCount) * buttonWidth
-        let totalSpacing = CGFloat(max(0, visibleCount - 1)) * actionsStackMinSpacing
-        return totalButtonsWidth + totalSpacing + (actionsStackSideMargin * 2)
-    }
+    let buttons = [callButton, messageButton, reminderButton, favoriteButton, editButton, deleteButton, addToContactButton]
+    let visibleCount = buttons.filter { !$0.isHidden }.count
+    guard visibleCount > 0 else { return 0 }
+    let buttonWidth: CGFloat = 44
+    let totalButtonsWidth = CGFloat(visibleCount) * buttonWidth
+    let totalSpacing = CGFloat(max(0, visibleCount - 1)) * actionsStackMinSpacing
+    return totalButtonsWidth + totalSpacing + (actionsStackSideMargin * 2)
+}
 
     func configure(contact: Contact, history: [CallRecord]) {
         currentContact = contact
+        currentUnknownPhone = nil
         avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor)
         if let image = contact.image, !PrivacyMode.shared.isEnabled {
             avatarView.onTap = { [weak self] in
@@ -2499,8 +3175,14 @@ class ContactDetailPanelView: NSView {
         }
         applyPrivacyDisplayedText(for: contact)
         messageButton.isHidden = UserDefaults.standard.bool(forKey: "hideMessagesButton")
+        reminderButton.isHidden = UserDefaults.standard.bool(forKey: "hideDetailReminderButton") || !ReminderManager.shared.isEnabled
+        reminderButton.glyph = .bell
+        reminderButton.bellFilled = Self.hasUpcomingReminder(for: contact)
 
         favoriteButton.isHidden = UserDefaults.standard.bool(forKey: "hideFavoritesMenu")
+        editButton.isHidden = false
+        deleteButton.isHidden = false
+        addToContactButton.isHidden = true
 
         favoriteButton.glyph = .star
         favoriteButton.starFilled = contact.isFavorite
@@ -2510,11 +3192,146 @@ class ContactDetailPanelView: NSView {
         let trimmedNotes = contact.notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let showNotes = notesEnabled && !trimmedNotes.isEmpty
         notesTextView.string = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(trimmedNotes) : trimmedNotes
+        
+        if showNotes {
+            let panelWidth = max(300, requiredActionsWidth)
+            let textWidth = panelWidth - 56
+            
+            let font = notesTextView.font ?? NSFont.systemFont(ofSize: 13)
+            
+            let textStorage = NSTextStorage(string: notesTextView.string, attributes: [.font: font])
+            let textContainer = NSTextContainer(containerSize: NSSize(width: textWidth, height: .greatestFiniteMagnitude))
+            textContainer.lineFragmentPadding = 0
+            
+            let layoutManager = NSLayoutManager()
+            layoutManager.addTextContainer(textContainer)
+            textStorage.addLayoutManager(layoutManager)
+            
+            layoutManager.ensureLayout(for: textContainer)
+            let rect = layoutManager.usedRect(for: textContainer)
+            
+            notesHeightConstraint.constant = max(16, min(ceil(rect.height), 80))
+        }
+
         notesCard.isHidden = !showNotes
         notesCardTopToActions.isActive = showNotes
         dividerTopToNotesCard.isActive = showNotes
         dividerTopToActions.isActive = !showNotes
 
+        configureGroupBadge(for: contact)
+        populateHistoryList(history)
+    }
+
+    private func configureGroupBadge(for contact: Contact) {
+        guard ContactGroupStore.shared.isEnabled, !contact.groupIDs.isEmpty else {
+            groupBadgeButton.isHidden = true
+            currentContactGroups = []
+            return
+        }
+        let allGroups = ContactGroupStore.shared.groups
+        let groups = contact.groupIDs.compactMap { id in allGroups.first { $0.id == id } }
+        guard !groups.isEmpty else {
+            groupBadgeButton.isHidden = true
+            currentContactGroups = []
+            return
+        }
+        currentContactGroups = groups
+        let primary = groups[0]
+        let extraCount = groups.count - 1
+        let title = extraCount > 0 ? "\(primary.name) +\(extraCount)" : primary.name
+        let font = groupBadgeButton.font ?? NSFont.systemFont(ofSize: 11, weight: .semibold)
+        groupBadgeButton.attributedTitle = Self.paddedBadgeTitle(title, font: font)
+        updateGroupBadgeWidth(for: title, font: font)
+        let badgeAlpha: CGFloat = AccessibilityManager.shared.isEffectivelyColorInverted ? 1.0 : 0.85
+        groupBadgeButton.layer?.backgroundColor = (primary.color ?? NSColor.systemIndigo).withAlphaComponent(badgeAlpha).cgColor
+        groupBadgeButton.isHidden = false
+    }
+
+    private static func paddedBadgeTitle(_ text: String, font: NSFont) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        return NSAttributedString(string: text, attributes: [
+            .font: font,
+            .foregroundColor: NSColor.white,
+            .paragraphStyle: paragraph,
+        ])
+    }
+
+    private static let groupBadgeHorizontalPadding: CGFloat = 10
+    private func updateGroupBadgeWidth(for title: String, font: NSFont) {
+        let textWidth = (title as NSString).size(withAttributes: [.font: font]).width
+        let desiredWidth = ceil(textWidth) + Self.groupBadgeHorizontalPadding * 2
+        groupBadgeWidthConstraint?.isActive = false
+        let constraint = groupBadgeButton.widthAnchor.constraint(equalToConstant: desiredWidth)
+        constraint.priority = .defaultHigh
+        constraint.isActive = true
+        groupBadgeWidthConstraint = constraint
+    }
+
+    @objc private func groupBadgeTapped() {
+        guard !currentContactGroups.isEmpty else { return }
+        if currentContactGroups.count == 1 {
+            onApplyGroupFilter?(currentContactGroups[0].id)
+        } else {
+            presentGroupPickerPopover(for: currentContactGroups, relativeTo: groupBadgeButton)
+        }
+    }
+
+    private func presentGroupPickerPopover(for groups: [ContactGroup], relativeTo view: NSView) {
+        let vc = GroupPickerPopoverViewController(groups: groups)
+        vc.onSelectGroupID = { [weak self] groupID in
+            self?.groupsPopover?.close()
+            self?.onApplyGroupFilter?(groupID)
+        }
+        let popover = NSPopover()
+        popover.contentViewController = vc
+        popover.behavior = .transient
+        popover.appearance = AccessibilityManager.shared.preferredWindowAppearance
+        popover.show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
+        groupsPopover = popover
+    }
+
+    private func presentGroupContactsPopover(for group: ContactGroup, relativeTo view: NSView) {
+        let members = ContactStore.shared.contacts(inGroup: group.id).filter { $0.id != currentContact?.id }
+        let vc = GroupMembersPopoverViewController(group: group, members: members)
+        vc.onSelectContactID = { [weak self] contactID in
+            self?.groupsPopover?.close()
+            self?.jumpToContact?(contactID)
+        }
+        let popover = NSPopover()
+        popover.contentViewController = vc
+        popover.behavior = .transient
+        popover.appearance = AccessibilityManager.shared.preferredWindowAppearance
+        popover.show(relativeTo: view.bounds, of: view, preferredEdge: .maxY)
+        groupsPopover = popover
+    }
+
+    var jumpToContact: ((UUID) -> Void)?
+    var onApplyGroupFilter: ((UUID) -> Void)?
+    func configure(unknownPhone phone: String, history: [CallRecord]) {
+        currentContact = nil
+        currentUnknownPhone = phone
+        avatarView.configure(image: nil, initials: "#")
+        avatarView.onTap = nil
+        nameLabel.stringValue = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(phone) : phone
+        phoneLabel.stringValue = ""
+        notesTextView.string = ""
+        groupBadgeButton.isHidden = true
+        currentContactGroups = []
+        messageButton.isHidden = UserDefaults.standard.bool(forKey: "hideMessagesButton")
+        reminderButton.isHidden = true
+        favoriteButton.isHidden = true
+        editButton.isHidden = true
+        deleteButton.isHidden = true
+        addToContactButton.isHidden = false
+        notesCard.isHidden = true
+        notesCardTopToActions.isActive = false
+        dividerTopToNotesCard.isActive = false
+        dividerTopToActions.isActive = true
+        populateHistoryList(history)
+    }
+
+    private func populateHistoryList(_ history: [CallRecord]) {
         historyStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         if history.isEmpty {
             emptyHistoryLabel.isHidden = false
@@ -2526,6 +3343,7 @@ class ContactDetailPanelView: NSView {
                 row.widthAnchor.constraint(equalTo: historyStack.widthAnchor).isActive = true
                 row.heightAnchor.constraint(equalToConstant: 52).isActive = true
             }
+            AccessibilityManager.shared.applyToViewTree(historyStack)
         }
 
         let showHistory = !UserDefaults.standard.bool(forKey: "hideContactHistoryInDetail")
@@ -2558,8 +3376,8 @@ class ContactDetailPanelView: NSView {
             PrivacyMode.shared.showBlockedAlert()
             return
         }
-        guard let contact = currentContact else { return }
-        onCall?(contact.phone)
+        guard let phone = currentContact?.phone ?? currentUnknownPhone else { return }
+        onCall?(phone)
     }
     
     @objc private func messageTapped() {
@@ -2567,8 +3385,18 @@ class ContactDetailPanelView: NSView {
             PrivacyMode.shared.showBlockedAlert()
             return
         }
-        guard let contact = currentContact, let url = URL(string: "sms://\(contact.phone.sanitizedForCall)") else { return }
+        guard let phone = currentContact?.phone ?? currentUnknownPhone,
+              let url = URL(string: "sms://\(phone.sanitizedForCall)") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    @objc private func reminderTapped() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
+        guard let contact = currentContact else { return }
+        onReminder?(contact)
     }
 
     @objc private func favoriteTapped() {
@@ -2577,7 +3405,10 @@ class ContactDetailPanelView: NSView {
             return
         }
         guard let contact = currentContact else { return }
-        onFavoriteToggle?(contact.id)
+        favoriteButton.starFilled.toggle()
+        DispatchQueue.main.async {
+            self.onFavoriteToggle?(contact.id)
+        }
     }
 
     @objc private func editTapped() {
@@ -2590,6 +3421,15 @@ class ContactDetailPanelView: NSView {
         onDelete?(contact)
     }
 
+    @objc private func addToNewContactTapped() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
+        guard let phone = currentUnknownPhone else { return }
+        onAddToNewContact?(phone)
+    }
+
     @objc private func historyRowTapped(_ sender: HistoryRow) {
         if PrivacyMode.shared.isEnabled {
             PrivacyMode.shared.showBlockedAlert()
@@ -2599,8 +3439,676 @@ class ContactDetailPanelView: NSView {
     }
 }
 
+class GroupFilterPickerPopoverViewController: NSViewController {
+    private var groups: [ContactGroup]
+    private var selectedGroupIDs: Set<UUID>
+    var onSelectionChanged: ((Set<UUID>, Bool) -> Void)?
+    var onManageGroupsTapped: (() -> Void)?
+    weak var presentingWindow: NSWindow?
+    
+    private var stackView: NSStackView!
+    private var scrollHeightConstraint: NSLayoutConstraint!
+    private var scrollView: NSScrollView!
+    private static let width: CGFloat = 220
+    private static let rowHeight: CGFloat = 32
+    private static let maxVisibleRows = 6
+    private static let newGroupRowHeight: CGFloat = 32
+    private static let manageGroupsRowHeight: CGFloat = 32
+
+    private var rowCount: Int { groups.count + 1 }
+    private var listHeight: CGFloat {
+        CGFloat(min(rowCount, Self.maxVisibleRows)) * Self.rowHeight + 8
+    }
+    private var totalHeight: CGFloat {
+        listHeight + 1 + Self.newGroupRowHeight + Self.manageGroupsRowHeight + 4
+    }
+
+    init(groups: [ContactGroup], selectedGroupIDs: Set<UUID>) {
+        self.groups = groups
+        self.selectedGroupIDs = selectedGroupIDs
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    override func loadView() {
+        let width = Self.width
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: totalHeight))
+        container.wantsLayer = true
+        container.layer?.masksToBounds = true
+
+        let blurView = NSVisualEffectView()
+        blurView.material = .popover
+        blurView.blendingMode = .behindWindow
+        blurView.state = .active
+        blurView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(blurView)
+
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = rowCount > Self.maxVisibleRows
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        container.addSubview(scrollView)
+        self.scrollView = scrollView
+
+        stackView = NSStackView()
+        stackView.orientation = .vertical
+        stackView.spacing = 0
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = stackView
+
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(divider)
+
+        let newGroupRow = GroupFilterActionRow(
+            title: L("groups_new_group_menu_item"),
+            symbolName: "plus.circle",
+            tint: NSColor(red: 0.2, green: 0.8, blue: 0.6, alpha: 1),
+            target: self, action: #selector(newGroupTapped)
+        )
+        newGroupRow.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(newGroupRow)
+
+        let manageGroupsRow = GroupFilterActionRow(
+            title: L("groups_manage_menu_item"),
+            symbolName: "gearshape",
+            tint: .secondaryLabelColor,
+            target: self, action: #selector(manageGroupsTapped)
+        )
+        manageGroupsRow.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(manageGroupsRow)
+
+        let scrollHeight = scrollView.heightAnchor.constraint(equalToConstant: listHeight - 4)
+        self.scrollHeightConstraint = scrollHeight
+
+        NSLayoutConstraint.activate([
+            blurView.topAnchor.constraint(equalTo: container.topAnchor),
+            blurView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            blurView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            blurView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollHeight,
+
+            stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+
+            divider.topAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            divider.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            divider.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            newGroupRow.topAnchor.constraint(equalTo: divider.bottomAnchor),
+            newGroupRow.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            newGroupRow.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            newGroupRow.heightAnchor.constraint(equalToConstant: Self.newGroupRowHeight),
+
+            manageGroupsRow.topAnchor.constraint(equalTo: newGroupRow.bottomAnchor),
+            manageGroupsRow.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            manageGroupsRow.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            manageGroupsRow.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
+            manageGroupsRow.heightAnchor.constraint(equalToConstant: Self.manageGroupsRowHeight),
+        ])
+
+        self.view = container
+        self.preferredContentSize = NSSize(width: width, height: totalHeight)
+        
+        rebuildRows()
+    }
+
+    private func rebuildRows() {
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let rowHeight = Self.rowHeight
+
+        let allRow = GroupFilterPickerRow(title: L("groups_filter_all"), color: nil, isSelected: selectedGroupIDs.isEmpty, groupID: nil, target: self, action: #selector(rowTapped(_:)))
+        stackView.addArrangedSubview(allRow)
+        allRow.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+        allRow.heightAnchor.constraint(equalToConstant: rowHeight).isActive = true
+
+        for group in groups {
+            let displayName = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(group.name) : group.name
+            let row = GroupFilterPickerRow(title: displayName, color: group.color, isSelected: selectedGroupIDs.contains(group.id), groupID: group.id, target: self, action: #selector(rowTapped(_:)))
+            stackView.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+            row.heightAnchor.constraint(equalToConstant: rowHeight).isActive = true
+        }
+    }
+
+    @objc private func rowTapped(_ sender: NSClickGestureRecognizer) {
+        guard let row = sender.view as? GroupFilterPickerRow else { return }
+        let didSelectAll = (row.groupID == nil)
+        
+        if let id = row.groupID {
+            if selectedGroupIDs.contains(id) {
+                selectedGroupIDs.remove(id)
+            } else {
+                selectedGroupIDs.insert(id)
+            }
+        } else {
+            selectedGroupIDs.removeAll()
+        }
+        
+        rebuildRows()
+        onSelectionChanged?(selectedGroupIDs, didSelectAll)
+    }
+
+    @objc private func newGroupTapped() {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = L("groups_add_prompt_title")
+        alert.addButton(withTitle: L("save_btn"))
+        alert.addButton(withTitle: L("cancel_btn"))
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        input.placeholderString = L("groups_add_placeholder")
+        alert.accessoryView = input
+        AccessibilityManager.shared.applyAccessibility(to: alert)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
+
+        let handle: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard response == .alertFirstButtonReturn else { return }
+            guard let self = self else { return }
+            let sanitized = ContactGroup.sanitizedName(input.stringValue)
+            guard !sanitized.isEmpty else { return }
+            guard let newGroup = ContactGroupStore.shared.addGroup(name: sanitized) else {
+                return
+            }
+            self.groups.append(newGroup)
+            self.groups.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            self.selectedGroupIDs.insert(newGroup.id)
+            self.rebuildRows()
+            self.scrollView.hasVerticalScroller = self.rowCount > Self.maxVisibleRows
+            self.scrollHeightConstraint.constant = self.listHeight - 4
+            self.preferredContentSize = NSSize(width: Self.width, height: self.totalHeight)
+            self.onSelectionChanged?(self.selectedGroupIDs, false)
+        }
+
+        if let win = presentingWindow ?? view.window {
+            alert.beginSheetModal(for: win, completionHandler: handle)
+        } else {
+            handle(alert.runModal())
+        }
+    }
+
+    @objc private func manageGroupsTapped() {
+        onManageGroupsTapped?()
+    }
+}
+
+private class GroupFilterActionRow: NSView {
+    init(title: String, symbolName: String, tint: NSColor, target: AnyObject, action: Selector) {
+        super.init(frame: .zero)
+
+        let iconConfig = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        let icon = NSImageView(image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?.withSymbolConfiguration(iconConfig) ?? NSImage())
+        icon.contentTintColor = tint
+        icon.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(labelWithString: title)
+        label.font = NSFont.systemFont(ofSize: 12)
+        label.textColor = tint
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(icon)
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            icon.centerYAnchor.constraint(equalTo: centerYAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 12),
+
+            label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 8),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -12),
+        ])
+
+        let click = NSClickGestureRecognizer(target: target, action: action)
+        addGestureRecognizer(click)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+}
+
+private class GroupFilterPickerRow: NSView {
+    let groupID: UUID?
+
+    init(title: String, color: NSColor?, isSelected: Bool, groupID: UUID?, target: AnyObject, action: Selector) {
+        self.groupID = groupID
+        super.init(frame: .zero)
+        let activeGreenColor = NSColor(red: 0.2, green: 0.8, blue: 0.6, alpha: 1)
+        let dot = NSView()
+        dot.wantsLayer = true
+        dot.layer?.cornerRadius = 4
+        dot.layer?.backgroundColor = isSelected ? activeGreenColor.cgColor : (color ?? NSColor(white: 0.4, alpha: 1)).cgColor
+        dot.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(labelWithString: title)
+        label.font = NSFont.systemFont(ofSize: 12)
+        label.textColor = AccessibilityManager.shared.isEffectivelyColorInverted ? .black : NSColor(white: 0.92, alpha: 1)
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(dot)
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            dot.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            dot.centerYAnchor.constraint(equalTo: centerYAnchor),
+            dot.widthAnchor.constraint(equalToConstant: 8),
+            dot.heightAnchor.constraint(equalToConstant: 8),
+
+            label.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 8),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+
+        if isSelected {
+            let checkConfig = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+            let checkImg = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)?.withSymbolConfiguration(checkConfig)
+            let checkView = NSImageView(image: checkImg ?? NSImage())
+            checkView.contentTintColor = activeGreenColor
+            checkView.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(checkView)
+            NSLayoutConstraint.activate([
+                checkView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+                checkView.centerYAnchor.constraint(equalTo: centerYAnchor),
+                label.trailingAnchor.constraint(lessThanOrEqualTo: checkView.leadingAnchor, constant: -6),
+            ])
+        } else {
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -12).isActive = true
+        }
+
+        let click = NSClickGestureRecognizer(target: target, action: action)
+        addGestureRecognizer(click)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+}
+
+class SpeedDialPickerPopoverViewController: NSViewController {
+    var onManageTapped: (() -> Void)?
+    var onNumberSelected: ((String) -> Void)?
+
+    private var stackView: NSStackView!
+    private static let width: CGFloat = 220
+    private static let rowHeight: CGFloat = 32
+    private static let maxVisibleRows = 6
+    private static let manageRowHeight: CGFloat = 32
+
+    private var entries: [(slot: Int, display: String, phone: String)] {
+        var result: [(slot: Int, display: String, phone: String)] = []
+        for i in 1...9 {
+            let savedValue = UserDefaults.standard.string(forKey: "SpeedDial_\(i)") ?? ""
+            guard !savedValue.isEmpty else { continue }
+            if let contact = ContactStore.shared.contacts.first(where: { $0.phone.sanitizedForCall == savedValue.sanitizedForCall }) {
+                let display = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName
+                result.append((slot: i, display: display, phone: contact.phone))
+            } else {
+                let display = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(savedValue) : savedValue
+                result.append((slot: i, display: display, phone: savedValue))
+            }
+        }
+        return result
+    }
+
+    private var rowCount: Int { max(entries.count, 1) }
+    private var listHeight: CGFloat {
+        CGFloat(min(rowCount, Self.maxVisibleRows)) * Self.rowHeight + 8
+    }
+    private var totalHeight: CGFloat {
+        listHeight + 1 + Self.manageRowHeight + 4
+    }
+
+    override func loadView() {
+        let width = Self.width
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: totalHeight))
+        container.wantsLayer = true
+        container.layer?.masksToBounds = true
+
+        let blurView = NSVisualEffectView()
+        blurView.material = .popover
+        blurView.blendingMode = .behindWindow
+        blurView.state = .active
+        blurView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(blurView)
+
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = rowCount > Self.maxVisibleRows
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        container.addSubview(scrollView)
+
+        stackView = NSStackView()
+        stackView.orientation = .vertical
+        stackView.spacing = 0
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = stackView
+
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(divider)
+
+        let manageRow = GroupFilterActionRow(
+            title: L("speed_dial_manage_menu_item"),
+            symbolName: "gearshape",
+            tint: .secondaryLabelColor,
+            target: self, action: #selector(manageTapped)
+        )
+        manageRow.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(manageRow)
+
+        NSLayoutConstraint.activate([
+            blurView.topAnchor.constraint(equalTo: container.topAnchor),
+            blurView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            blurView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            blurView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.heightAnchor.constraint(equalToConstant: listHeight - 4),
+
+            stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+
+            divider.topAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            divider.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            divider.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            manageRow.topAnchor.constraint(equalTo: divider.bottomAnchor),
+            manageRow.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            manageRow.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            manageRow.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
+            manageRow.heightAnchor.constraint(equalToConstant: Self.manageRowHeight),
+        ])
+
+        self.view = container
+        self.preferredContentSize = NSSize(width: width, height: totalHeight)
+
+        rebuildRows()
+    }
+
+    private func rebuildRows() {
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let rowHeight = Self.rowHeight
+        let currentEntries = entries
+
+        if currentEntries.isEmpty {
+            let emptyLabel = NSTextField(labelWithString: L("speed_dial_empty"))
+            emptyLabel.font = NSFont.systemFont(ofSize: 12)
+            emptyLabel.textColor = .secondaryLabelColor
+            emptyLabel.lineBreakMode = .byWordWrapping
+            emptyLabel.maximumNumberOfLines = 2
+            emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+            stackView.addArrangedSubview(emptyLabel)
+            emptyLabel.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+            return
+        }
+
+        for entry in currentEntries {
+            let row = SpeedDialPickerRow(slot: entry.slot, title: entry.display, target: self, action: #selector(rowTapped(_:)))
+            stackView.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+            row.heightAnchor.constraint(equalToConstant: rowHeight).isActive = true
+        }
+    }
+
+    @objc private func rowTapped(_ sender: NSClickGestureRecognizer) {
+        guard let row = sender.view as? SpeedDialPickerRow else { return }
+        guard let entry = entries.first(where: { $0.slot == row.slot }) else { return }
+        onNumberSelected?(entry.phone)
+    }
+
+    @objc private func manageTapped() {
+        onManageTapped?()
+    }
+}
+
+private class SpeedDialPickerRow: NSView {
+    let slot: Int
+
+    init(slot: Int, title: String, target: AnyObject, action: Selector) {
+        self.slot = slot
+        super.init(frame: .zero)
+        let activeYellowColor = NSColor.systemYellow
+
+        let slotLabel = NSTextField(labelWithString: "\(slot)")
+        slotLabel.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+        slotLabel.textColor = activeYellowColor
+        slotLabel.alignment = .center
+        slotLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(labelWithString: title)
+        label.font = NSFont.systemFont(ofSize: 12)
+        label.textColor = AccessibilityManager.shared.isEffectivelyColorInverted ? .black : NSColor(white: 0.92, alpha: 1)
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(slotLabel)
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            slotLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            slotLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            slotLabel.widthAnchor.constraint(equalToConstant: 14),
+
+            label.leadingAnchor.constraint(equalTo: slotLabel.trailingAnchor, constant: 8),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -12),
+        ])
+
+        let click = NSClickGestureRecognizer(target: target, action: action)
+        addGestureRecognizer(click)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+}
+
+class GroupMembersPopoverViewController: NSViewController {
+    private let group: ContactGroup
+    private let members: [Contact]
+    var onSelectContactID: ((UUID) -> Void)?
+
+    init(group: ContactGroup, members: [Contact]) {
+        self.group = group
+        self.members = members
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    override func loadView() {
+        let width: CGFloat = 260
+        let rowHeight: CGFloat = 44
+        let headerHeight: CGFloat = 36
+        let maxVisibleRows = 6
+        let contentRowCount = max(1, members.count)
+        let listHeight = min(maxVisibleRows, contentRowCount) * Int(rowHeight)
+        let totalHeight = headerHeight + CGFloat(listHeight) + 8
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: totalHeight))
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(red: 0.13, green: 0.13, blue: 0.145, alpha: 1).cgColor
+
+        let headerLabel = NSTextField(labelWithString: L("groups_detail_popover_title", group.name))
+        headerLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 12, weight: .semibold)
+        headerLabel.textColor = NSColor(white: 0.6, alpha: 1)
+        headerLabel.lineBreakMode = .byTruncatingTail
+        headerLabel.maximumNumberOfLines = 1
+        headerLabel.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(headerLabel)
+
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        container.addSubview(scrollView)
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.spacing = 0
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = stack
+
+        if members.isEmpty {
+            let emptyLabel = NSTextField(labelWithString: L("groups_detail_popover_empty"))
+            emptyLabel.font = AccessibilityManager.shared.adjustedFont(baseSize: 12)
+            emptyLabel.textColor = NSColor(white: 0.45, alpha: 1)
+            emptyLabel.alignment = .center
+            emptyLabel.lineBreakMode = .byWordWrapping
+            emptyLabel.maximumNumberOfLines = 2
+            emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+            stack.addArrangedSubview(emptyLabel)
+            emptyLabel.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            emptyLabel.heightAnchor.constraint(equalToConstant: rowHeight).isActive = true
+        } else {
+            RoundAvatarView.resetColorSequence()
+            for contact in members {
+                let row = ContactRow(contact: contact, target: self, action: #selector(rowTapped(_:)))
+                stack.addArrangedSubview(row)
+                row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+                row.heightAnchor.constraint(equalToConstant: rowHeight).isActive = true
+            }
+        }
+
+        NSLayoutConstraint.activate([
+            headerLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 10),
+            headerLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 14),
+            headerLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -14),
+
+            scrollView.topAnchor.constraint(equalTo: headerLabel.bottomAnchor, constant: 6),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+
+            stack.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+        ])
+
+        self.view = container
+        self.preferredContentSize = NSSize(width: width, height: totalHeight)
+    }
+
+    @objc private func rowTapped(_ sender: ContactRow) {
+        onSelectContactID?(sender.contactID)
+    }
+}
+
+class GroupPickerPopoverViewController: NSViewController {
+    private let groups: [ContactGroup]
+    var onSelectGroupID: ((UUID) -> Void)?
+
+    init(groups: [ContactGroup]) {
+        self.groups = groups
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    override func loadView() {
+        let width: CGFloat = 220
+        let rowHeight: CGFloat = 32
+        let maxVisibleRows = 6
+        let visibleRowCount = min(groups.count, maxVisibleRows)
+        let totalHeight = CGFloat(visibleRowCount) * rowHeight + 8
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: width, height: totalHeight))
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(red: 0.13, green: 0.13, blue: 0.145, alpha: 1).cgColor
+
+        let scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = groups.count > maxVisibleRows
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        container.addSubview(scrollView)
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.spacing = 0
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = stack
+
+        for group in groups {
+            let row = GroupPickerRow(group: group, target: self, action: #selector(rowTapped(_:)))
+            stack.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            row.heightAnchor.constraint(equalToConstant: rowHeight).isActive = true
+        }
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
+
+            stack.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+        ])
+
+        self.view = container
+        self.preferredContentSize = NSSize(width: width, height: totalHeight)
+    }
+
+    @objc private func rowTapped(_ sender: NSClickGestureRecognizer) {
+        guard let row = sender.view as? GroupPickerRow, let id = row.groupID else { return }
+        onSelectGroupID?(id)
+    }
+}
+
+private class GroupPickerRow: NSView {
+    var groupID: UUID?
+
+    init(group: ContactGroup, target: AnyObject, action: Selector) {
+        self.groupID = group.id
+        super.init(frame: .zero)
+
+        let dot = NSView()
+        dot.wantsLayer = true
+        dot.layer?.cornerRadius = 4
+        dot.layer?.backgroundColor = (group.color ?? NSColor.systemIndigo).cgColor
+        dot.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(labelWithString: group.name)
+        label.font = NSFont.systemFont(ofSize: 12)
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(dot)
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            dot.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            dot.centerYAnchor.constraint(equalTo: centerYAnchor),
+            dot.widthAnchor.constraint(equalToConstant: 8),
+            dot.heightAnchor.constraint(equalToConstant: 8),
+
+            label.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 8),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -12),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+
+        let click = NSClickGestureRecognizer(target: target, action: action)
+        addGestureRecognizer(click)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+}
+
 enum CircleActionGlyph {
-    case star, phone, pencil, trash, message
+    case star, phone, pencil, trash, message, addContact, bell
 
     var symbolName: String {
         switch self {
@@ -2609,6 +4117,8 @@ enum CircleActionGlyph {
         case .pencil: return "pencil"
         case .trash: return "trash.fill"
         case .message: return "message.fill"
+        case .addContact: return "person.crop.circle.badge.plus"
+        case .bell: return "bell.fill"
         }
     }
 
@@ -2616,6 +4126,7 @@ enum CircleActionGlyph {
         switch self {
         case .star: return "star"
         case .message: return "message"
+        case .bell: return "bell"
         default: return symbolName
         }
     }
@@ -2625,8 +4136,10 @@ class CircleActionButton: NSButton {
     private var hovered = false
     private var pressed = false
     private var trackingArea: NSTrackingArea?
-
     static let neutralFill = NSColor.white.withAlphaComponent(0.08)
+    private static let invertedRestColor = NSColor(white: 0.88, alpha: 1)
+    private static let invertedHoverColor = NSColor(white: 0.80, alpha: 1)
+    private static let invertedPressedColor = NSColor(white: 0.72, alpha: 1)
 
     var glyphColor: NSColor = .white {
         didSet { updateGlyphImageView() }
@@ -2637,6 +4150,9 @@ class CircleActionButton: NSButton {
     }
 
     var starFilled: Bool = true {
+        didSet { updateGlyphImageView() }
+    }
+    var bellFilled: Bool = false {
         didSet { updateGlyphImageView() }
     }
 
@@ -2658,10 +4174,17 @@ class CircleActionButton: NSButton {
         (cell as? NSButtonCell)?.isBordered = false
         (cell as? NSButtonCell)?.imageScaling = .scaleNone
         updateGlyphImageView()
+        NotificationCenter.default.addObserver(self, selector: #selector(accessibilitySettingsChanged), name: .accessibilitySettingsDidChange, object: nil)
+    }
+
+    @objc private func accessibilitySettingsChanged() {
+        invalidateIntrinsicContentSize()
+        needsDisplay = true
     }
 
     override var intrinsicContentSize: NSSize {
-        return NSSize(width: 44, height: 44)
+        let side: CGFloat = 44 + AccessibilityManager.shared.hitTargetInset
+        return NSSize(width: side, height: side)
     }
 
     override func updateTrackingAreas() {
@@ -2690,13 +4213,37 @@ class CircleActionButton: NSButton {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        let a11y = AccessibilityManager.shared
         let circle = NSBezierPath(ovalIn: bounds)
-        CircleActionButton.neutralFill.setFill()
+        
+        if a11y.isEffectivelyColorInverted {
+            CircleActionButton.invertedRestColor.setFill()
+        } else {
+            a11y.adjustedColor(CircleActionButton.neutralFill).setFill()
+        }
         circle.fill()
 
         if hovered || pressed {
-            NSColor.white.withAlphaComponent(pressed ? 0.14 : 0.08).setFill()
+            if a11y.isEffectivelyColorInverted {
+                (pressed ? CircleActionButton.invertedPressedColor : CircleActionButton.invertedHoverColor).setFill()
+            } else {
+                a11y.adjustedColor(NSColor.white.withAlphaComponent(pressed ? 0.14 : 0.08)).setFill()
+            }
             circle.fill()
+        }
+
+        if a11y.isHighContrastEnabled {
+            let ringRect = bounds.insetBy(dx: 0.75, dy: 0.75)
+            let ring = NSBezierPath(ovalIn: ringRect)
+            ring.lineWidth = a11y.highContrastBorderWidth
+            NSColor.white.setStroke()
+            ring.stroke()
+        } else if a11y.isEffectivelyColorInverted {
+            let ringRect = bounds.insetBy(dx: 0.75, dy: 0.75)
+            let ring = NSBezierPath(ovalIn: ringRect)
+            ring.lineWidth = max(a11y.highContrastBorderWidth, 1)
+            NSColor(white: 0, alpha: 0.15).setStroke()
+            ring.stroke()
         }
     }
 
@@ -2712,7 +4259,14 @@ class CircleActionButton: NSButton {
         if glyphImageView.superview == nil {
             addSubview(glyphImageView)
         }
-        let symbolName = (glyph == .star && !starFilled) ? glyph.outlineSymbolName : glyph.symbolName
+        let symbolName: String
+        if glyph == .star && !starFilled {
+            symbolName = glyph.outlineSymbolName
+        } else if glyph == .bell && !bellFilled {
+            symbolName = glyph.outlineSymbolName
+        } else {
+            symbolName = glyph.symbolName
+        }
         let config = NSImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
         let img = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
             .withSymbolConfiguration(config)
@@ -2731,24 +4285,27 @@ class CircleActionButton: NSButton {
     }
 
     deinit {
+        NotificationCenter.default.removeObserver(self)
         if let existing = trackingArea { removeTrackingArea(existing) }
     }
 }
 
 class DialerKey: NSButton {
     var digit: String = ""
+    private var digitLabel: NSTextField!
 
     convenience init(digit: String, target: AnyObject, action: Selector) {
         self.init(frame: .zero)
         self.digit = digit
         self.target = target
         self.action = action
+        identifier = a11ySelfManagedIdentifier
         setupUI(digit: digit)
     }
 
     private func setupUI(digit: String) {
         wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+        layer?.backgroundColor = DialerKey.currentRestColor.cgColor
         layer?.cornerRadius = 32
         isBordered = false
         bezelStyle = .regularSquare
@@ -2756,13 +4313,14 @@ class DialerKey: NSButton {
 
         let digitLabel = NSTextField(labelWithString: digit)
         digitLabel.font = NSFont.systemFont(ofSize: 28, weight: .light)
-        digitLabel.textColor = .white
         digitLabel.alignment = .center
         digitLabel.isEditable = false
         digitLabel.isSelectable = false
         digitLabel.isBezeled = false
         digitLabel.drawsBackground = false
         digitLabel.translatesAutoresizingMaskIntoConstraints = false
+        self.digitLabel = digitLabel
+        updateDigitLabelColor()
         addSubview(digitLabel)
 
         NSLayoutConstraint.activate([
@@ -2774,6 +4332,22 @@ class DialerKey: NSButton {
 
         addTrackingArea(NSTrackingArea(rect: .zero,
             options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+        NotificationCenter.default.addObserver(self, selector: #selector(accessibilitySettingsChanged), name: .accessibilitySettingsDidChange, object: nil)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func accessibilitySettingsChanged() {
+        layer?.backgroundColor = DialerKey.currentRestColor.cgColor
+        updateDigitLabelColor()
+        needsLayout = true
+    }
+
+    private func updateDigitLabelColor() {
+        let a11y = AccessibilityManager.shared
+        digitLabel.textColor = a11y.isEffectivelyColorInverted ? .black : .white
     }
 
     override var intrinsicContentSize: NSSize {
@@ -2783,18 +4357,49 @@ class DialerKey: NSButton {
     override func layout() {
         super.layout()
         layer?.cornerRadius = min(bounds.width, bounds.height) / 2
+        let a11y = AccessibilityManager.shared
+        if a11y.isHighContrastEnabled {
+            layer?.borderWidth = a11y.highContrastBorderWidth
+            layer?.borderColor = a11y.highContrastBorderColor
+        } else if a11y.isEffectivelyColorInverted {
+            layer?.borderWidth = 1
+            layer?.borderColor = NSColor(white: 0, alpha: 0.12).cgColor
+        } else {
+            layer?.borderWidth = 1
+            layer?.borderColor = NSColor(white: 1, alpha: 0.10).cgColor
+        }
+    }
+
+    private static let restColor = NSColor(white: 0.16, alpha: 0.9)
+    private static let hoverColor = NSColor(white: 0.22, alpha: 0.9)
+    private static let pressedColor = NSColor(white: 0.10, alpha: 0.9)
+    private static let invertedRestColor = NSColor(white: 0.88, alpha: 1)
+    private static let invertedHoverColor = NSColor(white: 0.80, alpha: 1)
+    private static let invertedPressedColor = NSColor(white: 0.72, alpha: 1)
+
+    private static var currentRestColor: NSColor {
+        let a11y = AccessibilityManager.shared
+        return a11y.isEffectivelyColorInverted ? invertedRestColor : a11y.adjustedColor(restColor)
+    }
+    private static var currentHoverColor: NSColor {
+        let a11y = AccessibilityManager.shared
+        return a11y.isEffectivelyColorInverted ? invertedHoverColor : a11y.adjustedColor(hoverColor)
+    }
+    private static var currentPressedColor: NSColor {
+        let a11y = AccessibilityManager.shared
+        return a11y.isEffectivelyColorInverted ? invertedPressedColor : a11y.adjustedColor(pressedColor)
     }
 
     override func mouseEntered(with event: NSEvent) {
-        layer?.backgroundColor = NSColor(white: 0.32, alpha: 1).cgColor
+        layer?.backgroundColor = DialerKey.currentHoverColor.cgColor
     }
     override func mouseExited(with event: NSEvent) {
-        layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+        layer?.backgroundColor = DialerKey.currentRestColor.cgColor
     }
     override func mouseDown(with event: NSEvent) {
-        layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
+        layer?.backgroundColor = DialerKey.currentPressedColor.cgColor
         super.mouseDown(with: event)
-        layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+        layer?.backgroundColor = DialerKey.currentRestColor.cgColor
     }
 }
 

@@ -34,9 +34,14 @@ swiftc \
     -framework AppKit \
     -framework Foundation \
     -framework Carbon \
+    -framework Contacts \
+    -framework UserNotifications \
     "$SRC_DIR/main.swift" \
     "$SRC_DIR/Localizer.swift" \
     "$SRC_DIR/Contact.swift" \
+    "$SRC_DIR/ContactsSyncManager.swift" \
+    "$SRC_DIR/AccessibilityManager.swift" \
+    "$SRC_DIR/Reminders.swift" \
     "$SRC_DIR/AppDelegate.swift" \
     "$SRC_DIR/MainWindow.swift" \
     "$SRC_DIR/SettingsWindow.swift" \
@@ -62,7 +67,7 @@ else
 fi
 
 cat > "$APP_PATH/Contents/Info.plist" << PLIST
-<?xml version="1.1" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.1//EN" "http://www.apple.com/DTDs/PropertyList-1.1.dtd">
 <plist version="1.0">
 <dict>
@@ -73,9 +78,9 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <key>CFBundleIdentifier</key>
     <string>com.hellomac.telephone</string>
     <key>CFBundleVersion</key>
-    <string>2.5</string>
+    <string>3.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.5</string>
+    <string>3.0</string>
     <key>CFBundleExecutable</key>
     <string>${BINARY_NAME}</string>
     <key>CFBundlePackageType</key>
@@ -86,11 +91,35 @@ cat > "$APP_PATH/Contents/Info.plist" << PLIST
     <true/>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
+    <key>NSContactsUsageDescription</key>
+    <string>Απαιτείται πρόσβαση στις Επαφές για την εμφάνιση επαφών και την πραγματοποίηση κλήσεων. Τα δεδομένα επαφών αναγιγνώσκονται αποκλειστικά τοπικά και δεν αποστέλλονται πουθενά.</string>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Κλήση με το HelloMac</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>callWithHelloMac</string>
+            <key>NSPortName</key>
+            <string>${DISPLAY_NAME}</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>NSStringPboardType</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST
 
 chmod +x "$BINARY_PATH"
+
+echo "🔏 Code signing (ad-hoc)..."
+codesign --force --deep --sign - "$APP_PATH"
+echo "✅ Code sign OK"
 
 echo ""
 echo "✅ Έτοιμο! Η εφαρμογή είναι στο: $APP_PATH"

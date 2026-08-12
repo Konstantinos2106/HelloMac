@@ -2,7 +2,6 @@ import AppKit
 import Carbon
 import UniformTypeIdentifiers
 
-// Διαχειριστής της παγκόσμιας συντόμευσης (Global HotKey)
 class HotKeyManager {
     static let shared = HotKeyManager()
     
@@ -30,8 +29,7 @@ class HotKeyManager {
             }
             return noErr
         }
-        
-        // Χρήση της πραγματικής συνάρτησης αντί του macro
+
         var handlerRef: EventHandlerRef? = nil
         InstallEventHandler(GetApplicationEventTarget(), handler, 1, &eventType, nil, &handlerRef)
     }
@@ -39,7 +37,23 @@ class HotKeyManager {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindowController: MainWindowController?
+    var appearanceObservation: NSKeyValueObservation?
+    private static let baseWindowSize = NSSize(width: 335, height: 680)
+    var naturalWindowSize: NSSize {
+        get {
+            guard let saved = UserDefaults.standard.string(forKey: "a11yNaturalWindowSize") else {
+                return AppDelegate.baseWindowSize
+            }
+            let size = NSSizeFromString(saved)
+            guard size.width > 0, size.height > 0 else { return AppDelegate.baseWindowSize }
+            return size
+        }
+        set {
+            UserDefaults.standard.set(NSStringFromSize(newValue), forKey: "a11yNaturalWindowSize")
+        }
+    }
     var settingsWindowController: SettingsWindowController?
+    var isApplyingUIScale = false
     var facetimeTimer: Timer?
     var historyPurgeTimer: Timer?
     
@@ -50,30 +64,191 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var updateActivityScheduler: NSBackgroundActivityScheduler?
     var privacyModeMenuItem: NSMenuItem?
     var menuBarController: MenuBarController?
+    private var syncContactsMenuItem: NSMenuItem?
+    private var syncContactsSeparatorItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UserDefaults.standard.register(defaults: ["showMenuBarIcon": true]) // Το εικονίδιο στη γραμμή μενού είναι ενεργό από προεπιλογή
+        UserDefaults.standard.register(defaults: [
+            "showMenuBarIcon": true,
+            "contactGroupsEnabled": true,
+            "enableSpeedDial": true
+        ])
         NSApp.setActivationPolicy(.regular)
+        NotificationCenter.default.addObserver(self, selector: #selector(updateSyncContactsMenuVisibility), name: .contactsSyncSettingsDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(showContactsPermissionLostPrompt), name: .contactsSyncShouldShowPermissionLostPrompt, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(showInitialRemindersPermissionPrompt), name: .remindersShouldShowInitialPermissionPrompt, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(showRemindersPermissionLostPrompt), name: .remindersShouldShowPermissionLostPrompt, object: nil)
+
         buildMenuBar()
         
-        HotKeyManager.shared.register() // Ενεργοποίηση της παγκόσμιας συντόμευσης
-        HistoryStore.shared.purgeExpiredRecords() // Καθαρισμός παλιού ιστορικού βάσει της ρύθμισης αυτόματης διαγραφής
-        startHistoryPurgeTimer() // Επανάληψη του καθαρισμού περιοδικά όσο η εφαρμογή παραμένει ανοιχτή
+        HotKeyManager.shared.register()
+        HistoryStore.shared.purgeExpiredRecords()
+        startHistoryPurgeTimer()
+
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
         
         menuBarController = MenuBarController()
         mainWindowController = MainWindowController()
         mainWindowController?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+        NotificationCenter.default.addObserver(self, selector: #selector(mainWindowWillClose), name: NSWindow.willCloseNotification, object: mainWindowController?.window)
+        resetWindowToDefaultSizeOnLaunch()
+        NotificationCenter.default.addObserver(self, selector: #selector(accessibilitySettingsChanged), name: .accessibilitySettingsDidChange, object: nil)
         
-        // 1. Έλεγχος κατά την εκκίνηση της εφαρμογής (Αθόρυβος)
         checkForUpdates(userInitiated: false)
+
+        appearanceObservation = NSApp.observe(\.effectiveAppearance) { _, _ in
+            if AccessibilityManager.shared.colorAdjustmentTheme == .auto {
+                NotificationCenter.default.post(name: .accessibilitySettingsDidChange, object: nil)
+            }
+        }
         
-        // 2. Ενεργοποίηση του έξυπνου μηχανισμού ελέγχου στο παρασκήνιο (Smart Auto Updater)
         setupSmartAutoUpdater()
+
+        ContactsSyncManager.shared.resumeAutoSyncIfNeeded()
+        ReminderManager.shared.resumeIfNeeded()
+
+        announceContactsSyncFeatureIfNeeded()
+    }  
+    
+    @objc private func accessibilitySettingsChanged() {
+        applyUIScale()
     }
 
-    // Τρέχει τον καθαρισμό ληγμένου ιστορικού κάθε ώρα, ώστε να μην χρειάζεται
-    // επανεκκίνηση της εφαρμογής ή νέα κλήση για να εφαρμοστεί η αυτόματη διαγραφή.
+    private func resetWindowToDefaultSizeOnLaunch() {
+        naturalWindowSize = AppDelegate.baseWindowSize
+        applyUIScale()
+    }
+
+    private func applyUIScale() {
+        guard let window = mainWindowController?.window else { return }
+        let scale = AccessibilityManager.shared.uiScaleFactor
+        let natural = naturalWindowSize
+
+        let newWidth = (natural.width * scale).rounded()
+        let newHeight = (natural.height * scale).rounded()
+
+        var frame = window.frame
+
+        let newSize = NSSize(width: newWidth, height: newHeight)
+        guard abs(frame.size.width - newSize.width) > 0.5 || abs(frame.size.height - newSize.height) > 0.5 else {
+            window.minSize = NSSize(width: 300 * scale, height: 550 * scale)
+            return
+        }
+
+        let topLeft = NSPoint(x: frame.minX, y: frame.maxY)
+        frame.size = NSSize(width: newWidth, height: newHeight)
+        frame.origin = NSPoint(x: topLeft.x, y: topLeft.y - newHeight)
+
+        window.minSize = NSSize(width: 300 * scale, height: 550 * scale)
+
+        isApplyingUIScale = true
+        window.setFrame(frame, display: true, animate: false)
+        isApplyingUIScale = false
+    }
+
+    @objc private func mainWindowWillClose() {
+        settingsWindowController?.close()
+        settingsWindowController = nil
+    }  
+
+    @objc private func updateSyncContactsMenuVisibility() {
+        let enabled = ContactsSyncManager.shared.isFeatureEnabled
+        syncContactsMenuItem?.isHidden = !enabled
+        syncContactsSeparatorItem?.isHidden = !enabled
+    }
+
+    private func announceContactsSyncFeatureIfNeeded() {
+        guard !ContactsSyncManager.shared.hasShownFeatureAnnouncement else { return }
+        
+        let status = ContactsSyncManager.shared.authorizationStatus
+        guard status == .notDetermined else {
+            ContactsSyncManager.shared.hasShownFeatureAnnouncement = true
+            return
+        }
+
+        ContactsSyncManager.shared.hasShownFeatureAnnouncement = true
+
+        let panelWidth: CGFloat = 290 
+        let panelHeight: CGFloat = 190
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight),
+            styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level = .floating
+        panel.titlebarAppearsTransparent = true
+        panel.titleVisibility = .hidden
+        AccessibilityManager.shared.applyPreferredAppearance(to: panel)
+
+        let visualEffect = NSVisualEffectView()
+        visualEffect.material = .popover
+        visualEffect.blendingMode = .behindWindow
+        visualEffect.state = .active
+        visualEffect.translatesAutoresizingMaskIntoConstraints = false
+
+        let titleLabel = NSTextField(labelWithString: L("contacts_sync_announce_title"))
+        titleLabel.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        titleLabel.textColor = .labelColor
+        titleLabel.alignment = .center
+        titleLabel.isEditable = false
+        titleLabel.isSelectable = false
+        titleLabel.drawsBackground = false
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        visualEffect.addSubview(titleLabel)
+
+        let textLabel = NSTextField(wrappingLabelWithString: L("contacts_sync_announce_text"))
+        textLabel.font = NSFont.systemFont(ofSize: 12)
+        textLabel.textColor = .labelColor
+        textLabel.alignment = .center
+        textLabel.isEditable = false
+        textLabel.isSelectable = false
+        textLabel.drawsBackground = false
+        textLabel.translatesAutoresizingMaskIntoConstraints = false
+        visualEffect.addSubview(textLabel)
+
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(equalTo: visualEffect.topAnchor, constant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor, constant: 16),
+            titleLabel.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor, constant: -16),
+            
+            textLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
+            textLabel.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor, constant: 16),
+            textLabel.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor, constant: -16),
+            textLabel.bottomAnchor.constraint(equalTo: visualEffect.bottomAnchor, constant: -16)
+        ])
+        
+        panel.contentView = visualEffect
+
+        if let mainWindow = mainWindowController?.window {
+            let x = mainWindow.frame.midX - (panelWidth / 2)
+            let y = mainWindow.frame.minY + 80 
+            panel.setFrameOrigin(NSPoint(x: x, y: y))
+        } else {
+            panel.center()
+        }
+        
+        AccessibilityManager.shared.applyToViewTree(visualEffect)
+
+        panel.makeKeyAndOrderFront(nil)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            ContactsSyncManager.shared.requestAccess { [weak self] granted in
+                DispatchQueue.main.async {
+                    panel.close()
+                    if granted {
+                        ContactsSyncManager.shared.isFeatureEnabled = true
+                        self?.syncWithSystemContacts()
+                    } else {
+                        ContactsSyncManager.shared.isFeatureEnabled = false
+                    }
+                }
+            }
+        }
+    }
+
     private func startHistoryPurgeTimer() {
         historyPurgeTimer?.invalidate()
         historyPurgeTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
@@ -82,6 +257,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        settingsWindowController?.close()
+        settingsWindowController = nil
         return false 
     }
     
@@ -93,9 +270,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar
     private func buildMenuBar() {
         let mainMenu = NSMenu()
-        let isGreek = Locale.preferredLanguages.first?.hasPrefix("el") ?? true
         
-        // ── Στο Μενού HelloMac ──
+        // ── Μενού HelloMac ──
         let appMenuItem = NSMenuItem()
         mainMenu.addItem(appMenuItem)
         let appMenu = NSMenu(title: "HelloMac")
@@ -134,6 +310,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         exportItem.target = self
         fileMenu.addItem(exportItem)
         
+        let syncSeparator = NSMenuItem.separator()
+        fileMenu.addItem(syncSeparator)
+
+        let syncContactsItem = NSMenuItem(title: L("sync_with_contacts_app"), action: #selector(syncWithSystemContacts), keyEquivalent: "r")
+        syncContactsItem.keyEquivalentModifierMask = [.command, .shift]
+        syncContactsItem.target = self
+        fileMenu.addItem(syncContactsItem)
+        self.syncContactsMenuItem = syncContactsItem
+        self.syncContactsSeparatorItem = syncSeparator
+        updateSyncContactsMenuVisibility()
+
         fileMenu.addItem(NSMenuItem.separator())
         
         let importBackupItem = NSMenuItem(title: L("import_backup"), action: #selector(importBackup), keyEquivalent: "i")
@@ -156,20 +343,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // ── Επεξεργασία (Edit) ──
         let editMenuItem = NSMenuItem()
         mainMenu.addItem(editMenuItem)
-        let editMenu = NSMenu(title: isGreek ? "Επεξεργασία" : "Edit")
+        let editMenu = NSMenu(title: L("edit_menu"))
         editMenuItem.submenu = editMenu
         
-        editMenu.addItem(withTitle: isGreek ? "Αποκοπή" : "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        editMenu.addItem(withTitle: isGreek ? "Αντιγραφή" : "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(withTitle: isGreek ? "Επικόλληση" : "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        editMenu.addItem(withTitle: isGreek ? "Επιλογή όλων" : "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(withTitle: L("cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L("copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L("paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: L("select_all"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         
         editMenu.addItem(NSMenuItem.separator())
         
-        let dictationItem = NSMenuItem(title: isGreek ? "Έναρξη υπαγόρευσης..." : "Start Dictation...", action: Selector(("startDictation:")), keyEquivalent: "")
+        let dictationItem = NSMenuItem(title: L("start_dictation"), action: Selector(("startDictation:")), keyEquivalent: "")
         editMenu.addItem(dictationItem)
         
-        let emojiItem = NSMenuItem(title: isGreek ? "Emoji και σύμβολα" : "Emoji & Symbols", action: #selector(NSApplication.orderFrontCharacterPalette(_:)), keyEquivalent: "e")
+        let emojiItem = NSMenuItem(title: L("emoji_and_symbols"), action: #selector(NSApplication.orderFrontCharacterPalette(_:)), keyEquivalent: "e")
         emojiItem.keyEquivalentModifierMask = [.command, .control]
         editMenu.addItem(emojiItem)
 
@@ -219,12 +406,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func togglePrivacyMode() {
         if PrivacyMode.shared.isEnabled {
             let alert = NSAlert()
+            AccessibilityManager.shared.applyAccessibility(to: alert)
             alert.messageText = L("privacy_mode_disable_title")
             alert.informativeText = L("privacy_mode_disable_text")
             alert.addButton(withTitle: L("privacy_mode_disable_btn"))
             alert.addButton(withTitle: L("cancel_btn"))
             alert.buttons[0].hasDestructiveAction = true
-            alert.window.appearance = NSAppearance(named: .darkAqua)
+            alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
             let handle: (NSApplication.ModalResponse) -> Void = { response in
                 guard response == .alertFirstButtonReturn else { return }
@@ -238,11 +426,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         } else {
             let alert = NSAlert()
+            AccessibilityManager.shared.applyAccessibility(to: alert)
             alert.messageText = L("privacy_mode_enable_title")
             alert.informativeText = L("privacy_mode_enable_text")
             alert.addButton(withTitle: L("privacy_mode_enable_btn"))
             alert.addButton(withTitle: L("cancel_btn"))
-            alert.window.appearance = NSAppearance(named: .darkAqua)
+            alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
             let handle: (NSApplication.ModalResponse) -> Void = { response in
                 guard response == .alertFirstButtonReturn else { return }
@@ -262,11 +451,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func windowForSheet() -> NSWindow? {
-        // Οι λειτουργίες που καταλήγουν εδώ (π.χ. Λειτουργία Απορρήτου, About κλπ.)
-        // εμφανίζουν κάτι μέσα στην εφαρμογή (alert/sheet). Φέρνουμε λοιπόν την
-        // εφαρμογή και το σχετικό παράθυρο σε πρώτο πλάνο πριν εμφανιστεί το alert,
-        // ώστε να μη μένει κρυμμένο πίσω από άλλα παράθυρα. Αυτό ΔΕΝ επηρεάζει τις
-        // απλές κλήσεις (π.χ. callContact/callHistory) που δεν περνάνε από εδώ.
         let window: NSWindow?
         if let settingsWindow = settingsWindowController?.window, settingsWindow.isVisible {
             window = settingsWindow
@@ -275,8 +459,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if let window = window {
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            if !(window.isKeyWindow && window.isVisible && NSApp.isActive) {
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+            }
         }
 
         return window
@@ -284,13 +470,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showAbout() {
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = "HelloMac"
         alert.informativeText = L("about_text")
         if let customIcon = NSImage(named: "AppIcon") { alert.icon = customIcon }
         else { alert.icon = NSApp.applicationIconImage }
         alert.addButton(withTitle: L("ok"))
         alert.addButton(withTitle: L("learn_more"))
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
         let handleResponse: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             if response == .alertSecondButtonReturn {
@@ -333,9 +520,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    /// Ανοίγει τις Ρυθμίσεις κατευθείαν στην καρτέλα «Πληροφορίες».
-    /// Βρίσκει το tab δυναμικά μέσω του τίτλου του (L("tab_info")) αντί για
-    /// σταθερό index, ώστε να μη χαλάει αν προστεθούν/αλλάξουν σειρά καρτέλες.
     func showSettingsToInfo() {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController()
@@ -343,16 +527,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController?.resetUpdateStatusUI()
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        settingsWindowController?.showInfoCategory()
 
-        if let tabVC = settingsWindowController?.window?.contentViewController as? NSTabViewController {
-            let infoTitle = L("tab_info")
-            if let infoIndex = tabVC.tabViewItems.firstIndex(where: { $0.label == infoTitle }) {
-                tabVC.selectedTabViewItemIndex = infoIndex
-            } else {
-                // Fallback: αν για κάποιο λόγο δεν βρεθεί ο τίτλος, πήγαινε στην τελευταία καρτέλα.
-                tabVC.selectedTabViewItemIndex = max(0, tabVC.tabViewItems.count - 1)
-            }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func showSettingsToGroups() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
         }
+        settingsWindowController?.resetUpdateStatusUI()
+        settingsWindowController?.showWindow(nil)
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        settingsWindowController?.showGroupsCategory()
+
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func showSettingsToSpeedDial() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
+        }
+        settingsWindowController?.resetUpdateStatusUI()
+        settingsWindowController?.showWindow(nil)
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        settingsWindowController?.showSpeedDialCategory()
 
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -399,9 +598,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func checkForUpdates(userInitiated: Bool, completion: ((UpdateCheckResult) -> Void)?) {
         let urlString = "https://api.github.com/repos/Konstantinos2106/HelloMac/releases/latest"
-        guard let url = URL(string: urlString) else { return }
+        guard let url = URL(string: urlString) else {
+            completion?(.error)
+            return
+        }
 
-        let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 12
+
+        let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if error != nil {
@@ -478,13 +683,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func promptDownloadUpdate(latestVersion: String, downloadURL: URL) {
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = L("update_available")
         alert.informativeText = L("update_text", latestVersion)
         alert.addButton(withTitle: L("download"))
         alert.addButton(withTitle: L("cancel_btn"))
         if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
 
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
         if let appWindow = windowForSheet() {
             alert.beginSheetModal(for: appWindow) { response in
@@ -509,12 +715,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showUpdateAlert(title: String, text: String) {
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = title
         alert.informativeText = text
         alert.addButton(withTitle: L("ok"))
         if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
 
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
 
         if let appWindow = windowForSheet() {
             alert.beginSheetModal(for: appWindow, completionHandler: nil)
@@ -727,6 +934,150 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             handleResponse(openPanel.runModal())
         }
     }
+
+    @objc private func showContactsPermissionLostPrompt() {
+        let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
+        alert.alertStyle = .warning
+        alert.messageText = L("contacts_sync_permission_lost_title")
+        alert.informativeText = L("contacts_sync_permission_lost_text")
+        alert.addButton(withTitle: L("contacts_sync_open_settings_btn"))
+        alert.addButton(withTitle: L("cancel_btn"))
+        if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
+
+        let handle: (NSApplication.ModalResponse) -> Void = { response in
+            if response == .alertFirstButtonReturn {
+                ContactsSyncManager.shared.openSystemPrivacySettings()
+            }
+        }
+
+        if let appWindow = windowForSheet() {
+            alert.beginSheetModal(for: appWindow, completionHandler: handle)
+        } else {
+            handle(alert.runModal())
+        }
+    }
+
+    @objc private func showInitialRemindersPermissionPrompt() {
+        let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
+        alert.messageText = L("reminders_initial_prompt_title")
+        alert.informativeText = L("reminders_initial_prompt_text")
+        alert.addButton(withTitle: L("contacts_sync_allow_btn"))
+        alert.addButton(withTitle: L("cancel_btn"))
+        if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
+
+        let handle: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .alertFirstButtonReturn else { return }
+            ReminderManager.shared.requestAuthorization()
+        }
+
+        if let appWindow = windowForSheet() {
+            alert.beginSheetModal(for: appWindow, completionHandler: handle)
+        } else {
+            handle(alert.runModal())
+        }
+    }
+
+    @objc private func showRemindersPermissionLostPrompt() {
+        let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
+        alert.alertStyle = .warning
+        alert.messageText = L("reminders_permission_lost_title")
+        alert.informativeText = L("reminders_permission_lost_text")
+        alert.addButton(withTitle: L("contacts_sync_open_settings_btn"))
+        alert.addButton(withTitle: L("cancel_btn"))
+        if let icon = NSImage(named: "AppIcon") { alert.icon = icon }
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
+
+        let handle: (NSApplication.ModalResponse) -> Void = { response in
+            if response == .alertFirstButtonReturn {
+                ReminderManager.shared.openSystemNotificationSettings()
+            }
+        }
+
+        if let appWindow = windowForSheet() {
+            alert.beginSheetModal(for: appWindow, completionHandler: handle)
+        } else {
+            handle(alert.runModal())
+        }
+    }
+
+    @objc func syncWithSystemContacts() {
+        syncWithSystemContactsAsync(completion: nil)
+    }
+
+    func syncWithSystemContactsAsync(completion: (() -> Void)?) {
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            completion?()
+            return
+        }
+
+        let status = ContactsSyncManager.shared.authorizationStatus
+
+        switch status {
+        case .denied, .restricted:
+            ContactsSyncManager.shared.isFeatureEnabled = false
+            let alert = NSAlert()
+            AccessibilityManager.shared.applyAccessibility(to: alert)
+            alert.messageText = L("contacts_sync_denied_title")
+            alert.informativeText = L("contacts_sync_denied_text")
+            alert.addButton(withTitle: L("contacts_sync_open_settings_btn"))
+            alert.addButton(withTitle: L("cancel_btn"))
+
+            let handle: (NSApplication.ModalResponse) -> Void = { response in
+                if response == .alertFirstButtonReturn {
+                    ContactsSyncManager.shared.openSystemPrivacySettings()
+                }
+            }
+
+            if let appWindow = windowForSheet() {
+                alert.beginSheetModal(for: appWindow) { response in
+                    handle(response)
+                    completion?()
+                }
+            } else {
+                handle(alert.runModal())
+                completion?()
+            }
+
+        case .notDetermined:
+            ContactsSyncManager.shared.requestAccess { [weak self] granted in
+                guard granted else {
+                    ContactsSyncManager.shared.isFeatureEnabled = false
+                    completion?()
+                    return
+                }
+                ContactsSyncManager.shared.isFeatureEnabled = true
+                self?.performContactsSync(completion: completion)
+            }
+
+        case .authorized:
+            ContactsSyncManager.shared.isFeatureEnabled = true
+            performContactsSync(completion: completion)
+
+        @unknown default:
+            performContactsSync(completion: completion)
+        }
+    }
+
+    private func performContactsSync(completion: (() -> Void)? = nil) {
+        ContactsSyncManager.shared.syncNow { [weak self] result in
+            self?.updateSyncContactsMenuVisibility()
+            switch result {
+            case .success(let syncResult):
+                let text = String(format: L("contacts_sync_success_text"), syncResult.added, syncResult.updated)
+                completion?()
+                self?.mainWindowController?.showToast(message: text)
+            case .failure:
+                completion?()
+                self?.mainWindowController?.showToast(message: L("contacts_sync_error_text"))
+            }
+        }
+    }
     
     // MARK: - Import / Export Full Backup (with Photos)
     @objc func exportBackup() {
@@ -844,10 +1195,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Backup Help Alert
     @objc func showBackupHelp() {
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = L("backup_help_title")
         alert.informativeText = L("backup_help_text")
         alert.addButton(withTitle: L("ok"))
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
         
         if let appWindow = windowForSheet() {
             alert.beginSheetModal(for: appWindow, completionHandler: nil)
@@ -856,6 +1208,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    // MARK: - System Service ("Κλήση με το HelloMac")
+
+    private static let minPhoneDigits = 7
+
+    private func looksLikePhoneNumber(_ text: String) -> Bool {
+        let digitCount = text.filter { $0.isNumber }.count
+        guard digitCount >= AppDelegate.minPhoneDigits else { return false }
+        let allowedExtras = CharacterSet(charactersIn: "+()-. \n\t")
+        let disallowed = text.unicodeScalars.contains { scalar in
+            !CharacterSet.decimalDigits.contains(scalar) && !allowedExtras.contains(scalar)
+        }
+        return !disallowed
+    }
+
+    @objc func callWithHelloMac(_ pboard: NSPasteboard, userData: String, error: AutoreleasingUnsafeMutablePointer<NSString>) {
+        guard let text = pboard.string(forType: .string), looksLikePhoneNumber(text) else {
+            error.pointee = L("contacts_sync_error_text") as NSString
+            return
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        mainWindowController?.showWindow(nil)
+        mainWindowController?.makeCall(to: text)
+    }
+
     // MARK: - Smart Auto Updater
     func setupSmartAutoUpdater() {
         let activity = NSBackgroundActivityScheduler(identifier: "com.hellomac.backgroundUpdateCheck")

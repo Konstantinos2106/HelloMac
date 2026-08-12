@@ -2,21 +2,6 @@ import AppKit
 import ImageIO
 import CoreGraphics
 
-/// Custom view that renders an image inside a circular crop mask, letting the user
-/// pan (drag) and zoom (scroll / pinch / slider) to frame their contact photo.
-/// The darkened area outside the circle is purely visual — everything under
-/// the circle is what gets exported.
-
-/// Loads an image from disk and bakes its EXIF orientation into the actual
-/// pixel data, returning an NSImage whose `.size` and raw bitmap agree.
-///
-/// Background: AppKit's NSImage/NSBitmapImageRep does NOT auto-rotate pixel
-/// data to match the EXIF orientation tag the way UIImage on iOS does. For
-/// some readers `.size` still reflects the *rotated* (visual) dimensions,
-/// while `draw(in:from:...)` draws the *raw, unrotated* pixels. That mismatch
-/// is exactly what produces a preview that looks rotated relative to what
-/// the aspect-ratio math expects. Normalizing once at load time avoids the
-/// problem everywhere downstream (crop preview, zoom math, export, save).
 enum ImageOrientationFix {
     static func normalizedImage(contentsOf url: URL) -> NSImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -27,7 +12,6 @@ enum ImageOrientationFix {
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         let rawOrientation = (properties?[kCGImagePropertyOrientation] as? UInt32) ?? 1
         guard let orientation = CGImagePropertyOrientation(rawValue: rawOrientation), orientation != .up else {
-            // No rotation/flip needed — use the pixel data as-is.
             let size = NSSize(width: cgImage.width, height: cgImage.height)
             return NSImage(cgImage: cgImage, size: size)
         }
@@ -50,12 +34,10 @@ class ImageCropView: NSView {
     private let image: NSImage
     private let imageAspectSize: NSSize
 
-    /// 1.0 = image fits the crop circle exactly (shortest side). Larger = zoomed in.
     private var zoom: CGFloat = 1.0
     private var minZoom: CGFloat = 1.0
     private let maxZoom: CGFloat = 4.0
 
-    /// Offset of the image center from the view center, in view points.
     private var offset: CGPoint = .zero
 
     private var lastDragPoint: NSPoint?
@@ -87,8 +69,6 @@ class ImageCropView: NSView {
 
     private func recalculateMinZoom() {
         guard imageAspectSize.width > 0, imageAspectSize.height > 0, cropDiameter > 0 else { return }
-        // The minimum zoom is whatever scale makes the image's shortest side
-        // cover the crop circle's diameter exactly (i.e. "fill" behavior).
         let scaleToCoverW = cropDiameter / imageAspectSize.width
         let scaleToCoverH = cropDiameter / imageAspectSize.height
         let newMinZoom = max(scaleToCoverW, scaleToCoverH)
@@ -104,7 +84,6 @@ class ImageCropView: NSView {
     }
 
     // MARK: - Drawing
-
     override func draw(_ dirtyRect: NSRect) {
         NSColor(white: 0.08, alpha: 1).setFill()
         bounds.fill()
@@ -118,20 +97,6 @@ class ImageCropView: NSView {
             height: drawSize.height
         )
 
-        // `image.draw(in:from:...)` always draws using the image's own
-        // bottom-up bitmap coordinate system — it has no idea this view is
-        // flipped (isFlipped == true). Left uncorrected, that mismatch makes
-        // every photo render vertically mirrored relative to how the user
-        // drags/zooms it, and any additional EXIF-derived rotation compounds
-        // on top of that mirroring, producing the "rotated in some photos,
-        // upside-down in others" behavior.
-        //
-        // `drawRect`'s position is already correct in this view's flipped
-        // space — only the image's own pixel orientation needs correcting.
-        // So instead of flipping the whole context (which would also move
-        // drawRect to the wrong place), flip a local transform around the
-        // vertical center of drawRect itself: this mirrors the image in
-        // place without touching its position.
         NSGraphicsContext.saveGraphicsState()
         let flip = NSAffineTransform()
         flip.translateX(by: 0, yBy: drawRect.midY)
@@ -141,7 +106,6 @@ class ImageCropView: NSView {
         image.draw(in: drawRect, from: .zero, operation: .sourceOver, fraction: 1.0)
         NSGraphicsContext.restoreGraphicsState()
 
-        // Dim everything outside the circular crop region.
         let path = NSBezierPath(rect: bounds)
         let circleRect = cropRect()
         let circlePath = NSBezierPath(ovalIn: circleRect)
@@ -150,7 +114,6 @@ class ImageCropView: NSView {
         NSColor(white: 0.02, alpha: 0.78).setFill()
         path.fill()
 
-        // Crisp ring around the crop circle.
         let ring = NSBezierPath(ovalIn: circleRect.insetBy(dx: 0.75, dy: 0.75))
         ring.lineWidth = 1.5
         NSColor.white.withAlphaComponent(0.9).setStroke()
@@ -171,7 +134,6 @@ class ImageCropView: NSView {
     }
 
     // MARK: - Interaction
-
     override func mouseDown(with event: NSEvent) {
         lastDragPoint = event.locationInWindow
     }
@@ -179,12 +141,6 @@ class ImageCropView: NSView {
     override func mouseDragged(with event: NSEvent) {
         guard let last = lastDragPoint else { return }
         let current = event.locationInWindow
-        // `event.locationInWindow` is bottom-up window space, where moving
-        // the mouse down gives a *negative* y delta. This view is flipped
-        // (isFlipped == true), so in `offset`'s own coordinate space a
-        // larger offset.y means further DOWN the screen. To make "drag
-        // down" move the image down, offset.y must increase when the
-        // mouse's bottom-up y decreases — hence the subtraction.
         offset.x += (current.x - last.x)
         offset.y -= (current.y - last.y)
         lastDragPoint = current
@@ -226,9 +182,6 @@ class ImageCropView: NSView {
     }
 
     // MARK: - Export
-
-    /// Renders the current crop selection into a square NSImage at a fixed
-    /// output resolution, ready to be handed to ContactImageStore.
     func exportCroppedImage(outputSize: CGFloat = 500) -> NSImage {
         let d = cropDiameter
         let scaleFactor = outputSize / d
@@ -236,10 +189,6 @@ class ImageCropView: NSView {
         let drawSize = NSSize(width: imageAspectSize.width * zoom * scaleFactor,
                                height: imageAspectSize.height * zoom * scaleFactor)
 
-        // `offset` is expressed in the crop view's flipped (top-down) space,
-        // where +y means "image moved down on screen". lockFocus() below
-        // gives us a bottom-up context (+y means up), so the y component
-        // must be negated when converting between the two spaces.
         let center = NSPoint(x: outputSize / 2 + offset.x * scaleFactor,
                               y: outputSize / 2 - offset.y * scaleFactor)
         let drawRect = NSRect(
@@ -264,9 +213,6 @@ class ImageCropView: NSView {
     }
 }
 
-/// Rounded, dark, modern sheet that hosts the crop view plus a zoom slider
-/// and Cancel / Use Photo actions. Presented as a sheet over the Add/Edit
-/// Contact window so it feels like a natural extension of that flow.
 class ImageCropWindowController: NSWindowController {
     private let cropView: ImageCropView
     private var zoomSlider: NSSlider!
@@ -287,8 +233,10 @@ class ImageCropWindowController: NSWindowController {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = AccessibilityManager.shared.preferredWindowAppearance
         window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
 
         self.init(window: window, image: image)
         setupUI()
@@ -304,24 +252,35 @@ class ImageCropWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
         contentView.wantsLayer = true
-        contentView.layer?.backgroundColor = NSColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1).cgColor
+        contentView.layer?.backgroundColor = NSColor.clear.cgColor
+
+        let backgroundEffect = NSVisualEffectView()
+        backgroundEffect.material = .underWindowBackground
+        backgroundEffect.blendingMode = .behindWindow
+        backgroundEffect.state = .active
+        backgroundEffect.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(backgroundEffect)
+        NSLayoutConstraint.activate([
+            backgroundEffect.topAnchor.constraint(equalTo: contentView.topAnchor),
+            backgroundEffect.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            backgroundEffect.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            backgroundEffect.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+        ])
 
         let titleLabel = NSTextField(labelWithString: L("crop_photo_title"))
         titleLabel.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
-        titleLabel.textColor = .white
+        titleLabel.textColor = .labelColor
         titleLabel.alignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(titleLabel)
 
         let subtitleLabel = NSTextField(labelWithString: L("crop_photo_subtitle"))
         subtitleLabel.font = NSFont.systemFont(ofSize: 11.5)
-        subtitleLabel.textColor = NSColor(white: 0.55, alpha: 1)
+        subtitleLabel.textColor = .secondaryLabelColor
         subtitleLabel.alignment = .center
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(subtitleLabel)
 
-        // Circular canvas container gives the crop view a soft shadow so it
-        // reads as a distinct, elevated element rather than a plain square.
         let canvasContainer = NSView()
         canvasContainer.wantsLayer = true
         canvasContainer.layer?.shadowColor = NSColor.black.cgColor
@@ -341,12 +300,12 @@ class ImageCropWindowController: NSWindowController {
         canvasContainer.addSubview(cropView)
 
         let zoomOutIcon = NSImageView(image: NSImage(systemSymbolName: "minus.magnifyingglass", accessibilityDescription: nil) ?? NSImage())
-        zoomOutIcon.contentTintColor = NSColor(white: 0.6, alpha: 1)
+        zoomOutIcon.contentTintColor = .secondaryLabelColor
         zoomOutIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
         zoomOutIcon.translatesAutoresizingMaskIntoConstraints = false
 
         let zoomInIcon = NSImageView(image: NSImage(systemSymbolName: "plus.magnifyingglass", accessibilityDescription: nil) ?? NSImage())
-        zoomInIcon.contentTintColor = NSColor(white: 0.6, alpha: 1)
+        zoomInIcon.contentTintColor = .secondaryLabelColor
         zoomInIcon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
         zoomInIcon.translatesAutoresizingMaskIntoConstraints = false
 
@@ -441,8 +400,6 @@ class ImageCropWindowController: NSWindowController {
         onComplete?(image)
     }
 
-    /// Presents the cropper as a sheet on `parentWindow`. `completion` receives
-    /// the cropped square NSImage, or nil if the user cancelled.
     func present(on parentWindow: NSWindow, completion: @escaping (NSImage?) -> Void) {
         self.onComplete = completion
         guard let sheetWindow = window else { return }
@@ -451,9 +408,6 @@ class ImageCropWindowController: NSWindowController {
 }
 
 // MARK: - Μεγέθυνση φωτογραφίας επαφής
-
-/// Panel που κλείνει με το πλήκτρο Esc (cancelOperation είναι ο σωστός
-/// μηχανισμός macOS για αυτό, όχι override του keyDown στο controller).
 private class EscClosablePanel: NSPanel {
     var onCancel: (() -> Void)?
     override func cancelOperation(_ sender: Any?) {
@@ -461,19 +415,9 @@ private class EscClosablePanel: NSPanel {
     }
 }
 
-/// Απλό preview μεγέθυνσης: δείχνει τη φωτογραφία της επαφής σε μεγάλο
-/// μέγεθος, ως sheet πάνω στο κύριο παράθυρο της εφαρμογής (όχι σαν
-/// ανεξάρτητο παράθυρο του macOS). Δεν έχει το δικό του τιτλομπάρ ή τα
-/// native κουμπιά κλεισίματος/ελαχιστοποίησης του συστήματος — μόνο το ένα
-/// κουμπί Χ που ορίζουμε εμείς — και δεν μπορεί να μετακινηθεί, οπότε ο
-/// χρήστης δεν μπορεί να την παραμερίσει και να δουλέψει πίσω της. Πρέπει
-/// να κλείσει το preview πρώτα για να συνεχίσει.
 class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
 
     convenience init(image: NSImage) {
-        // Υπολογίζουμε ένα λογικό μέγεθος παραθύρου με βάση τις αναλογίες
-        // της εικόνας, χωρίς να ξεπερνάμε ένα μέγιστο ώστε να χωράει πάντα
-        // άνετα στην οθόνη.
         let maxDimension: CGFloat = 480
         let imageSize = image.size
         let aspect = imageSize.width > 0 && imageSize.height > 0 ? imageSize.width / imageSize.height : 1
@@ -487,14 +431,10 @@ class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
         displayWidth = max(displayWidth, 260)
         displayHeight = max(displayHeight, 260)
 
-        let extraChrome: CGFloat = 56 // χώρος για το κουμπί κλεισίματος/περιθώρια
+        let extraChrome: CGFloat = 56
         let panelWidth = displayWidth + 40
         let panelHeight = displayHeight + extraChrome
 
-        // Χωρίς .closable (άρα κανένα native κουμπί Χ/traffic-light) και
-        // χωρίς isMovableByWindowBackground (άρα δεν παραμερίζεται με
-        // σύρσιμο). Ως sheet, το macOS δεν επιτρέπει ούτως ή άλλως
-        // μετακίνηση εκτός της θέσης του πάνω στο parent window.
         let window = EscClosablePanel(
             contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight),
             styleMask: [.titled, .fullSizeContentView],
@@ -504,7 +444,7 @@ class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = false
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = AccessibilityManager.shared.preferredWindowAppearance
         window.isReleasedWhenClosed = false
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -524,9 +464,6 @@ class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
-    /// Παρουσιάζει το preview σαν sheet πάνω στο δοσμένο παράθυρο της
-    /// εφαρμογής, ώστε να μοιάζει ενσωματωμένο μέσα στην εφαρμογή αντί για
-    /// ξεχωριστό παράθυρο του macOS.
     func present(on parentWindow: NSWindow) {
         guard let sheetWindow = window else { return }
         parentWindow.beginSheet(sheetWindow, completionHandler: nil)
@@ -537,10 +474,8 @@ class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
         contentView.wantsLayer = true
         contentView.layer?.backgroundColor = NSColor.clear.cgColor
 
-        // Θολωμένο, ημιδιάφανο φόντο (σαν macOS "vibrancy"), αντί για ένα
-        // αδιαφανές σκούρο ορθογώνιο πίσω από τη φωτογραφία.
         let blurView = NSVisualEffectView()
-        blurView.material = .hudWindow
+        blurView.material = .underWindowBackground
         blurView.blendingMode = .behindWindow
         blurView.state = .active
         blurView.translatesAutoresizingMaskIntoConstraints = false
@@ -551,13 +486,10 @@ class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
         let closeButton = NSButton(image: closeImg ?? NSImage(), target: self, action: #selector(closeTapped))
         closeButton.bezelStyle = .regularSquare
         closeButton.isBordered = false
-        closeButton.contentTintColor = NSColor(white: 0.6, alpha: 1)
+        closeButton.contentTintColor = .secondaryLabelColor
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(closeButton)
 
-        // Τετράγωνο container ίσο με τη μικρότερη διάσταση, ώστε ο κύκλος
-        // της φωτογραφίας να είναι πάντα τέλειος (όχι οβάλ) και να μην
-        // αφήνει κενό/διαφανή χώρο γύρω-γύρω που θα φαινόταν σαν πλαίσιο.
         let circleDiameter = min(displayWidth, displayHeight)
 
         let imageContainer = NSView()
@@ -569,12 +501,6 @@ class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
         imageContainer.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(imageContainer)
 
-        // CALayer με contentsGravity αντί για NSImageView: αποφεύγει το
-        // ενδεχόμενο αδιαφανές/λευκό φόντο του NSImageView και μας δίνει
-        // πλήρη έλεγχο στην ποιότητα όταν η εικόνα μεγεθύνεται πάνω από το
-        // μέγεθος προεπισκόπησης. Περνάμε το αρχικό CGImage σε πλήρη
-        // ανάλυση (χωρίς προ-σμίκρυνση) και αφήνουμε το trilinear filter
-        // του layer να κάνει ομαλή, υψηλής ποιότητας μεγέθυνση με GPU.
         var imageRect = NSRect(x: 0, y: 0, width: image.size.width, height: image.size.height)
         let cgImage = image.cgImage(forProposedRect: &imageRect, context: nil, hints: [.interpolation: NSImageInterpolation.high])
 
@@ -619,8 +545,6 @@ class ImagePreviewWindowController: NSWindowController, NSWindowDelegate {
 
         imageLayer.frame = CGRect(x: 0, y: 0, width: circleDiameter, height: circleDiameter)
         imageHostView.layer?.addSublayer(imageLayer)
-        // contentsScale στο retina scale factor ώστε το CALayer να μη
-        // ζωγραφίζει σε χαμηλότερη ανάλυση απ' όσο υποστηρίζει η οθόνη.
         imageLayer.contentsScale = window?.backingScaleFactor ?? 2.0
     }
 

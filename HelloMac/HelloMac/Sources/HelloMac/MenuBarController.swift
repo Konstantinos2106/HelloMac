@@ -7,7 +7,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
     var searchMenuItem: NSMenuItem!
     var dialerHeaderMenuItem: NSMenuItem!
     
-    // Μεταβλητές για το μίνι πληκτρολόγιο
     var isDialerActive: Bool = false
     var dialerMenuItem: NSMenuItem!
     var dialerView: MenuBarDialerView!
@@ -32,11 +31,9 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 if let button = statusItem?.button {
                     if let customMenuIcon = NSImage(named: "menubar_icon.png") {
                         customMenuIcon.isTemplate = true 
-                        // Ιδανικό μέγεθος για το Menu Bar
                         customMenuIcon.size = NSSize(width: 24, height: 24)
                         button.image = customMenuIcon
                     } else {
-                        // Αν δεν το βρει για κάποιο λόγο, βάζει το κλασικό της Apple
                         button.image = NSImage(systemSymbolName: "phone.fill", accessibilityDescription: "HelloMac")
                    }  
                 }
@@ -44,10 +41,9 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 menu = NSMenu()
                 menu.delegate = self
                 
-                // --- Δημιουργία Header με Αναζήτηση και Κουμπί Keypad (Κανονική Λειτουργία) ---
                 searchMenuItem = NSMenuItem()
                 let headerView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 32))
-                headerView.autoresizingMask = [.width] // Δυναμικό πλάτος στο header
+                headerView.autoresizingMask = [.width]
                 
                 searchField = NSSearchField()
                 searchField.delegate = self
@@ -55,20 +51,15 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 searchField.translatesAutoresizingMaskIntoConstraints = false
                 headerView.addSubview(searchField)
                 
-                let keypadBtn = NSButton()
-                keypadBtn.setButtonType(.momentaryChange)
-                keypadBtn.bezelStyle = .regularSquare
-                keypadBtn.isBordered = false
-                let keypadImage = NSImage(systemSymbolName: "circle.grid.3x3.fill", accessibilityDescription: "Keypad")
-                keypadImage?.isTemplate = true
-                keypadBtn.image = keypadImage
-                keypadBtn.contentTintColor = .labelColor
-                keypadBtn.target = self
-                keypadBtn.action = #selector(toggleDialer)
+                let keypadBtn = MenuBarDialerActionBtn(symbol: "circle.grid.3x3.fill", color: .labelColor)
+                if let iconView = keypadBtn.subviews.first as? NSImageView {
+                    let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
+                    iconView.image = NSImage(systemSymbolName: "circle.grid.3x3.fill", accessibilityDescription: nil)?.withSymbolConfiguration(config)
+                }
+                keypadBtn.onTap = { [weak self] in self?.toggleDialer() }
                 keypadBtn.translatesAutoresizingMaskIntoConstraints = false
                 headerView.addSubview(keypadBtn)
                 
-                // Auto Layout για να κολλάει το keypad δεξιά και η αναζήτηση να απλώνει
                 NSLayoutConstraint.activate([
                     searchField.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
                     searchField.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
@@ -83,12 +74,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 ])
                 
                 searchMenuItem.view = headerView
-                
-                // --- Δημιουργία Header για το Μίνι Πληκτρολόγιο (χωρίς αναζήτηση) ---
-                // Εδώ ΔΕΝ υπάρχει search field, καθώς δεν έχει νόημα μέσα στο πληκτρολόγιο.
-                // Ο χώρος που θα άφηνε κενό η αναζήτηση αξιοποιείται με έναν τίτλο
-                // στο κέντρο, ενώ το κουμπί επιστροφής παραμένει στα δεξιά (ίδια θέση
-                // με το κουμπί ανοίγματος του πληκτρολογίου, ώστε η μετάβαση να είναι ομαλή).
+
                 dialerHeaderMenuItem = NSMenuItem()
                 let dialerHeaderView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 32))
                 dialerHeaderView.autoresizingMask = [.width]
@@ -100,17 +86,8 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 dialerTitleLabel.translatesAutoresizingMaskIntoConstraints = false
                 dialerHeaderView.addSubview(dialerTitleLabel)
                 
-                let backBtn = NSButton()
-                backBtn.setButtonType(.momentaryChange)
-                backBtn.bezelStyle = .regularSquare
-                backBtn.isBordered = false
-                let closeConfig = NSImage.SymbolConfiguration(pointSize: 18, weight: .medium)
-                let closeImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close Keypad")?.withSymbolConfiguration(closeConfig)
-                closeImage?.isTemplate = true
-                backBtn.image = closeImage
-                backBtn.contentTintColor = .labelColor
-                backBtn.target = self
-                backBtn.action = #selector(toggleDialer)
+                let backBtn = MenuBarDialerActionBtn(symbol: "xmark.circle.fill", color: .labelColor)
+                backBtn.onTap = { [weak self] in self?.toggleDialer() }
                 backBtn.translatesAutoresizingMaskIntoConstraints = false
                 dialerHeaderView.addSubview(backBtn)
                 
@@ -126,12 +103,11 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 
                 dialerHeaderMenuItem.view = dialerHeaderView
                 
-                // --- Δημιουργία View για το Μίνι Πληκτρολόγιο ---
                 dialerView = MenuBarDialerView(frame: NSRect(x: 0, y: 0, width: 240, height: 330))
-                dialerView.autoresizingMask = [.width] // Δυναμικό πλάτος για σωστό κεντράρισμα
+                dialerView.autoresizingMask = [.width]
                 dialerView.onCall = { [weak self] phone in
                     self?.makeCall(phone: phone, name: nil, contactID: nil)
-                    self?.menu.cancelTracking() // Κλείνει το μενού μετά την κλήση
+                    self?.menu.cancelTracking()
                 }
                 dialerMenuItem = NSMenuItem()
                 dialerMenuItem.view = dialerView
@@ -152,16 +128,20 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         menu.addItem(searchMenuItem)
     }
     
-    // Καλείται κάθε φορά που το μενού ανοίγει
     func menuNeedsUpdate(_ menu: NSMenu) {
         searchField.stringValue = ""
         isDialerActive = false
-        dialerView.updatePlusButtonVisibility() // Ελέγχει αν πρέπει να κρυφτεί το "+"
+        dialerView.updatePlusButtonVisibility()
         refreshMenuItems(searchText: "")
     
-        // Η χρήση του DispatchQueue.main.async είναι υποχρεωτική εδώ για να υπάρχει το window
         DispatchQueue.main.async {
             self.searchField.window?.makeFirstResponder(nil)
+        }
+    }
+    
+    func menuDidClose(_ menu: NSMenu) {
+        DispatchQueue.main.async { [weak self] in
+            self?.statusItem?.button?.needsDisplay = true
         }
     }
     
@@ -171,12 +151,11 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         }
     }
     
-    // Εξασφαλίζει ότι στην Αναζήτηση ο κέρσορας θα είναι ΠΑΝΤΑ ορατός
     func controlTextDidBeginEditing(_ obj: Notification) {
         if let field = obj.object as? NSSearchField, field == searchField {
             DispatchQueue.main.async {
                 if let editor = field.currentEditor() as? NSTextView {
-                    editor.insertionPointColor = .labelColor // Επαναφορά χρώματος κέρσορα
+                    editor.insertionPointColor = .labelColor
                 }
             }
         }
@@ -187,8 +166,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         searchField.stringValue = ""
         refreshMenuItems(searchText: "")
     
-        // Βάζουμε καθυστέρηση ώστε το μενού να έχει εμφανιστεί πλήρως 
-        // πριν ζητήσουμε από το macOS να δώσει το focus!
         if isDialerActive {
             DispatchQueue.main.async {
                 self.dialerView.focusInput()
@@ -200,15 +177,12 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         }
     }
     
-    // Έξυπνη Ανίχνευση Προχείρου
     private func getClipboardPhone() -> String? {
         guard let pasteString = NSPasteboard.general.string(forType: .string) else { return nil }
-        if pasteString.count > 30 { return nil } // Αγνοούμε τεράστια κείμενα
+        if pasteString.count > 30 { return nil } 
         
         let sanitized = pasteString.sanitizedForCall
         if sanitized.count >= 4 && sanitized.count <= 20 {
-            // Βεβαιωνόμαστε ότι το αρχικό κείμενο είναι ως επί το πλείστον τηλέφωνο 
-            // (επιτρέποντας κενά, παύλες, παρενθέσεις)
             let allowedChars = CharacterSet(charactersIn: "+0123456789 ()-.")
             let isMostlyPhone = pasteString.unicodeScalars.allSatisfy { allowedChars.contains($0) }
             
@@ -220,10 +194,15 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
     }
     
     func refreshMenuItems(searchText: String) {
-        // Καθαρίζουμε ΟΛΟΚΛΗΡΟ το μενού και ξαναβάζουμε το σωστό header
-        // (αναζήτηση+keypad ή header πληκτρολογίου), ώστε να μην υπάρχει ποτέ
-        // ανεπιθύμητο/«νεκρό» search field όταν είναι ενεργό το πληκτρολόγιο.
+        if let idx = menu.items.firstIndex(of: searchMenuItem) { menu.removeItem(at: idx) }
+        if let idx = menu.items.firstIndex(of: dialerHeaderMenuItem) { menu.removeItem(at: idx) }
+        if let idx = menu.items.firstIndex(of: dialerMenuItem) { menu.removeItem(at: idx) }
         menu.removeAllItems()
+        
+        searchMenuItem.view?.isHidden = false
+        dialerHeaderMenuItem.view?.isHidden = false
+        dialerMenuItem.view?.isHidden = false
+        
         menu.addItem(isDialerActive ? dialerHeaderMenuItem : searchMenuItem)
         
         if isDialerActive {
@@ -235,9 +214,8 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         menu.addItem(NSMenuItem.separator())
         
-        // --- 1. Έξυπνη Ανίχνευση Προχείρου (Αν δεν κάνουμε αναζήτηση) ---
         if query.isEmpty, let clipboardPhone = getClipboardPhone() {
-            let title = isGreek() ? "Κλήση στο αντιγραμμένο: \(clipboardPhone)" : "Call copied: \(clipboardPhone)"
+            let title = L("menubar_call_copied", clipboardPhone)
             let clipboardItem = NSMenuItem(title: title, action: #selector(callHistory(_:)), keyEquivalent: "c")
             clipboardItem.representedObject = clipboardPhone
             clipboardItem.target = self
@@ -246,11 +224,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
             menu.addItem(NSMenuItem.separator())
         }
         
-        // --- 2. Επαφές (Αγαπημένα ή Αποτελέσματα Αναζήτησης) ---
-        // Στη Λειτουργία Απορρήτου δεν επιτρέπεται αναζήτηση (θα αποκάλυπτε
-        // ονόματα/τηλέφωνα μέσω της λίστας αποτελεσμάτων), οπότε δείχνουμε
-        // ενημερωτικό μήνυμα αντί για πραγματικά αποτελέσματα — ίδια συμπεριφορά
-        // με την καρτέλα Επαφές/Αγαπημένα/Ιστορικό στο κύριο παράθυρο.
         if PrivacyMode.shared.isEnabled && !query.isEmpty {
             menu.addItem(makeWrappingTextItem(L("privacy_mode_search_disabled")))
             addFooterItems()
@@ -270,13 +243,9 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         }
         
         if contactsToShow.isEmpty {
-            let emptyItem = NSMenuItem(title: query.isEmpty ? L("no_favorites") : L("no_search_results"), action: nil, keyEquivalent: "")
-            emptyItem.isEnabled = false
-            menu.addItem(emptyItem)
+            let emptyText = query.isEmpty ? L("no_favorites") : L("no_search_results")
+            menu.addItem(makeWrappingTextItem(emptyText))
         } else {
-            // Δείχνουμε άμεσα στο κύριο μενού μόνο τις πρώτες `maxDirectContacts`,
-            // ώστε το μενού να μη μακραίνει απεριόριστα (π.χ. με 50+ αγαπημένα ή
-            // αποτελέσματα αναζήτησης).
             let maxDirectContacts = 8
             let directContacts = contactsToShow.prefix(maxDirectContacts)
             let overflowContacts = contactsToShow.dropFirst(maxDirectContacts)
@@ -291,15 +260,12 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
             }
             
             if !overflowContacts.isEmpty {
-                // Όλες οι υπόλοιπες επαφές μπαίνουν στο submenu — χωρίς hard cap.
-                // Το scrollable container (makeMoreItem) αναλαμβάνει την κύλιση,
-                // οπότε δεν χάνεται καμία επαφή ακόμη κι αν είναι εκατοντάδες.
                 let allOverflow = Array(overflowContacts)
                 let moreTitle: String
                 if query.isEmpty {
-                    moreTitle = isGreek() ? "Περισσότερα αγαπημένα..." : "More favorites..."
+                    moreTitle = L("menubar_more_favorites")
                 } else {
-                    moreTitle = isGreek() ? "Περισσότερα αποτελέσματα..." : "More results..."
+                    moreTitle = L("menubar_more_results")
                 }
                 
                 let entries: [(title: String, symbol: String, action: () -> Void)] = allOverflow.map { contact in
@@ -315,7 +281,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
             }
         }
         
-        // --- 3. Πρόσφατες κλήσεις (μόνο όταν δεν γίνεται αναζήτηση) ---
         if query.isEmpty {
             let recent = HistoryStore.shared.records
             if !recent.isEmpty {
@@ -324,7 +289,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 historyTitle.isEnabled = false
                 menu.addItem(historyTitle)
                 
-                // Δείχνουμε τις πρώτες 4
                 let topRecent = recent.prefix(4)
                 for record in topRecent {
                     let displayName = record.contactName ?? record.phone
@@ -336,11 +300,8 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                     menu.addItem(item)
                 }
                 
-                // Όλες οι υπόλοιπες εγγραφές μπαίνουν στο submenu — χωρίς επιπλέον
-                // hard cap (το HistoryStore κρατά ήδη max 100 εγγραφές συνολικά).
-                // Το scrollable container αναλαμβάνει την κύλιση.
                 if recent.count > 4 {
-                    let moreTitle = isGreek() ? "Περισσότερο ιστορικό..." : "More history..."
+                    let moreTitle = L("menubar_more_history")
                     let overflowRecords = Array(recent.dropFirst(4))
                     
                     let entries: [(title: String, symbol: String, action: () -> Void)] = overflowRecords.map { record in
@@ -359,6 +320,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         }
         
         addFooterItems()
+        menu.update()
     }
     
     private func addFooterItems() {
@@ -385,15 +347,10 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
     
     // MARK: - Βοηθητικά για Μεγάλες Λίστες (Scrollable Submenus)
     
-    /// Πόσα στοιχεία δείχνουμε "χωρίς κύλιση" σε ένα submenu πριν μπει
-    /// scroll view. Πέρα από αυτό το πλήθος, ένα κανονικό NSMenu θα γινόταν
-    /// πολύ ψηλό (ή θα εμφάνιζε τα άσχημα auto-scroll βελάκια του AppKit).
     private let scrollThreshold = 8
     private let scrollRowHeight: CGFloat = 28
     private let scrollMaxVisibleRows: CGFloat = 8
     
-    /// Ένα απλό, ελαφρύ row για μέσα στο scrollable submenu (όχι πραγματικό
-    /// NSMenuItem, απλή view-based λίστα με click handling).
     private final class ScrollableMenuRow: NSView {
         var onClick: (() -> Void)?
         private let button: NSButton
@@ -421,9 +378,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         @objc private func handleClick() { onClick?() }
     }
     
-    /// Φτιάχνει ένα NSMenuItem με submenu που περιέχει τα δοσμένα (τίτλος, εικονίδιο, action) στοιχεία.
-    /// Αν τα στοιχεία είναι περισσότερα από `scrollThreshold`, το submenu περιέχει ένα
-    /// custom scroll view με σταθερό μέγιστο ύψος αντί για μια ατελείωτη λίστα NSMenuItems.
     private func makeMoreItem(title: String, entries: [(title: String, symbol: String, action: () -> Void)]) -> NSMenuItem {
         let moreItem = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         let submenu = NSMenu()
@@ -442,7 +396,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
             
             let containerView = NSView(frame: NSRect(x: 0, y: 0, width: width, height: contentHeight))
             for (index, entry) in entries.enumerated() {
-                // Y αντεστραμμένο γιατί το NSView βάζει y=0 κάτω
                 let rowY = contentHeight - CGFloat(index + 1) * scrollRowHeight
                 let row = ScrollableMenuRow(title: entry.title, symbolName: entry.symbol, width: width, height: scrollRowHeight)
                 row.frame.origin.y = rowY
@@ -474,10 +427,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         return moreItem
     }
     
-    /// Φτιάχνει ένα μη-πατήσιμο NSMenuItem με custom view, ώστε μεγάλα
-    /// ενημερωτικά μηνύματα να κάνουν σωστά word-wrap σε πολλές γραμμές αντί
-    /// να κόβονται ή να διευρύνουν υπερβολικά το μενού οριζόντια (κανονικά
-    /// NSMenuItem titles δεν υποστηρίζουν αναδίπλωση).
     private func makeWrappingTextItem(_ text: String) -> NSMenuItem {
         let width: CGFloat = 240
         let horizontalPadding: CGFloat = 16
@@ -498,8 +447,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
             label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8)
         ])
         
-        // Υπολογίζουμε το απαιτούμενο ύψος με βάση το πλάτος, ώστε το container
-        // να έχει το σωστό μέγεθος πριν μπει στο μενού.
         let usableWidth = width - horizontalPadding * 2
         let fittingHeight = label.sizeThatFits(NSSize(width: usableWidth, height: .greatestFiniteMagnitude)).height
         container.frame = NSRect(x: 0, y: 0, width: width, height: fittingHeight + 16)
@@ -563,7 +510,6 @@ class MenuBarDialerView: NSView {
     var displayField: NSTextField!
     private var plusButton: MenuBarDialerKey?
     
-    // Αποδέχεται τις εντολές από το φυσικό πληκτρολόγιο
     override var acceptsFirstResponder: Bool { return true }
     
     override init(frame: NSRect) {
@@ -575,7 +521,6 @@ class MenuBarDialerView: NSView {
     
     func focusInput() {
         if let win = self.window {
-            // Δίνουμε το focus σε ολόκληρο το View, όχι στο πεδίο κειμένου. Έτσι δεν υπάρχει κέρσορας!
             win.makeFirstResponder(self)
         }
     }
@@ -585,7 +530,6 @@ class MenuBarDialerView: NSView {
     }
     
     private func setupUI() {
-        // Πεδίο Εμφάνισης (Πλέον ΔΕΝ είναι editable, λειτουργεί ως απλή ετικέτα)
         displayField = NSTextField()
         displayField.isEditable = false
         displayField.isSelectable = false
@@ -596,7 +540,7 @@ class MenuBarDialerView: NSView {
         displayField.font = NSFont.systemFont(ofSize: 22, weight: .light)
         displayField.alignment = .center
         
-        let placeholderStr = Locale.preferredLanguages.first?.hasPrefix("el") == true ? "Αριθμός..." : "Number..."
+        let placeholderStr = L("menubar_number_placeholder")
         displayField.placeholderAttributedString = NSAttributedString(
             string: placeholderStr,
             attributes: [
@@ -608,7 +552,6 @@ class MenuBarDialerView: NSView {
         displayField.translatesAutoresizingMaskIntoConstraints = false
         addSubview(displayField)
         
-        // Κουμπί Διαγραφής
         let deleteBtn = MenuBarDialerActionBtn(symbol: "delete.left", color: .labelColor)
         deleteBtn.onTap = { [weak self] in
             guard let self = self, !self.displayField.stringValue.isEmpty else { return }
@@ -618,7 +561,6 @@ class MenuBarDialerView: NSView {
         deleteBtn.translatesAutoresizingMaskIntoConstraints = false
         addSubview(deleteBtn)
         
-        // Πλέγμα Πλήκτρων
         let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "0", ""]
         let gridStack = NSStackView()
         gridStack.orientation = .vertical
@@ -647,6 +589,9 @@ class MenuBarDialerView: NSView {
                     let btn = MenuBarDialerKey(digit: digit)
                     btn.translatesAutoresizingMaskIntoConstraints = false
                     btn.onTap = { [weak self] d in
+                        if let firstChar = d.first {
+                            DialerSound.playMenuBarKeypadSoundIfEnabled(digit: firstChar)
+                        }
                         if (self?.displayField.stringValue.count ?? 0) < 20 {
                             self?.displayField.stringValue += d
                         }
@@ -664,6 +609,9 @@ class MenuBarDialerView: NSView {
                 } else {
                     let btn = MenuBarDialerKey(digit: digit)
                     btn.onTap = { [weak self] d in
+                        if let firstChar = d.first {
+                            DialerSound.playMenuBarKeypadSoundIfEnabled(digit: firstChar)
+                        }
                         if (self?.displayField.stringValue.count ?? 0) < 20 {
                             self?.displayField.stringValue += d
                         }
@@ -675,7 +623,6 @@ class MenuBarDialerView: NSView {
             gridStack.addArrangedSubview(rowStack)
         }
         
-        // Κουμπί Κλήσης
         let callBtn = MenuBarDialerActionBtn(symbol: "phone.fill", color: NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1), isPrimary: true)
         callBtn.onTap = { [weak self] in
             guard let self = self else { return }
@@ -721,7 +668,6 @@ class MenuBarDialerView: NSView {
     }
     
     override func keyDown(with event: NSEvent) {
-        // Ανίχνευση του Enter (Return)
         if let chars = event.characters {
             if chars == "\r" || chars == "\u{3}" {
                 let number = displayField.stringValue.trimmingCharacters(in: .whitespaces)
@@ -729,18 +675,17 @@ class MenuBarDialerView: NSView {
                 return
             }
             
-            // Ανίχνευση Αριθμών (0-9 και +)
             let allowed = CharacterSet(charactersIn: "+0123456789")
             for scalar in chars.unicodeScalars {
                 if allowed.contains(scalar) {
                     if displayField.stringValue.count < 20 { // Όριο 20 χαρακτήρες
+                        DialerSound.playMenuBarKeypadSoundIfEnabled(digit: Character(scalar))
                         displayField.stringValue += String(scalar)
                     }
                 }
             }
         }
         
-        // Ανίχνευση του Backspace / Delete
         if event.keyCode == 51 || event.keyCode == 117 {
             if !displayField.stringValue.isEmpty {
                 displayField.stringValue = String(displayField.stringValue.dropLast())
@@ -749,7 +694,6 @@ class MenuBarDialerView: NSView {
     }
 }
 
-// Custom View για τα πλήκτρα του Menu Bar
 class MenuBarDialerKey: NSView {
     var digit: String = ""
     var onTap: ((String) -> Void)?
@@ -841,7 +785,6 @@ class MenuBarDialerActionBtn: NSView {
         onTap?()
     }
     
-    // Ανανεώνει το χρώμα όταν αλλάζει το system appearance (Light/Dark Mode)
     override func updateLayer() {
         super.updateLayer()
         if !isPrimary {

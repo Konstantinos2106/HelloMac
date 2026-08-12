@@ -12,6 +12,8 @@ struct Contact: Codable, Identifiable {
     var imageFileName: String? = nil
     var monogramColorHex: String? = nil
     var notes: String? = nil
+    var externalIdentifier: String? = nil
+    var groupIDs: [UUID] = []
 
     var fullName: String {
         let trimmedLast = lastName.trimmingCharacters(in: .whitespaces)
@@ -37,11 +39,11 @@ struct Contact: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, firstName, lastName, phone, isFavorite, favoritedAt, favoriteSortIndex, imageFileName, monogramColorHex, notes
+        case id, firstName, lastName, phone, isFavorite, favoritedAt, favoriteSortIndex, imageFileName, monogramColorHex, notes, externalIdentifier, groupIDs
         case legacyName = "name"
     }
 
-    init(id: UUID = UUID(), firstName: String, lastName: String, phone: String, isFavorite: Bool = false, favoritedAt: Date? = nil, favoriteSortIndex: Int? = nil, imageFileName: String? = nil, monogramColorHex: String? = nil, notes: String? = nil) {
+    init(id: UUID = UUID(), firstName: String, lastName: String, phone: String, isFavorite: Bool = false, favoritedAt: Date? = nil, favoriteSortIndex: Int? = nil, imageFileName: String? = nil, monogramColorHex: String? = nil, notes: String? = nil, externalIdentifier: String? = nil, groupIDs: [UUID] = []) {
         self.id = id
         self.firstName = firstName
         self.lastName = lastName
@@ -52,6 +54,8 @@ struct Contact: Codable, Identifiable {
         self.imageFileName = imageFileName
         self.monogramColorHex = monogramColorHex
         self.notes = notes
+        self.externalIdentifier = externalIdentifier
+        self.groupIDs = groupIDs
     }
 
     init(from decoder: Decoder) throws {
@@ -64,6 +68,8 @@ struct Contact: Codable, Identifiable {
         imageFileName = try container.decodeIfPresent(String.self, forKey: .imageFileName)
         monogramColorHex = try container.decodeIfPresent(String.self, forKey: .monogramColorHex)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        externalIdentifier = try container.decodeIfPresent(String.self, forKey: .externalIdentifier)
+        groupIDs = try container.decodeIfPresent([UUID].self, forKey: .groupIDs) ?? []
 
         if let first = try container.decodeIfPresent(String.self, forKey: .firstName) {
             firstName = first
@@ -90,6 +96,10 @@ struct Contact: Codable, Identifiable {
         try container.encodeIfPresent(imageFileName, forKey: .imageFileName)
         try container.encodeIfPresent(monogramColorHex, forKey: .monogramColorHex)
         try container.encodeIfPresent(notes, forKey: .notes)
+        try container.encodeIfPresent(externalIdentifier, forKey: .externalIdentifier)
+        if !groupIDs.isEmpty {
+            try container.encode(groupIDs, forKey: .groupIDs)
+        }
     }
 }
 
@@ -100,6 +110,12 @@ enum ContactImageStore {
         let dir = appSupport.appendingPathComponent("HelloMac/ContactImages", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }()
+
+    private static let memoryCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 500
+        return cache
     }()
 
     static func saveImage(_ image: NSImage, existingFileName: String? = nil) -> String? {
@@ -136,20 +152,29 @@ enum ContactImageStore {
 
         do {
             try jpegData.write(to: fileURL)
+            memoryCache.removeObject(forKey: fileName as NSString)
             return fileName
         } catch {
             return nil
         }
     }
 
-    // ★ Σημαντική διόρθωση: Χρησιμοποιούμε τον υπάρχοντα ImageOrientationFix
     static func loadImage(fileName: String) -> NSImage? {
+        let key = fileName as NSString
+        if let cached = memoryCache.object(forKey: key) {
+            return cached
+        }
         let fileURL = directoryURL.appendingPathComponent(fileName)
-        return ImageOrientationFix.normalizedImage(contentsOf: fileURL) ?? NSImage(contentsOf: fileURL)
+        guard let image = ImageOrientationFix.normalizedImage(contentsOf: fileURL) ?? NSImage(contentsOf: fileURL) else {
+            return nil
+        }
+        memoryCache.setObject(image, forKey: key)
+        return image
     }
 
     static func deleteImage(fileName: String?) {
         guard let fileName = fileName else { return }
+        memoryCache.removeObject(forKey: fileName as NSString)
         let fileURL = directoryURL.appendingPathComponent(fileName)
         try? FileManager.default.removeItem(at: fileURL)
     }
@@ -184,7 +209,7 @@ class ContactStore {
         list[idx].favoritedAt = list[idx].isFavorite ? Date() : nil
         list[idx].favoriteSortIndex = nil
         contacts = list
-        NotificationCenter.default.post(name: .contactsDidChange, object: nil)
+        NotificationCenter.default.post(name: .contactsDidChange, object: nil, userInfo: ["isFavoriteToggle": true])
     }
     
     func updateContact(_ updatedContact: Contact) {
@@ -196,10 +221,6 @@ class ContactStore {
         }
     }
 
-    /// Reorders favorites according to `orderedIDs` (the full, new front-to-back
-    /// order of favorite contact IDs as arranged by the user via drag & drop).
-    /// Assigns sequential favoriteSortIndex values so this manual order is
-    /// preserved and takes precedence over the favoritedAt-based ordering.
     func reorderFavorites(orderedIDs: [UUID]) {
         var list = contacts
         for (index, id) in orderedIDs.enumerated() {
@@ -208,8 +229,123 @@ class ContactStore {
             }
         }
         contacts = list
-        NotificationCenter.default.post(name: .contactsDidChange, object: nil)
+        NotificationCenter.default.post(name: .contactsDidChange, object: nil, userInfo: ["isFavoriteToggle": true])
     }
+
+    func contacts(inGroup groupID: UUID) -> [Contact] {
+        contacts.filter { $0.groupIDs.contains(groupID) }
+            .sorted { $0.fullName.localizedStandardCompare($1.fullName) == .orderedAscending }
+    }
+}
+
+// MARK: - Προσαρμοσμένες Ομάδες Επαφών
+
+struct ContactGroup: Codable, Identifiable, Equatable {
+    static let nameCharacterLimit = 20
+
+    var id: UUID = UUID()
+    var name: String
+    var colorHex: String? = nil
+
+    var color: NSColor? {
+        guard let colorHex else { return nil }
+        return NSColor(hexString: colorHex)
+    }
+
+    static func sanitizedName(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(trimmed.prefix(nameCharacterLimit))
+    }
+}
+
+final class ContactGroupStore {
+    static let shared = ContactGroupStore()
+    private let key = "HelloMacContactGroups"
+    static let enabledDefaultsKey = "contactGroupsEnabled"
+
+    var isEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.enabledDefaultsKey) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Self.enabledDefaultsKey)
+            NotificationCenter.default.post(name: .contactGroupsDidChange, object: nil)
+        }
+    }
+
+    var groups: [ContactGroup] {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: key),
+                  let decoded = try? JSONDecoder().decode([ContactGroup].self, from: data)
+            else { return [] }
+            return decoded
+        }
+        set {
+            if let encoded = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(encoded, forKey: key)
+            }
+        }
+    }
+
+    var sortedGroups: [ContactGroup] {
+        groups.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    func group(withID id: UUID) -> ContactGroup? {
+        groups.first { $0.id == id }
+    }
+
+    @discardableResult
+    func addGroup(name: String, colorHex: String? = nil) -> ContactGroup? {
+        let sanitized = ContactGroup.sanitizedName(name)
+        guard !sanitized.isEmpty else { return nil }
+        guard !groups.contains(where: { $0.name.caseInsensitiveCompare(sanitized) == .orderedSame }) else { return nil }
+        let newGroup = ContactGroup(name: sanitized, colorHex: colorHex)
+        var list = groups
+        list.append(newGroup)
+        groups = list
+        NotificationCenter.default.post(name: .contactGroupsDidChange, object: nil)
+        return newGroup
+    }
+
+    func renameGroup(id: UUID, to newName: String) {
+        let sanitized = ContactGroup.sanitizedName(newName)
+        guard !sanitized.isEmpty else { return }
+        var list = groups
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].name = sanitized
+        groups = list
+        NotificationCenter.default.post(name: .contactGroupsDidChange, object: nil)
+    }
+
+    func updateColor(id: UUID, colorHex: String?) {
+        var list = groups
+        guard let idx = list.firstIndex(where: { $0.id == id }) else { return }
+        list[idx].colorHex = colorHex
+        groups = list
+        NotificationCenter.default.post(name: .contactGroupsDidChange, object: nil)
+    }
+
+    func deleteGroup(id: UUID) {
+        var list = groups
+        list.removeAll { $0.id == id }
+        groups = list
+
+        var contacts = ContactStore.shared.contacts
+        var changed = false
+        for i in contacts.indices where contacts[i].groupIDs.contains(id) {
+            contacts[i].groupIDs.removeAll { $0 == id }
+            changed = true
+        }
+        if changed {
+            ContactStore.shared.contacts = contacts
+            NotificationCenter.default.post(name: .contactsDidChange, object: nil)
+        }
+        NotificationCenter.default.post(name: .contactGroupsDidChange, object: nil)
+    }
+}
+
+extension Notification.Name {
+    static let contactGroupsDidChange = Notification.Name("contactGroupsDidChange")
+    static let speedDialSettingsDidChange = Notification.Name("speedDialSettingsDidChange")
 }
 
 struct CallRecord: Codable, Identifiable {
@@ -285,6 +421,47 @@ enum HistoryAutoDeleteInterval: Int, CaseIterable {
     }
 }
 
+enum TimeZoneOption: Int, CaseIterable {
+    case system = 0
+    case custom
+
+    static let defaultsKey = "timeZonePreference"
+    static let customIdentifierKey = "customTimeZoneIdentifier"
+
+    var localizedTitle: String {
+        switch self {
+        case .system: return L("timezone_option_system")
+        case .custom: return L("timezone_option_custom")
+        }
+    }
+
+    static var current: TimeZoneOption {
+        let raw = UserDefaults.standard.integer(forKey: defaultsKey)
+        return TimeZoneOption(rawValue: raw) ?? .system
+    }
+}
+
+enum AppTimeZone {
+    static var current: TimeZone {
+        switch TimeZoneOption.current {
+        case .system:
+            return TimeZone.current
+        case .custom:
+            if let identifier = UserDefaults.standard.string(forKey: TimeZoneOption.customIdentifierKey),
+               let tz = TimeZone(identifier: identifier) {
+                return tz
+            }
+            return TimeZone.current
+        }
+    }
+
+    static var calendar: Calendar {
+        var cal = Calendar.current
+        cal.timeZone = current
+        return cal
+    }
+}
+
 class HistoryStore {
     static let shared = HistoryStore()
     private let key = "HelloMacCallHistory"
@@ -312,8 +489,20 @@ class HistoryStore {
         purgeExpiredRecords()
     }
 
-    func records(forContactID contactID: UUID) -> [CallRecord] {
-        records.filter { $0.contactID == contactID }
+    func records(forContactID contactID: UUID, phone: String? = nil) -> [CallRecord] {
+        let sanitizedPhone = phone?.sanitizedForCall
+        return records.filter { record in
+            if record.contactID == contactID { return true }
+            if record.contactID == nil, let sanitizedPhone, !sanitizedPhone.isEmpty {
+                return record.phone.sanitizedForCall == sanitizedPhone
+            }
+            return false
+        }
+    }
+
+    func records(forPhone phone: String) -> [CallRecord] {
+        let target = phone.sanitizedForCall
+        return records.filter { $0.contactID == nil && $0.phone.sanitizedForCall == target }
     }
 
     @discardableResult
@@ -335,12 +524,6 @@ class HistoryStore {
 }
 
 extension Array where Element == Contact {
-    /// Ταξινομεί μια λίστα επαφών με την ίδια σειρά που χρησιμοποιεί η καρτέλα
-    /// "Αγαπημένα" στο κύριο παράθυρο: πρώτα κατά το χειροκίνητο drag & drop
-    /// order (`favoriteSortIndex`, μικρότερο πρώτα — όσες δεν έχουν οριστεί
-    /// πάνε στο τέλος), και ως fallback κατά `favoritedAt` (πιο πρόσφατο πρώτα).
-    /// Χρησιμοποιείται και από το κύριο παράθυρο και από το menu bar ώστε η
-    /// σειρά των αγαπημένων να είναι πάντα ίδια και στα δύο σημεία.
     func sortedByFavoriteOrder() -> [Contact] {
         sorted {
             switch ($0.favoriteSortIndex, $1.favoriteSortIndex) {
@@ -394,12 +577,6 @@ extension String {
 }
 
 // MARK: - Λειτουργία Απόρρητου (Privacy Mode)
-
-/// Κρύβει (θολώνει) ονόματα, τηλέφωνα και φωτογραφίες επαφών σε όλη την
-/// εφαρμογή, ώστε να μπορεί κάποιος να κάνει π.χ. κοινή χρήση οθόνης χωρίς
-/// να αποκαλύπτει προσωπικά δεδομένα. Η κατάσταση αποθηκεύεται ώστε να
-/// επιβιώνει μεταξύ επανεκκινήσεων και ενημερώνει όλη την εφαρμογή μέσω
-/// NotificationCenter όταν αλλάζει.
 final class PrivacyMode {
     static let shared = PrivacyMode()
     private let key = "privacyModeEnabled"
@@ -414,9 +591,6 @@ final class PrivacyMode {
         }
     }
 
-    /// Θολώνει ένα όνομα/κείμενο διατηρώντας περίπου το μήκος του, ώστε η
-    /// διάταξη να μη "χοροπηδάει" υπερβολικά. Δεν εξαφανίζει το κείμενο,
-    /// απλώς το αντικαθιστά με ένα σταθερό σύμβολο.
     func maskedText(_ original: String) -> String {
         let trimmed = original.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return original }
@@ -424,22 +598,109 @@ final class PrivacyMode {
         return String(repeating: "•", count: count)
     }
 
-    /// Θολωμένη εκδοχή για αρχικά μονογράμματος (avatar).
     var maskedInitials: String { "••" }
 
-    /// Εμφανίζει ένα ενημερωτικό μήνυμα που ζητά από τον χρήστη να
-    /// απενεργοποιήσει τη λειτουργία απόρρητου πριν προχωρήσει σε μια
-    /// ενέργεια (π.χ. αποθήκευση/επεξεργασία στοιχείων επαφής).
     func showBlockedAlert() {
         let alert = NSAlert()
+        AccessibilityManager.shared.applyAccessibility(to: alert)
         alert.messageText = L("privacy_mode_blocked_title")
         alert.informativeText = L("privacy_mode_blocked_text")
         alert.addButton(withTitle: L("privacy_mode_blocked_btn"))
-        alert.window.appearance = NSAppearance(named: .darkAqua)
+        alert.window.appearance = AccessibilityManager.shared.preferredWindowAppearance
         alert.runModal()
     }
 }
 
 extension Notification.Name {
     static let privacyModeDidChange = Notification.Name("privacyModeDidChange")
+    static let appTimeZoneDidChange = Notification.Name("appTimeZoneDidChange")
+}
+
+enum DialerSound {
+    private static let sampleRate: Double = 44_100
+    private static let toneDuration: Double = 0.09
+    private static let rowFrequencies: [Character: Double] = [
+        "1": 697, "2": 697, "3": 697,
+        "4": 770, "5": 770, "6": 770,
+        "7": 852, "8": 852, "9": 852,
+        "*": 941, "0": 941, "#": 941
+    ]
+    private static let colFrequencies: [Character: Double] = [
+        "1": 1209, "4": 1209, "7": 1209, "*": 1209,
+        "2": 1336, "5": 1336, "8": 1336, "0": 1336,
+        "3": 1477, "6": 1477, "9": 1477, "#": 1477
+    ]
+
+    private static let fallbackDigit: Character = "0"
+
+    private static var cache: [Character: NSSound] = [:]
+
+    private static func makeWAVData(f1: Double, f2: Double) -> Data {
+        let frameCount = Int(sampleRate * toneDuration)
+        let fadeSamples = max(1, Int(sampleRate * 0.008))
+
+        var samples = [Int16](repeating: 0, count: frameCount)
+        for n in 0..<frameCount {
+            let t = Double(n) / sampleRate
+            var sample = 0.5 * (sin(2 * .pi * f1 * t) + sin(2 * .pi * f2 * t))
+            if n < fadeSamples {
+                sample *= Double(n) / Double(fadeSamples)
+            } else if n > frameCount - fadeSamples {
+                sample *= Double(frameCount - n) / Double(fadeSamples)
+            }
+            samples[n] = Int16(max(-1, min(1, sample * 0.3)) * Double(Int16.max))
+        }
+
+        var data = Data()
+        let byteRate = Int(sampleRate) * 2
+        let dataSize = frameCount * 2
+
+        func appendLE(_ value: UInt32) { data.append(contentsOf: withUnsafeBytes(of: value.littleEndian, Array.init)) }
+        func appendLE(_ value: UInt16) { data.append(contentsOf: withUnsafeBytes(of: value.littleEndian, Array.init)) }
+
+        data.append(contentsOf: "RIFF".utf8)
+        appendLE(UInt32(36 + dataSize))
+        data.append(contentsOf: "WAVE".utf8)
+        data.append(contentsOf: "fmt ".utf8)
+        appendLE(UInt32(16))
+        appendLE(UInt16(1))
+        appendLE(UInt16(1))
+        appendLE(UInt32(sampleRate))
+        appendLE(UInt32(byteRate))
+        appendLE(UInt16(2))
+        appendLE(UInt16(16))
+        data.append(contentsOf: "data".utf8)
+        appendLE(UInt32(dataSize))
+        for sample in samples {
+            appendLE(UInt16(bitPattern: sample))
+        }
+
+        return data
+    }
+
+    private static func sound(for digit: Character) -> NSSound? {
+        let key = rowFrequencies[digit] != nil ? digit : fallbackDigit
+        if let cached = cache[key] { return cached }
+        guard let f1 = rowFrequencies[key], let f2 = colFrequencies[key] else { return nil }
+        let wav = makeWAVData(f1: f1, f2: f2)
+        guard let sound = NSSound(data: wav) else { return nil }
+        cache[key] = sound
+        return sound
+    }
+
+    private static func play(digit: Character) {
+        guard let sound = sound(for: digit) else { return }
+        sound.stop()
+        sound.play()
+    }
+
+    static func playAppKeypadSoundIfEnabled(digit: Character) {
+        guard UserDefaults.standard.object(forKey: "playAppKeypadSound") as? Bool ?? true else { return }
+        play(digit: digit)
+    }
+
+    static func playMenuBarKeypadSoundIfEnabled(digit: Character) {
+        guard UserDefaults.standard.object(forKey: "playMenuBarKeypadSound") as? Bool ?? true else { return }
+        play(digit: digit)
+    }
 }
