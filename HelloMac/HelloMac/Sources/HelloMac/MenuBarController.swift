@@ -208,11 +208,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         guard !isRefreshingMenuItems else { return }
         isRefreshingMenuItems = true
         defer { isRefreshingMenuItems = false }
-
-        // Αφαιρούμε τα πάντα για να τα ξαναχτίσουμε από την αρχή καθαρά
         menu.removeAllItems()
-        
-        // Αν είμαστε στα Πλήκτρα (Dialer)
         if isDialerActive {
             menu.addItem(dialerHeaderMenuItem)
             menu.addItem(dialerMenuItem)
@@ -220,10 +216,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
             menu.update()
             return
         }
-        
-        // Αν ΔΕΝ είμαστε στα πλήκτρα, δείχνουμε την Αναζήτηση
         menu.addItem(searchMenuItem)
-        
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         menu.addItem(NSMenuItem.separator())
         
@@ -663,8 +656,7 @@ class MenuBarDialerView: NSView {
     private func executeCall() {
         let number = displayField.stringValue.trimmingCharacters(in: .whitespaces)
         guard !number.isEmpty else { return }
-        
-        // --- ΛΟΓΙΚΗ ΤΑΧΕΙΑΣ ΚΛΗΣΗΣ ---
+
         if UserDefaults.standard.bool(forKey: "enableSpeedDial"), number.count == 1 {
             if let num = Int(number), num >= 1, num <= 9 {
                 if let target = UserDefaults.standard.string(forKey: "SpeedDial_\(num)"), !target.isEmpty {
@@ -673,20 +665,18 @@ class MenuBarDialerView: NSView {
                         onCall?(number)
                         return
                     }
-                    // Έλεγχος Λειτουργίας Απορρήτου
+
                     if PrivacyMode.shared.isEnabled {
                         PrivacyMode.shared.showBlockedAlert()
                         return
                     }
-                    // Εκτέλεση της ταχείας κλήσης στον αποθηκευμένο αριθμό
+
                     onCall?(target)
-                    displayField.stringValue = "" // Καθαρισμός του πεδίου
+                    displayField.stringValue = ""
                     return
                 }
             }
         }
-        
-        // --- ΚΑΝΟΝΙΚΗ ΚΛΗΣΗ ---
         onCall?(number)
     }
     
@@ -736,8 +726,6 @@ class MenuBarDialerKey: NSButton {
         super.init(frame: .zero)
         self.digit = digit
         self.title = digit
-        
-        // Φορμάρισμα του κειμένου (χρώμα και στοίχιση)
         let pStyle = NSMutableParagraphStyle()
         pStyle.alignment = .center
         self.attributedTitle = NSAttributedString(
@@ -746,19 +734,15 @@ class MenuBarDialerKey: NSButton {
         )
         
         self.isBordered = false
-        self.bezelStyle = .regularSquare // Απαραίτητο για custom μέγεθος στο NSButton
+        self.bezelStyle = .regularSquare
         self.wantsLayer = true
         self.layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
         self.layer?.cornerRadius = 21
-        
-        // --- ΕΠΑΝΑΦΟΡΑ ΤΩΝ ΔΙΑΣΤΑΣΕΩΝ ΠΟΥ ΕΛΕΙΠΑΝ ---
         self.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             self.widthAnchor.constraint(equalToConstant: 42),
             self.heightAnchor.constraint(equalToConstant: 42)
         ])
-        
-        // Σύνδεση με το εσωτερικό σύστημα του NSButton
         self.target = self
         self.action = #selector(handleClick)
     }
@@ -768,8 +752,6 @@ class MenuBarDialerKey: NSButton {
     @objc private func handleClick() {
         onTap?(digit)
     }
-    
-    // Εφέ Hover
     private var trackingArea: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -778,11 +760,8 @@ class MenuBarDialerKey: NSButton {
         addTrackingArea(area)
         trackingArea = area
     }
-    
     override func mouseEntered(with event: NSEvent) { layer?.backgroundColor = NSColor(white: 0.32, alpha: 1).cgColor }
     override func mouseExited(with event: NSEvent) { layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor }
-    
-    // Αφήνουμε το macOS να ελέγξει το κλικ μέσω του super.mouseDown
     override func mouseDown(with event: NSEvent) {
         layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
         super.mouseDown(with: event)
@@ -806,13 +785,9 @@ class MenuBarDialerActionBtn: NSButton {
         self.bezelStyle = .regularSquare
         self.wantsLayer = true
         self.layer?.cornerRadius = isPrimary ? 24 : 14
-        
-        // Στο κύριο πράσινο κουμπί βάζουμε το background
         if isPrimary { 
             self.layer?.backgroundColor = color.cgColor 
         }
-        
-        // Διαμόρφωση εικόνας μέσω του ανεξάρτητου NSImageView
         iconView.translatesAutoresizingMaskIntoConstraints = false
         let size = pointSize ?? (isPrimary ? 20 : 16)
         let w = weight ?? .medium
@@ -821,8 +796,6 @@ class MenuBarDialerActionBtn: NSButton {
         let img = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config)
         img?.isTemplate = true
         iconView.image = img
-        
-        // ΕΔΩ εξασφαλίζουμε ότι το πράσινο κουμπί θα έχει ΠΑΝΤΑ ΛΕΥΚΟ τηλέφωνο
         iconView.contentTintColor = isPrimary ? .white : color
         self.addSubview(iconView)
         
@@ -830,8 +803,6 @@ class MenuBarDialerActionBtn: NSButton {
             iconView.centerXAnchor.constraint(equalTo: self.centerXAnchor),
             iconView.centerYAnchor.constraint(equalTo: self.centerYAnchor)
         ])
-        
-        // Σύνδεση με το εσωτερικό σύστημα του NSButton
         self.target = self
         self.action = #selector(handleClick)
     }
@@ -841,8 +812,6 @@ class MenuBarDialerActionBtn: NSButton {
     @objc private func handleClick() {
         onTap?()
     }
-    
-    // Εφέ Hover
     private var trackingArea: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -877,8 +846,6 @@ class MenuBarDialerActionBtn: NSButton {
         super.mouseDown(with: event)
         mouseEntered(with: event)
     }
-    
-    // Ανανεώνει σωστά τα χρώματα όταν αλλάζει το Light/Dark Mode
     override func updateLayer() {
         super.updateLayer()
         if !isPrimary {

@@ -28,7 +28,7 @@ final class AccessibilityManager {
         static let boldText = "a11yBoldText"
         static let uiScale = "a11yUIScale"
         static let grayscale = "a11yGrayscale"
-        static let lightMode = "a11yLightMode" // Legacy
+        static let lightMode = "a11yLightMode"
         static let appTheme = "a11yAppTheme"
         static let largerHitTargets = "a11yLargerHitTargets"
     }

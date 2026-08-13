@@ -910,8 +910,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     
                     var current = ContactStore.shared.contacts
                     var addedCount = 0
-                    
-                    // Αποφυγή διπλότυπων
+
                     for newContact in imported {
                         if !current.contains(where: { $0.id == newContact.id || $0.phone.sanitizedForCall == newContact.phone.sanitizedForCall }) {
                             current.append(newContact)

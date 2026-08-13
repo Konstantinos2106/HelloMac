@@ -393,8 +393,7 @@ class NotificationsWindowController: NSWindowController, NSWindowDelegate {
         window.minSize = NSSize(width: 360, height: 200)
 
         super.init(window: window)
-        
-        // ΑΠΕΝΕΡΓΟΠΟΙΗΣΗ ΤΟΥ CASCADING (για να υπακούει στο δικό μας x, y)
+
         self.shouldCascadeWindows = false
         
         window.delegate = self
@@ -762,8 +761,7 @@ class NotificationsWindowController: NSWindowController, NSWindowDelegate {
         let heightDelta = sizedRect.height - win.frame.height
         newFrame.size.height = sizedRect.height
         newFrame.origin.y -= heightDelta
-        
-        // ANIMATION ΜΟΝΟ ΑΝ ΤΟ ΠΑΡΑΘΥΡΟ ΕΙΝΑΙ ΗΔΗ ΟΡΑΤΟ
+
         if win.isVisible {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.25
