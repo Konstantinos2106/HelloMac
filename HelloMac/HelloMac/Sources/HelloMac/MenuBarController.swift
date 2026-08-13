@@ -11,6 +11,8 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
     var dialerMenuItem: NSMenuItem!
     var dialerView: MenuBarDialerView!
     
+    private var isRefreshingMenuItems = false
+    
     override init() {
         super.init()
         setupStatusItem()
@@ -51,12 +53,10 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 searchField.translatesAutoresizingMaskIntoConstraints = false
                 headerView.addSubview(searchField)
                 
-                let keypadBtn = MenuBarDialerActionBtn(symbol: "circle.grid.3x3.fill", color: .labelColor)
-                if let iconView = keypadBtn.subviews.first as? NSImageView {
-                    let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
-                    iconView.image = NSImage(systemSymbolName: "circle.grid.3x3.fill", accessibilityDescription: nil)?.withSymbolConfiguration(config)
+                let keypadBtn = MenuBarDialerActionBtn(symbol: "circle.grid.3x3.fill", color: .labelColor, pointSize: 13, weight: .regular)
+                keypadBtn.onTap = { [weak self] in
+                    self?.toggleDialer()
                 }
-                keypadBtn.onTap = { [weak self] in self?.toggleDialer() }
                 keypadBtn.translatesAutoresizingMaskIntoConstraints = false
                 headerView.addSubview(keypadBtn)
                 
@@ -86,8 +86,10 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 dialerTitleLabel.translatesAutoresizingMaskIntoConstraints = false
                 dialerHeaderView.addSubview(dialerTitleLabel)
                 
-                let backBtn = MenuBarDialerActionBtn(symbol: "xmark.circle.fill", color: .labelColor)
-                backBtn.onTap = { [weak self] in self?.toggleDialer() }
+                let backBtn = MenuBarDialerActionBtn(symbol: "xmark.circle.fill", color: .labelColor, pointSize: 18, weight: .medium)
+                backBtn.onTap = { [weak self] in
+                    self?.toggleDialer()
+                }
                 backBtn.translatesAutoresizingMaskIntoConstraints = false
                 dialerHeaderView.addSubview(backBtn)
                 
@@ -120,6 +122,14 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 NSStatusBar.system.removeStatusItem(item)
                 statusItem = nil
             }
+            NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(toggleDialer), object: nil)
+            menu = nil
+            searchMenuItem = nil
+            dialerHeaderMenuItem = nil
+            dialerMenuItem = nil
+            dialerView = nil
+            searchField = nil
+            isDialerActive = false
         }
     }
     
@@ -128,17 +138,18 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         menu.addItem(searchMenuItem)
     }
     
-    func menuNeedsUpdate(_ menu: NSMenu) {
+    func menuWillOpen(_ menu: NSMenu) {
+        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(toggleDialer), object: nil)
         searchField.stringValue = ""
         isDialerActive = false
         dialerView.updatePlusButtonVisibility()
         refreshMenuItems(searchText: "")
-    
+
         DispatchQueue.main.async {
             self.searchField.window?.makeFirstResponder(nil)
         }
     }
-    
+       
     func menuDidClose(_ menu: NSMenu) {
         DispatchQueue.main.async { [weak self] in
             self?.statusItem?.button?.needsDisplay = true
@@ -192,24 +203,26 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         }
         return nil
     }
-    
+
     func refreshMenuItems(searchText: String) {
-        if let idx = menu.items.firstIndex(of: searchMenuItem) { menu.removeItem(at: idx) }
-        if let idx = menu.items.firstIndex(of: dialerHeaderMenuItem) { menu.removeItem(at: idx) }
-        if let idx = menu.items.firstIndex(of: dialerMenuItem) { menu.removeItem(at: idx) }
+        guard !isRefreshingMenuItems else { return }
+        isRefreshingMenuItems = true
+        defer { isRefreshingMenuItems = false }
+
+        // Αφαιρούμε τα πάντα για να τα ξαναχτίσουμε από την αρχή καθαρά
         menu.removeAllItems()
         
-        searchMenuItem.view?.isHidden = false
-        dialerHeaderMenuItem.view?.isHidden = false
-        dialerMenuItem.view?.isHidden = false
-        
-        menu.addItem(isDialerActive ? dialerHeaderMenuItem : searchMenuItem)
-        
+        // Αν είμαστε στα Πλήκτρα (Dialer)
         if isDialerActive {
+            menu.addItem(dialerHeaderMenuItem)
             menu.addItem(dialerMenuItem)
             addFooterItems()
+            menu.update()
             return
         }
+        
+        // Αν ΔΕΝ είμαστε στα πλήκτρα, δείχνουμε την Αναζήτηση
+        menu.addItem(searchMenuItem)
         
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         menu.addItem(NSMenuItem.separator())
@@ -227,6 +240,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         if PrivacyMode.shared.isEnabled && !query.isEmpty {
             menu.addItem(makeWrappingTextItem(L("privacy_mode_search_disabled")))
             addFooterItems()
+            menu.update()
             return
         }
         
@@ -261,12 +275,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
             
             if !overflowContacts.isEmpty {
                 let allOverflow = Array(overflowContacts)
-                let moreTitle: String
-                if query.isEmpty {
-                    moreTitle = L("menubar_more_favorites")
-                } else {
-                    moreTitle = L("menubar_more_results")
-                }
+                let moreTitle = query.isEmpty ? L("menubar_more_favorites") : L("menubar_more_results")
                 
                 let entries: [(title: String, symbol: String, action: () -> Void)] = allOverflow.map { contact in
                     let name = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName
@@ -322,7 +331,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         addFooterItems()
         menu.update()
     }
-    
+   
     private func addFooterItems() {
         menu.addItem(NSMenuItem.separator())
         
@@ -625,11 +634,7 @@ class MenuBarDialerView: NSView {
         
         let callBtn = MenuBarDialerActionBtn(symbol: "phone.fill", color: NSColor(red: 0.2, green: 0.78, blue: 0.35, alpha: 1), isPrimary: true)
         callBtn.onTap = { [weak self] in
-            guard let self = self else { return }
-            let number = self.displayField.stringValue.trimmingCharacters(in: .whitespaces)
-            if !number.isEmpty {
-                self.onCall?(number)
-            }
+            self?.executeCall()
         }
         callBtn.translatesAutoresizingMaskIntoConstraints = false
         addSubview(callBtn)
@@ -655,6 +660,36 @@ class MenuBarDialerView: NSView {
         ])
     }
     
+    private func executeCall() {
+        let number = displayField.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !number.isEmpty else { return }
+        
+        // --- ΛΟΓΙΚΗ ΤΑΧΕΙΑΣ ΚΛΗΣΗΣ ---
+        if UserDefaults.standard.bool(forKey: "enableSpeedDial"), number.count == 1 {
+            if let num = Int(number), num >= 1, num <= 9 {
+                if let target = UserDefaults.standard.string(forKey: "SpeedDial_\(num)"), !target.isEmpty {
+                    // Αν υπάρχει αποθηκευμένος αριθμός αλλά είναι κενός (π.χ. λάθος), κάνε κανονική κλήση του ψηφίου
+                    guard !target.sanitizedForCall.isEmpty else {
+                        onCall?(number)
+                        return
+                    }
+                    // Έλεγχος Λειτουργίας Απορρήτου
+                    if PrivacyMode.shared.isEnabled {
+                        PrivacyMode.shared.showBlockedAlert()
+                        return
+                    }
+                    // Εκτέλεση της ταχείας κλήσης στον αποθηκευμένο αριθμό
+                    onCall?(target)
+                    displayField.stringValue = "" // Καθαρισμός του πεδίου
+                    return
+                }
+            }
+        }
+        
+        // --- ΚΑΝΟΝΙΚΗ ΚΛΗΣΗ ---
+        onCall?(number)
+    }
+    
     // MARK: - Διαχείριση Πληκτρολογίου & Επικόλλησης (Paste)
     
     @objc func paste(_ sender: Any?) {
@@ -670,8 +705,7 @@ class MenuBarDialerView: NSView {
     override func keyDown(with event: NSEvent) {
         if let chars = event.characters {
             if chars == "\r" || chars == "\u{3}" {
-                let number = displayField.stringValue.trimmingCharacters(in: .whitespaces)
-                if !number.isEmpty { onCall?(number) }
+                executeCall()
                 return
             }
             
@@ -694,101 +728,164 @@ class MenuBarDialerView: NSView {
     }
 }
 
-class MenuBarDialerKey: NSView {
+class MenuBarDialerKey: NSButton {
     var digit: String = ""
     var onTap: ((String) -> Void)?
-    
-    private let label = NSTextField(labelWithString: "")
     
     init(digit: String) {
         super.init(frame: .zero)
         self.digit = digit
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
-        layer?.cornerRadius = 21
+        self.title = digit
         
-        label.stringValue = digit
-        label.font = NSFont.systemFont(ofSize: 20, weight: .regular)
-        label.textColor = .white
-        label.alignment = .center
-        label.isEditable = false
-        label.isBordered = false
-        label.drawsBackground = false
-        label.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(label)
+        // Φορμάρισμα του κειμένου (χρώμα και στοίχιση)
+        let pStyle = NSMutableParagraphStyle()
+        pStyle.alignment = .center
+        self.attributedTitle = NSAttributedString(
+            string: digit,
+            attributes: [.foregroundColor: NSColor.white, .font: NSFont.systemFont(ofSize: 20, weight: .regular), .paragraphStyle: pStyle]
+        )
         
+        self.isBordered = false
+        self.bezelStyle = .regularSquare // Απαραίτητο για custom μέγεθος στο NSButton
+        self.wantsLayer = true
+        self.layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+        self.layer?.cornerRadius = 21
+        
+        // --- ΕΠΑΝΑΦΟΡΑ ΤΩΝ ΔΙΑΣΤΑΣΕΩΝ ΠΟΥ ΕΛΕΙΠΑΝ ---
+        self.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            widthAnchor.constraint(equalToConstant: 42),
-            heightAnchor.constraint(equalToConstant: 42),
-            label.centerXAnchor.constraint(equalTo: centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+            self.widthAnchor.constraint(equalToConstant: 42),
+            self.heightAnchor.constraint(equalToConstant: 42)
         ])
         
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+        // Σύνδεση με το εσωτερικό σύστημα του NSButton
+        self.target = self
+        self.action = #selector(handleClick)
     }
     
     required init?(coder: NSCoder) { fatalError() }
+    
+    @objc private func handleClick() {
+        onTap?(digit)
+    }
+    
+    // Εφέ Hover
+    private var trackingArea: NSTrackingArea?
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingArea { removeTrackingArea(existing) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+    }
     
     override func mouseEntered(with event: NSEvent) { layer?.backgroundColor = NSColor(white: 0.32, alpha: 1).cgColor }
     override func mouseExited(with event: NSEvent) { layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor }
-    override func mouseDown(with event: NSEvent) { layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor }
-    override func mouseUp(with event: NSEvent) { 
-        layer?.backgroundColor = NSColor(white: 0.32, alpha: 1).cgColor 
-        onTap?(digit)
+    
+    // Αφήνουμε το macOS να ελέγξει το κλικ μέσω του super.mouseDown
+    override func mouseDown(with event: NSEvent) {
+        layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
+        super.mouseDown(with: event)
+        layer?.backgroundColor = NSColor(white: 0.32, alpha: 1).cgColor
     }
 }
 
-class MenuBarDialerActionBtn: NSView {
+class MenuBarDialerActionBtn: NSButton {
     var onTap: (() -> Void)?
     private var baseColor: NSColor
     private var isPrimary: Bool
-    private var icon: NSImageView!
+    private let iconView = NSImageView()
     
-    init(symbol: String, color: NSColor, isPrimary: Bool = false) {
+    init(symbol: String, color: NSColor, isPrimary: Bool = false, pointSize: CGFloat? = nil, weight: NSFont.Weight? = nil) {
         self.baseColor = color
         self.isPrimary = isPrimary
         super.init(frame: .zero)
-        wantsLayer = true
-        layer?.cornerRadius = isPrimary ? 24 : 14
-        if isPrimary { layer?.backgroundColor = color.cgColor }
         
-        let config = NSImage.SymbolConfiguration(pointSize: isPrimary ? 20 : 16, weight: .medium)
-        icon = NSImageView(image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config) ?? NSImage())
-        icon.contentTintColor = isPrimary ? .white : color
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(icon)
+        self.title = ""
+        self.isBordered = false
+        self.bezelStyle = .regularSquare
+        self.wantsLayer = true
+        self.layer?.cornerRadius = isPrimary ? 24 : 14
+        
+        // Στο κύριο πράσινο κουμπί βάζουμε το background
+        if isPrimary { 
+            self.layer?.backgroundColor = color.cgColor 
+        }
+        
+        // Διαμόρφωση εικόνας μέσω του ανεξάρτητου NSImageView
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        let size = pointSize ?? (isPrimary ? 20 : 16)
+        let w = weight ?? .medium
+        let config = NSImage.SymbolConfiguration(pointSize: size, weight: w)
+        
+        let img = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config)
+        img?.isTemplate = true
+        iconView.image = img
+        
+        // ΕΔΩ εξασφαλίζουμε ότι το πράσινο κουμπί θα έχει ΠΑΝΤΑ ΛΕΥΚΟ τηλέφωνο
+        iconView.contentTintColor = isPrimary ? .white : color
+        self.addSubview(iconView)
         
         NSLayoutConstraint.activate([
-            icon.centerXAnchor.constraint(equalTo: centerXAnchor),
-            icon.centerYAnchor.constraint(equalTo: centerYAnchor)
+            iconView.centerXAnchor.constraint(equalTo: self.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: self.centerYAnchor)
         ])
         
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self))
+        // Σύνδεση με το εσωτερικό σύστημα του NSButton
+        self.target = self
+        self.action = #selector(handleClick)
     }
     
     required init?(coder: NSCoder) { fatalError() }
     
-    override func mouseEntered(with event: NSEvent) { 
-        if isPrimary { layer?.backgroundColor = baseColor.blended(withFraction: 0.2, of: .white)?.cgColor }
-        else { layer?.backgroundColor = NSColor(white: 1, alpha: 0.1).cgColor }
-    }
-    override func mouseExited(with event: NSEvent) {
-        if isPrimary { layer?.backgroundColor = baseColor.cgColor }
-        else { layer?.backgroundColor = .clear }
-    }
-    override func mouseDown(with event: NSEvent) {
-        if isPrimary { layer?.backgroundColor = baseColor.blended(withFraction: 0.2, of: .black)?.cgColor }
-        else { layer?.backgroundColor = NSColor(white: 1, alpha: 0.2).cgColor }
-    }
-    override func mouseUp(with event: NSEvent) { 
-        mouseEntered(with: event)
+    @objc private func handleClick() {
         onTap?()
     }
     
+    // Εφέ Hover
+    private var trackingArea: NSTrackingArea?
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingArea { removeTrackingArea(existing) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+    
+    override func mouseEntered(with event: NSEvent) { 
+        if isPrimary { 
+            layer?.backgroundColor = baseColor.blended(withFraction: 0.2, of: .white)?.cgColor 
+        } else { 
+            layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.1).cgColor 
+        }
+    }
+    
+    override func mouseExited(with event: NSEvent) {
+        if isPrimary { 
+            layer?.backgroundColor = baseColor.cgColor 
+        } else { 
+            layer?.backgroundColor = NSColor.clear.cgColor 
+        }
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        if isPrimary { 
+            layer?.backgroundColor = baseColor.blended(withFraction: 0.2, of: .black)?.cgColor 
+        } else { 
+            layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.2).cgColor 
+        }
+        super.mouseDown(with: event)
+        mouseEntered(with: event)
+    }
+    
+    // Ανανεώνει σωστά τα χρώματα όταν αλλάζει το Light/Dark Mode
     override func updateLayer() {
         super.updateLayer()
         if !isPrimary {
-            icon.contentTintColor = baseColor
+            iconView.contentTintColor = baseColor
+        } else {
+            iconView.contentTintColor = .white
+            layer?.backgroundColor = baseColor.cgColor
         }
     }
 }
