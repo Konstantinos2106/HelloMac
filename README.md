@@ -58,7 +58,7 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 ### 📥 Installation
 
 1. Go to the [Releases](../../releases) page.
-2. Download the latest version: `HelloMac.Χ.Χ.Χ.dmg`.
+2. Download the latest version: `HelloMac.v.Χ.Χ.Χ.dmg`.
 3. Open the file and drag **HelloMac** to your `Applications` folder.
 
 ### ✏️ Notes
@@ -78,7 +78,7 @@ You can contact me for suggestions and issues via email [here](mailto:hellomac.s
 
 ### 📜 License
 
-This project is available under the [MIT License](LICENSE) - see the LICENSE file for details.<br>
+This project is available under the [GPL-3.0 License](LICENSE) - see the LICENSE file for details.<br>
 HelloMac is an open-source project and is not affiliated with, endorsed by, or sponsored by Apple Inc. or any other entity. iPhone, Mac, macOS, and FaceTime are trademarks of Apple Inc.
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
@@ -109,7 +109,7 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 ### 📥 Εγκατάσταση
 
 1. Μεταβείτε στη σελίδα [Releases](../../releases).
-2. Κατεβάστε το αρχείο `HelloMac.Χ.Χ.Χ.dmg`.
+2. Κατεβάστε το αρχείο `HelloMac.v.Χ.Χ.Χ.dmg`.
 3. Ανοίξτε το και σύρετε το **HelloMac** στον φάκελο `Εφαρμογές` (Applications).
 
 ### ✏️ Σημειώσεις
@@ -129,7 +129,7 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 
 ### 📜 Άδεια Χρήσης
 
-Αυτό το project διατίθεται υπό την [Άδεια MIT](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
+Αυτό το project διατίθεται υπό την [Άδεια GPL-3.0](LICENSE) - δείτε το αρχείο LICENSE για λεπτομέρειες.<br>
 Το HelloMac είναι ένα project ανοιχτού κώδικα και δεν σχετίζεται, δεν υποστηρίζεται ούτε χρηματοδοτείται από την Apple Inc ή κάποια άλλη πηγή. Τα ονόματα iPhone, Mac, macOS και FaceTime είναι εμπορικά σήματα της Apple Inc.
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
