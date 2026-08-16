@@ -749,24 +749,24 @@
         <!-- Το νέο πλέγμα 3 στηλών με τις σταθερές εικόνες -->
         <div class="screenshots-grid" id="screenshots-grid">
           <!-- 1: Αγαπημένα -->
-          <div class="screenshot-card" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1el.png" alt="Αγαπημένα" loading="lazy"></div>
-          <div class="screenshot-card" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1en.png" alt="Favorites" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1el" alt="Αγαπημένα" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1en" alt="Favorites" loading="lazy"></div>
           
           <!-- 2: Ιστορικό -->
-          <div class="screenshot-card" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2el.png" alt="Ιστορικό" loading="lazy"></div>
-          <div class="screenshot-card" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2en.png" alt="History" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2el" alt="Ιστορικό" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2en" alt="History" loading="lazy"></div>
           
           <!-- 3: Επαφές -->
-          <div class="screenshot-card" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3el.png" alt="Επαφές" loading="lazy"></div>
-          <div class="screenshot-card" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3en.png" alt="Contacts" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3el" alt="Επαφές" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3en" alt="Contacts" loading="lazy"></div>
           
           <!-- 4: Πλήκτρα -->
-          <div class="screenshot-card" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac4el.png" alt="Πληκτρολόγιο" loading="lazy"></div>
-          <div class="screenshot-card" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac4en.png" alt="Keypad" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac4el" alt="Πληκτρολόγιο" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac4en" alt="Keypad" loading="lazy"></div>
           
           <!-- 5: Λεπτομέρειες Επαφής -->
-          <div class="screenshot-card span-2" data-lang="el"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac5el.png" alt="Λεπτομέρειες Επαφής" loading="lazy"></div>
-          <div class="screenshot-card span-2" data-lang="en"><img src="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac5en.png" alt="Contact Details" loading="lazy"></div>
+          <div class="screenshot-card span-2" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac5el" alt="Λεπτομέρειες Επαφής" loading="lazy"></div>
+          <div class="screenshot-card span-2" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac5en" alt="Contact Details" loading="lazy"></div>
         </div>
       </div>
 
@@ -995,6 +995,15 @@ const themeToggle = document.getElementById('theme-toggle');
 const iconSun = document.getElementById('icon-sun');
 const iconMoon = document.getElementById('icon-moon');
 
+// Ενημερώνει όλα τα screenshots (.theme-shot) ώστε να δείχνουν _lm ή _dm ανάλογα με το τρέχον θέμα
+function updateThemeShots() {
+  const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'lm' : 'dm';
+  document.querySelectorAll('img.theme-shot').forEach(img => {
+    const base = img.getAttribute('data-base');
+    if (base) img.src = `${base}_${theme}.png`;
+  });
+}
+
 themeToggle.addEventListener('click', () => {
   const current = document.documentElement.getAttribute('data-theme');
   if(current === 'dark') {
@@ -1006,7 +1015,11 @@ themeToggle.addEventListener('click', () => {
     iconSun.style.display = 'none';
     iconMoon.style.display = 'block';
   }
+  updateThemeShots();
 });
+
+// Αρχική εφαρμογή κατά το φόρτωμα της σελίδας
+updateThemeShots();
 
 // ── Markdown Parser για το Release Notes ──
 function parseMarkdown(text) {
