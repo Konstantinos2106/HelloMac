@@ -391,12 +391,6 @@ class ImageCropWindowController: NSWindowController {
         finish(with: cropView.exportCroppedImage())
     }
 
-    // Κρατάμε ρητή αναφορά στο parent window με το οποίο ανοίξαμε το sheet, αντί να
-    // βασιζόμαστε στο sheetWindow.sheetParent τη στιγμή του finish(). Το sheetParent
-    // μπορεί να έχει ήδη γίνει nil σε ορισμένα timing/animation σενάρια, οπότε παλιότερα
-    // το endSheet δεν καλούνταν καθόλου· το parent window έμενε "κλειδωμένο" με ένα
-    // sheet που το σύστημα θεωρούσε ακόμα attached, με αποτέλεσμα κάθε μελλοντικό
-    // window?.close() σε αυτό (π.χ. μετά το "Αποθήκευση") να αγνοείται σιωπηλά.
     private weak var presentingParentWindow: NSWindow?
 
     private func finish(with image: NSImage?) {
@@ -404,8 +398,6 @@ class ImageCropWindowController: NSWindowController {
 
         guard let sheetWindow = window else { return }
 
-        // Προτιμάμε το parent window που θυμόμαστε ρητά από το present(on:).
-        // Αν αυτό δεν είναι πλέον διαθέσιμο, πέφτουμε πίσω στο sheetParent ως fallback.
         let parent = presentingParentWindow ?? sheetWindow.sheetParent
         guard let parent = parent, parent.attachedSheet === sheetWindow else { return }
         parent.endSheet(sheetWindow)

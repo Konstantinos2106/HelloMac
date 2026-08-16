@@ -200,11 +200,6 @@ class RoundAvatarView: NSView {
             imageView.isHidden = true
             initialsLabel.isHidden = false
             initialsLabel.stringValue = privacyOn ? PrivacyMode.shared.maskedInitials : storedInitials
-            // Χρησιμοποιούμε ένα σταθερό seed ανά επαφή (π.χ. το contact id) και όχι μόνο
-            // τα 1-2 αρχικά γράμματα. Έτσι το χρώμα παραμένει ΙΔΙΟ σε κάθε άνοιγμα (καθαρή
-            // συνάρτηση, χωρίς κανένα global/mutable state), ΚΑΙ ταυτόχρονα επαφές που
-            // ξεκινούν από το ίδιο γράμμα (π.χ. πολλά "Λ...") δεν καταλήγουν συστηματικά
-            // στο ίδιο ή σε γειτονικό χρώμα, αφού το hash δεν βασίζεται μόνο στα αρχικά.
             let seed = (storedColorSeed?.isEmpty == false ? storedColorSeed! : storedInitials)
             let baseColor = storedColorOverride ?? RoundAvatarView.colorForSeed(seed)
             layer?.backgroundColor = a11y.adjustedColor(baseColor).cgColor
@@ -213,12 +208,6 @@ class RoundAvatarView: NSView {
         }
     }
 
-    /// Παλαιότερα αυτή η μέθοδος μηδένιζε ένα global "τελευταίο χρώμα" ώστε οι λίστες
-    /// επαφών να ξεκινούν "φρέσκες" σε κάθε reload. Αυτό ήταν ακριβώς η αιτία που το ίδιο
-    /// άτομο μπορούσε να εμφανίζεται με διαφορετικό χρώμα σε διαφορετικά ανοίγματα, αφού
-    /// το χρώμα εξαρτιόταν από τη σειρά rendering. Το χρώμα υπολογίζεται πλέον αμιγώς από
-    /// το seed της επαφής (colorIndexForSeed), οπότε δεν υπάρχει πια state να μηδενιστεί.
-    /// Η μέθοδος παραμένει ως no-op για συμβατότητα με τα υπάρχοντα call sites.
     static func resetColorSequence() {
         // Σκόπιμα κενό.
     }
@@ -228,18 +217,12 @@ class RoundAvatarView: NSView {
     }
 
     private static func colorIndexForSeed(_ seed: String) -> Int {
-        // FNV-1a hash πάνω στο πλήρες seed (π.χ. contact id/όνομα), όχι μόνο στα 1-2 αρχικά.
-        // Αυτό δίνει καλή διασπορά ανάμεσα σε επαφές που μοιράζονται το ίδιο πρώτο γράμμα,
-        // χωρίς να χρειάζεται κανένα state που εξαρτάται από τη σειρά ανοίγματος.
         var hash: UInt64 = 0xcbf29ce484222325
         let prime: UInt64 = 0x100000001b3
         for scalar in seed.unicodeScalars {
             hash ^= UInt64(scalar.value)
             hash = hash &* prime
         }
-        // Extra avalanche mix ώστε μικρές/παρόμοιες αλλαγές στο seed (π.χ. ίδιο πρώτο
-        // γράμμα, διαφορετικό υπόλοιπο όνομα) να σκορπίζονται πιο ομοιόμορφα στην palette,
-        // αντί να μένουν κοντά λόγω των ιδιοτήτων του FNV σε μικρά/παρόμοια strings.
         hash ^= (hash >> 33)
         hash = hash &* 0xff51afd7ed558ccd
         hash ^= (hash >> 33)
@@ -627,10 +610,6 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
         notesTextView = NSTextView()
         notesTextView.delegate = self
         notesTextView.font = NSFont.systemFont(ofSize: 13)
-        // Πάντα το χρώμα "βάσης" (σκούρο θέμα)· ο AccessibilityManager το αντιστρέφει ήδη
-        // αυτόματα σε light mode μέσω του captured a11yBaseTextColor όταν καλείται
-        // applyToViewTree. Αν εδώ μπει ήδη το αντεστραμμένο χρώμα, ο μηχανισμός inversion
-        // το ξανααντιστρέφει και το κείμενο καταλήγει λευκό πάνω σε λευκό σε light mode.
         notesTextView.textColor = .white
         notesTextView.drawsBackground = false
         notesTextView.isRichText = false
@@ -711,8 +690,6 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
     
     private func setNotesPlaceholderVisible(_ visible: Bool) {
         notesIsShowingPlaceholder = visible
-        // Πάντα χρώμα "βάσης" (σκούρο θέμα)· ο AccessibilityManager αντιστρέφει ήδη
-        // αυτόματα σε light mode, δεν χρειάζεται να το κάνουμε εμείς εδώ ξανά.
         if visible {
             notesTextView.string = L("notes_placeholder")
             notesTextView.textColor = NSColor(white: 0.45, alpha: 1)
@@ -1009,10 +986,6 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
         closeWindowClearingAnyStuckSheet()
     }
 
-    /// Ένα NSWindow αγνοεί σιωπηλά το close() όσο έχει ένα attached sheet (π.χ. το
-    /// crop sheet της φωτογραφίας). Ως πρόσθετη ασφάλεια πέρα από τη διόρθωση στο
-    /// ImageCropWindowController, αν παραμείνει "κολλημένο" οποιοδήποτε sheet πάνω σε
-    /// αυτό το παράθυρο, το κλείνουμε πρώτα ώστε το "Αποθήκευση"/"Άκυρο" να δουλεύει πάντα.
     private func closeWindowClearingAnyStuckSheet() {
         if let win = window, let stuckSheet = win.attachedSheet {
             win.endSheet(stuckSheet)
@@ -2622,11 +2595,7 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
         rnTextView.isRichText = true
         rnTextView.textContainerInset = NSSize(width: 12, height: 12)
         rnTextView.delegate = self
-        // Χωρίς αυτό, το NSTextView επιβάλλει το δικό του default μπλε χρώμα +
-        // underline σε ΚΑΘΕ run που έχει .link attribute, παρακάμπτοντας οποιοδήποτε
-        // .foregroundColor έχουμε ορίσει εμείς (π.χ. στα <details> summaries).
         rnTextView.linkTextAttributes = [:]
-        // Απαραίτητο για ομαλό fade animation (alphaValue) όταν ανοιγοκλείνει ένα <details>.
         rnTextView.wantsLayer = true
         releaseNotesTextView = rnTextView
         
@@ -3169,11 +3138,7 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
             textView.textStorage?.setAttributedString(newAttrString)
             return
         }
-        
-        // Ομαλό cross-fade αντί για απότομη εναλλαγή περιεχομένου. Ένα NSTextView δεν
-        // υποστηρίζει "height animation" out of the box (η αλλαγή στο attributed string
-        // είναι στιγμιαία), οπότε προσομοιώνουμε ομαλότητα με ένα γρήγορο fade-out του
-        // παλιού κειμένου, αντικατάσταση περιεχομένου, και fade-in του νέου.
+
         let fadeOutDuration: TimeInterval = 0.08
         let fadeInDuration: TimeInterval = 0.16
         
@@ -3193,13 +3158,6 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
         })
     }
 
-    /// Παράγει ένα σταθερό (deterministic) id για ένα <details> block, βασισμένο στο
-    /// περιεχόμενό του. ΣΗΜΑΝΤΙΚΟ: πριν χρησιμοποιούσαμε UUID().uuidString, το οποίο
-    /// παρήγαγε ΚΑΙΝΟΥΡΓΙΟ τυχαίο id σε κάθε κλήση — δηλαδή σε κάθε renderReleaseNotes()
-    /// (άρα και σε κάθε κλικ). Το releaseNotesOpenDetailsIDs όμως κρατούσε το ΠΑΛΙΟ id,
-    /// οπότε μετά το πρώτο re-render το "isOpen" check απέτυχε πάντα και το περιεχόμενο
-    /// δεν εμφανιζόταν ποτέ. Με σταθερό id (hash του summary+content) το άνοιγμα/κλείσιμο
-    /// επιβιώνει σε κάθε rebuild του attributed string.
     private func stableDetailsID(summary: String, content: String) -> String {
         let combined = summary + "\u{0}" + content
         var hasher = Hasher()
@@ -3226,8 +3184,6 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
             let summary = ns.substring(with: summaryRange).trimmingCharacters(in: .whitespacesAndNewlines)
             let content = ns.substring(with: contentRange).trimmingCharacters(in: .whitespacesAndNewlines)
             let id = stableDetailsID(summary: summary, content: content)
-            // Χρησιμοποιούμε merge αντί για removeAll+overwrite, ώστε τα ήδη γνωστά
-            // (π.χ. από προηγούμενο recursive parse εμφωλευμένων details) να μην χαθούν.
             releaseNotesDetailsBlocks[id] = (summary: summary, content: content)
             replacements.append((match.range, "@@DETAILS:\(id)@@"))
         }
@@ -3352,9 +3308,7 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
                         .underlineStyle: NSUnderlineStyle.single.rawValue
                     ], range: labelRange)
                 }
-                // Αφαίρεση "](url)" μετά το κείμενο του link
                 attrString.replaceCharacters(in: NSRange(location: labelRange.upperBound, length: match.range.upperBound - labelRange.upperBound), with: "")
-                // Αφαίρεση "[" πριν το κείμενο του link
                 attrString.replaceCharacters(in: NSRange(location: labelRange.lowerBound - 1, length: 1), with: "")
             }
         }
@@ -3383,10 +3337,7 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
                 attrString.replaceCharacters(in: match.range, with: "───────────────")
             }
         }
-        
-        // Επανεισαγωγή των <details> blocks ως clickable toggle γραμμές.
-        // Ανοιχτά details εμφανίζουν "▼ summary" + το περιεχόμενο parsed αναδρομικά.
-        // Κλειστά εμφανίζουν μόνο "▶ summary" σαν clickable link.
+
         if !releaseNotesDetailsBlocks.isEmpty,
            let regex = try? NSRegularExpression(pattern: "@@DETAILS:([0-9A-Fa-f\\-]+)@@") {
             let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
@@ -3408,14 +3359,11 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
                     .link: URL(string: "hellomac-details://\(id)")!,
                     .cursor: NSCursor.pointingHand
                 ])
-                // Το summary είναι ήδη μέσα σε boldFont ως link title, οπότε τα **έντονα**
-                // μαρκαρίσματα εντός του απλά αφαιρούνται (ήδη bold) — εδώ φροντίζουμε μόνο
-                // να μην απομείνει κανένα raw ** ή <b>/</b> στο ορατό κείμενο.
+
                 replacement.append(summaryAttr)
                 
                 if isOpen {
                     replacement.append(NSAttributedString(string: "\n"))
-                    // Αναδρομικό parsing του κρυμμένου περιεχομένου (χωρίς να ξαναχτίσει τα δικά του details αν υπάρχουν εμφωλευμένα)
                     let innerAttr = parseMarkdown(block.content)
                     replacement.append(innerAttr)
                 }
@@ -3444,9 +3392,6 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
             renderReleaseNotes(animated: true)
             
             if isOpening {
-                // Περιμένουμε να ολοκληρωθεί το fade animation πριν κάνουμε scroll,
-                // αλλιώς θα υπολογιστεί/εκτελεστεί το scroll πάνω σε ημιτελές layout
-                // ή θα διακόψει οπτικά το ίδιο το animation.
                 let totalAnimationDelay: TimeInterval = 0.08 + 0.16 + 0.02
                 DispatchQueue.main.asyncAfter(deadline: .now() + totalAnimationDelay) { [weak self] in
                     self?.scrollReleaseNotesToLink(withPrefix: "hellomac-details://\(id)")
@@ -3462,22 +3407,14 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
         
         return false
     }
-    
-    /// Κάνει scroll το release notes textView ώστε να είναι ορατό το link που ξεκινά
-    /// με το δοσμένο URL prefix, μαζί με λίγο χώρο από κάτω για το μόλις ξεδιπλωμένο περιεχόμενο.
+
     private func scrollReleaseNotesToLink(withPrefix prefix: String) {
         guard let textView = releaseNotesTextView,
               let textStorage = textView.textStorage,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer,
               let scrollView = textView.enclosingScrollView else { return }
-        
-        // ΣΗΜΑΝΤΙΚΟ: μετά από setAttributedString το νέο (μεγαλύτερο) περιεχόμενο
-        // δεν έχει ακόμα αναγκαστικά προκαλέσει resize του ίδιου του NSTextView μέσα
-        // στο scroll view. Αν δεν το κάνουμε αυτό εδώ πριν υπολογίσουμε/κάνουμε scroll,
-        // το documentView frame είναι ακόμα το παλιό (κοντύτερο), το scrollToVisible
-        // κάνει clamp σε λάθος (παλιό) μέγιστο ύψος, και ο χρήστης "πετάγεται" κάπου
-        // στη μέση αντί να δει το μόλις ξεδιπλωμένο σημείο.
+
         layoutManager.ensureLayout(for: textContainer)
         textView.sizeToFit()
         scrollView.layoutSubtreeIfNeeded()
@@ -3499,7 +3436,6 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
         var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
         rect.origin.x += textView.textContainerInset.width
         rect.origin.y += textView.textContainerInset.height
-        // Επεκτείνουμε λίγο προς τα κάτω ώστε να φαίνεται και η αρχή του ξεδιπλωμένου περιεχομένου
         rect.size.height += 80
         
         textView.scrollToVisible(rect)
@@ -3762,21 +3698,12 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
         ]
         let isContentAffecting = contentAffectingKeys.contains(sender.identifier?.rawValue ?? "")
 
-        // Μόνο το κουμπί μηνυμάτων επηρεάζει πραγματικά τις ίδιες τις γραμμές της λίστας
-        // Επαφών (υπάρχει ξεχωριστό κουμπί μέσα σε κάθε ContactRow, δίπλα στις τρεις
-        // τελίτσες), οπότε μόνο αυτό χρειάζεται πλήρες rebuild για να ενημερωθεί.
         let needsHeavyRebuildKeys: Set<String> = [
             "showMessagesButton"
         ]
         let needsHeavyRebuild = needsHeavyRebuildKeys.contains(sender.identifier?.rawValue ?? "")
 
         if isContentAffecting {
-            // Αυτοί οι δύο διακόπτες επηρεάζουν μόνο το ήδη ανοιχτό πάνελ λεπτομερειών
-            // επαφής (σημειώσεις/ιστορικό). Παλιότερα περνούσαν από το ίδιο
-            // needsFullRebuild == true μονοπάτι με τους διακόπτες μενού, το οποίο
-            // ξαναχτίζει από την αρχή ΟΛΕΣ τις λίστες (Επαφές/Αγαπημένα/Ιστορικό) — κάτι
-            // αισθητά πιο αργό, γι' αυτό δεν έμοιαζε στιγμιαίο. Εδώ ενημερώνουμε απευθείας
-            // μόνο το ανοιχτό detail panel, χωρίς κανένα βαρύ rebuild λίστας.
             NotificationCenter.default.post(
                 name: NSNotification.Name("UpdateUIVisibility"),
                 object: nil,
@@ -3789,11 +3716,6 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
                 userInfo: ["needsFullRebuild": true]
             )
         } else {
-            // Ελαφρύ μονοπάτι για όλους τους υπόλοιπους διακόπτες (μενού Επαφές/
-            // Πληκτρολόγιο/Αγαπημένα/Ιστορικό, πλήκτρα "+", menu bar icon, ταχεία κλήση,
-            // κουμπιά υπενθύμισης κ.λπ.): ενημερώνει άμεσα ορατότητα/spacing χωρίς το
-            // βαρύ πλήρες rebuild των λιστών επαφών, αφού κανένας από αυτούς δεν
-            // επηρεάζει δεδομένα ή γραμμές λίστας.
             NotificationCenter.default.post(
                 name: NSNotification.Name("UpdateUIVisibility"),
                 object: nil,
