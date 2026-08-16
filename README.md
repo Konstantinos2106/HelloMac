@@ -20,22 +20,6 @@
 
 ---
 
-## 📸 Screenshots / Στιγμιότυπα
-
-<p align="center">
-  <img src="Icns_Photos/HelloMac1en_dm.png" alt="HelloMac Favorites" width="30%">
-  &nbsp;
-  <img src="Icns_Photos/HelloMac2en_dm.png" alt="HelloMac Contacts" width="30%">
-  &nbsp;
-  <img src="Icns_Photos/HelloMac3en_dm.png" alt="HelloMac Keypad" width="30%">
-  &nbsp;
-  <img src="Icns_Photos/HelloMac4en_dm.png" alt="HelloMac Keypad" width="30%">
-  &nbsp;
-  <img src="Icns_Photos/HelloMac5en_dm.png" alt="HelloMac Keypad" width="59%">
-</p>
-
----
-
 ## About HelloMac
 
 In older versions of macOS (before version 26 'Tahoe'), there is no standalone 'Phone' app, forcing users to open FaceTime or Contacts for a simple call.<br>
@@ -54,6 +38,34 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 * **SMS & iMessage:** Instantly send messages directly via the native macOS Messages app.
 * **Accessibility & Time Zone:** High contrast, text scaling, black & white view, and manual time zone selection.
 * **Backups & Auto-Updates:** Create full local data backups and enjoy smart background updates.
+
+### 📸 Screenshots (Dark Mode)
+
+<p align="center">
+  <img src="Icns_Photos/HelloMac1en_dm.png" alt="HelloMac Favorites" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac2en_dm.png" alt="HelloMac Contacts" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac3en_dm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac4en_dm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac5en_dm.png" alt="HelloMac Keypad" width="62%">
+</p>
+
+### 📸 Screenshots (Light Mode)
+
+<p align="center">
+  <img src="Icns_Photos/HelloMac1en_lm.png" alt="HelloMac Favorites" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac2en_lm.png" alt="HelloMac Contacts" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac3en_lm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac4en_lm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac5en_lm.png" alt="HelloMac Keypad" width="62%">
+</p>
 
 ### 📥 Installation
 
@@ -105,6 +117,35 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 * **SMS & iMessage:** Άμεση αποστολή μηνυμάτων μέσω της εγγενούς εφαρμογής Μηνύματα του macOS.
 * **Προσβασιμότητα & Ζώνη Ώρας:** Υψηλή αντίθεση, μεγέθυνση κειμένου, ασπρόμαυρη προβολή και χειροκίνητη επιλογή ζώνης ώρας.
 * **Αντίγραφα Ασφαλείας & Αυτόματες Ενημερώσεις:** Τοπικά αντίγραφα ασφαλείας δεδομένων και έξυπνες ενημερώσεις στο παρασκήνιο.
+
+### 📸 Στιγμιότυπα (Σκουρόχρωμη Λειτουργία)
+
+<p align="center">
+  <img src="Icns_Photos/HelloMac1el_dm.png" alt="HelloMac Favorites" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac2el_dm.png" alt="HelloMac Contacts" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac3el_dm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac4el_dm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac5el_dm.png" alt="HelloMac Keypad" width="62%">
+</p>
+
+### 📸 Στιγμιότυπα (Ανοιχτόχρωμη Λειτουργία)
+
+<p align="center">
+  <img src="Icns_Photos/HelloMac1el_lm.png" alt="HelloMac Favorites" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac2el_lm.png" alt="HelloMac Contacts" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac3el_lm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac4el_lm.png" alt="HelloMac Keypad" width="30%">
+  &nbsp;
+  <img src="Icns_Photos/HelloMac5el_lm.png" alt="HelloMac Keypad" width="62%">
+</p>
+
 
 ### 📥 Εγκατάσταση
 
