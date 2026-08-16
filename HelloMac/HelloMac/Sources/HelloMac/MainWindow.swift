@@ -179,6 +179,15 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     private var speedDialPopover: NSPopover?
 
     private var bellButton: NSButton!
+    // Δυναμικά "gap" constraints ανάμεσα στα κουμπιά κεφαλίδας της λίστας Επαφών
+    // (Προσθήκη / Καμπανάκι υπενθυμίσεων / Φίλτρο ομάδων). Το isHidden ενός NSView δεν
+    // απενεργοποιεί μόνο του τα constraints του, οπότε αν αφήναμε σταθερό -14 κενό,
+    // έμενε "δεσμευμένος" κενός χώρος όποτε ένα από τα κουμπιά ήταν κρυμμένο. Αυτά τα
+    // constraints ενεργοποιούνται/απενεργοποιούνται δυναμικά από updateContactsHeaderButtonSpacing().
+    private var bellToAddGapConstraint: NSLayoutConstraint!
+    private var groupFilterToBellGapConstraint: NSLayoutConstraint!
+    private var groupFilterToAddGapConstraint: NSLayoutConstraint!
+    private var titleToAddGapConstraint: NSLayoutConstraint!
     private var notificationsWindowController: NotificationsWindowController?
 
     func showContactsPublic()  { showContacts() }
@@ -830,12 +839,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
             addBtn.heightAnchor.constraint(equalToConstant: 26),
 
             bellBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            bellBtn.trailingAnchor.constraint(equalTo: addBtn.leadingAnchor, constant: -14),
             bellBtn.widthAnchor.constraint(equalToConstant: 26),
             bellBtn.heightAnchor.constraint(equalToConstant: 26),
 
             groupFilterBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            groupFilterBtn.trailingAnchor.constraint(equalTo: bellBtn.leadingAnchor, constant: -14),
             groupFilterBtn.widthAnchor.constraint(equalToConstant: 36),
             groupFilterBtn.heightAnchor.constraint(equalToConstant: 26),
             
@@ -857,8 +864,35 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
         scrollView.topAnchor.constraint(equalTo: contactsSearchField.bottomAnchor, constant: 8).isActive = true
 
+        // Τέσσερα εναλλακτικά "gap" constraints· ενεργοποιείται πάντα ακριβώς ένα, ανάλογα
+        // με το ποια από τα δύο ενδιάμεσα κουμπιά (καμπανάκι / φίλτρο ομάδων) είναι ορατά,
+        // ώστε να μην απομένει ποτέ κενός χώρος όταν κρύβονται.
+        bellToAddGapConstraint = bellBtn.trailingAnchor.constraint(equalTo: addBtn.leadingAnchor, constant: -14)
+        groupFilterToBellGapConstraint = groupFilterBtn.trailingAnchor.constraint(equalTo: bellBtn.leadingAnchor, constant: -14)
+        groupFilterToAddGapConstraint = groupFilterBtn.trailingAnchor.constraint(equalTo: addBtn.leadingAnchor, constant: -14)
+        // Καλύπτει την περίπτωση που ΚΑΙ τα δύο ενδιάμεσα κουμπιά είναι κρυμμένα ταυτόχρονα.
+        // Χωρίς αυτό, δεν έμενε κανένα ενεργό constraint να συνδέει κάτι με το addBtn, οπότε
+        // ο δεσμευμένος χώρος τους παρέμενε κενός.
+        titleToAddGapConstraint = titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: addBtn.leadingAnchor, constant: -14)
+
         refreshGroupFilterVisibility()
         refreshContacts()
+        updateContactsHeaderButtonSpacing()
+    }
+
+    /// Ενεργοποιεί το σωστό συνδυασμό "gap" constraints ανάμεσα στα κουμπιά
+    /// Προσθήκη / Καμπανάκι / Φίλτρο ομάδων ανάλογα με το ποια είναι αυτή τη στιγμή
+    /// ορατά, ώστε ένα κρυμμένο ενδιάμεσο κουμπί να μην αφήνει κενό διάστημα.
+    func updateContactsHeaderButtonSpacing() {
+        guard bellToAddGapConstraint != nil else { return }
+
+        let bellVisible = !(bellButton?.isHidden ?? true)
+        let groupFilterVisible = !(contactsGroupFilterIconButton?.isHidden ?? true)
+
+        bellToAddGapConstraint.isActive = bellVisible
+        groupFilterToBellGapConstraint.isActive = groupFilterVisible && bellVisible
+        groupFilterToAddGapConstraint.isActive = groupFilterVisible && !bellVisible
+        titleToAddGapConstraint.isActive = !bellVisible && !groupFilterVisible
     }
 
     private func setupFavoritesView() {
@@ -1434,6 +1468,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         iconButton.contentTintColor = groupFilterColor
 
         updateSearchPlaceholder()
+        updateContactsHeaderButtonSpacing()
     }
     
     private func updateSearchPlaceholder() {
@@ -2063,9 +2098,19 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         guard let bellButton = bellButton else { return }
         bellButton.image = NSImage(systemSymbolName: "bell", accessibilityDescription: L("notifications_tooltip"))
         bellButton.isHidden = UserDefaults.standard.bool(forKey: "hideGeneralReminderButton") || !ReminderManager.shared.isEnabled
+        updateContactsHeaderButtonSpacing()
     }
     
     @objc private func updateUIVisibility(_ notification: Notification? = nil) {
+        // Οι τρεις διακόπτες περιεχομένου του πάνελ λεπτομερειών (μηνύματα/σημειώσεις/
+        // ιστορικό στη λεπτομέρεια επαφής) στέλνουν αυτό το flag για να ενημερωθεί άμεσα
+        // μόνο το ήδη ανοιχτό detail panel, χωρίς το βαρύ πλήρες rebuild των λιστών
+        // (Επαφές/Αγαπημένα/Ιστορικό) που έκανε την αλλαγή να μη μοιάζει στιγμιαία.
+        if (notification?.userInfo?["detailOnly"] as? Bool) == true {
+            syncDetailPanelAfterDataChange()
+            return
+        }
+
         contactsSearchField.stringValue = ""
         favoritesSearchField.stringValue = ""
         historySearchField.stringValue = ""
@@ -2087,6 +2132,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         self.favoritesSearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInFavorites")
         self.historySearchField.isHidden = UserDefaults.standard.bool(forKey: "hideSearchInHistory")
         refreshGroupFilterVisibility()
+        updateContactsHeaderButtonSpacing()
 
         if hideAll {
             self.contactsView.isHidden = true
@@ -2295,7 +2341,7 @@ private func setupUI(contact: Contact) {
         wantsLayer = true
 
         let avatarView = RoundAvatarView(diameter: 34)
-        avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor)
+        avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor, colorSeed: contact.id.uuidString)
         avatarView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(avatarView)
 
@@ -2583,7 +2629,7 @@ class HistoryRow: NSView {
             let matchedContact = HistoryRow.resolveContact(for: record)
             let roundAvatar = RoundAvatarView(diameter: 34)
             if let contact = matchedContact {
-                roundAvatar.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor)
+                roundAvatar.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor, colorSeed: contact.id.uuidString)
             } else {
                 roundAvatar.configure(image: nil, initials: "#")
             }
@@ -3169,7 +3215,7 @@ class ContactDetailPanelView: NSView {
     func configure(contact: Contact, history: [CallRecord]) {
         currentContact = contact
         currentUnknownPhone = nil
-        avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor)
+        avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor, colorSeed: contact.id.uuidString)
         if let image = contact.image, !PrivacyMode.shared.isEnabled {
             avatarView.onTap = { [weak self] in
                 self?.presentImagePreview(image)

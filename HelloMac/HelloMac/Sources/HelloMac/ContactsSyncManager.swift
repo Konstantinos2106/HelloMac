@@ -339,6 +339,15 @@ final class ContactsSyncManager {
         NotificationCenter.default.post(name: NSNotification.Name("historyDidChange"), object: nil)
         NotificationCenter.default.post(name: .contactsSyncSettingsDidChange, object: nil)
         NotificationCenter.default.post(name: NSNotification.Name("UpdateUIVisibility"), object: nil)
+
+        // Το factory reset καθαρίζει τα UserDefaults, οπότε το ReminderManager.isEnabled
+        // πέφτει σε false και το καμπανάκι υπενθυμίσεων κρύβεται σωστά αμέσως. Όμως αν ο
+        // χρήστης έχει ήδη δώσει άδεια notifications στο σύστημα, κανείς δεν το ξανάλεγχε
+        // μέχρι την επόμενη εκκίνηση της εφαρμογής (μόνο το applicationDidFinishLaunching
+        // καλεί resumeIfNeeded), γι' αυτό το κουμπί έμενε κρυμμένο μέχρι restart ή χειροκίνητο
+        // toggle. Το ξανακαλούμε εδώ ώστε να συγχρονιστεί σωστά το isEnabled με την
+        // πραγματική άδεια συστήματος αμέσως μετά το reset.
+        ReminderManager.shared.resumeIfNeeded()
     }
 }
 

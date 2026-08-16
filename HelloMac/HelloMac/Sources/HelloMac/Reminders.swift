@@ -1275,7 +1275,7 @@ class ContactPickerRow: NSView {
 
         let avatarView = RoundAvatarView(diameter: 28)
         avatarView.translatesAutoresizingMaskIntoConstraints = false
-        avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor)
+        avatarView.configure(image: contact.image, initials: contact.initials, colorOverride: contact.monogramColor, colorSeed: contact.id.uuidString)
         addSubview(avatarView)
 
         let displayName = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName
