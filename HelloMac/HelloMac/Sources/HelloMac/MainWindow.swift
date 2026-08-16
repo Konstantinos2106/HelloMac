@@ -190,7 +190,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
 
     convenience init() {
         let window = NonFullScreenWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 335, height: 680),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -504,6 +504,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyLabel.isSelectable = false
         emptyLabel.isBezeled = false
         emptyLabel.drawsBackground = false
+        emptyLabel.preferredMaxLayoutWidth = 312
         emptyLabel.translatesAutoresizingMaskIntoConstraints = false
         
         let openSettingsBtn = NSButton(title: L("enable_features_btn"), target: NSApp.delegate, action: Selector(("showSettingsToAppearance")))
@@ -815,6 +816,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyContactsLabel.isSelectable = false
         emptyContactsLabel.isBezeled = false
         emptyContactsLabel.drawsBackground = false
+        emptyContactsLabel.preferredMaxLayoutWidth = 312
         emptyContactsLabel.translatesAutoresizingMaskIntoConstraints = false
         contactsView.addSubview(emptyContactsLabel)
 
@@ -902,6 +904,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
         emptyFavoritesLabel.isSelectable = false
         emptyFavoritesLabel.isBezeled = false
         emptyFavoritesLabel.drawsBackground = false
+        emptyFavoritesLabel.preferredMaxLayoutWidth = 312
         emptyFavoritesLabel.translatesAutoresizingMaskIntoConstraints = false
         let click = NSClickGestureRecognizer(target: self, action: #selector(emptyFavoritesClicked(_:)))
         emptyFavoritesLabel.addGestureRecognizer(click)
@@ -979,6 +982,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, KeyCaptureDele
     emptyHistoryLabel.isSelectable = false
     emptyHistoryLabel.isBezeled = false
     emptyHistoryLabel.drawsBackground = false
+    emptyHistoryLabel.preferredMaxLayoutWidth = 312
     emptyHistoryLabel.translatesAutoresizingMaskIntoConstraints = false
     historyView.addSubview(emptyHistoryLabel)
 
@@ -3760,8 +3764,13 @@ class SpeedDialPickerPopoverViewController: NSViewController {
     }
 
     private var rowCount: Int { max(entries.count, 1) }
+    private var isEmptyState: Bool { entries.isEmpty }
+    private static let emptyStateHeight: CGFloat = 64
     private var listHeight: CGFloat {
-        CGFloat(min(rowCount, Self.maxVisibleRows)) * Self.rowHeight + 8
+        if isEmptyState {
+            return Self.emptyStateHeight
+        }
+        return CGFloat(min(rowCount, Self.maxVisibleRows)) * Self.rowHeight + 8
     }
     private var totalHeight: CGFloat {
         listHeight + 1 + Self.manageRowHeight + 4
@@ -3845,14 +3854,26 @@ class SpeedDialPickerPopoverViewController: NSViewController {
         let currentEntries = entries
 
         if currentEntries.isEmpty {
-            let emptyLabel = NSTextField(labelWithString: L("speed_dial_empty"))
+            let emptyLabel = NSTextField(wrappingLabelWithString: L("speed_dial_empty"))
             emptyLabel.font = NSFont.systemFont(ofSize: 12)
             emptyLabel.textColor = .secondaryLabelColor
+            emptyLabel.alignment = .center
             emptyLabel.lineBreakMode = .byWordWrapping
-            emptyLabel.maximumNumberOfLines = 2
+            emptyLabel.maximumNumberOfLines = 0
             emptyLabel.translatesAutoresizingMaskIntoConstraints = false
-            stackView.addArrangedSubview(emptyLabel)
-            emptyLabel.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+
+            let emptyContainer = NSView()
+            emptyContainer.translatesAutoresizingMaskIntoConstraints = false
+            emptyContainer.addSubview(emptyLabel)
+            NSLayoutConstraint.activate([
+                emptyLabel.topAnchor.constraint(equalTo: emptyContainer.topAnchor, constant: 10),
+                emptyLabel.bottomAnchor.constraint(equalTo: emptyContainer.bottomAnchor, constant: -10),
+                emptyLabel.leadingAnchor.constraint(equalTo: emptyContainer.leadingAnchor, constant: 14),
+                emptyLabel.trailingAnchor.constraint(equalTo: emptyContainer.trailingAnchor, constant: -14),
+            ])
+
+            stackView.addArrangedSubview(emptyContainer)
+            emptyContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
             return
         }
 

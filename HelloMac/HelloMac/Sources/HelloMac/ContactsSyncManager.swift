@@ -204,6 +204,7 @@ final class ContactsSyncManager {
             CNContactFamilyNameKey as CNKeyDescriptor,
             CNContactPhoneNumbersKey as CNKeyDescriptor,
             CNContactImageDataKey as CNKeyDescriptor,
+            CNContactThumbnailImageDataKey as CNKeyDescriptor,
             CNContactIdentifierKey as CNKeyDescriptor
         ]
         let request = CNContactFetchRequest(keysToFetch: keys)
@@ -269,7 +270,7 @@ final class ContactsSyncManager {
             guard !phone.isEmpty else { continue }
 
             var imageFileName: String? = nil
-            if let data = cn.imageData, let nsImage = NSImage(data: data) {
+            if let data = cn.imageData ?? cn.thumbnailImageData, let nsImage = NSImage(data: data) {
                 imageFileName = ContactImageStore.saveImage(nsImage)
             }
 

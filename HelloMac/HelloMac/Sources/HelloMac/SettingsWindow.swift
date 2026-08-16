@@ -616,7 +616,7 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
         notesTextView = NSTextView()
         notesTextView.delegate = self
         notesTextView.font = NSFont.systemFont(ofSize: 13)
-        notesTextView.textColor = .white
+        notesTextView.textColor = AccessibilityManager.shared.isEffectivelyColorInverted ? .black : .white
         notesTextView.drawsBackground = false
         notesTextView.isRichText = false
         notesTextView.textContainerInset = NSSize(width: 8, height: 8)
@@ -696,11 +696,12 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
     
     private func setNotesPlaceholderVisible(_ visible: Bool) {
         notesIsShowingPlaceholder = visible
+        let isLight = AccessibilityManager.shared.isEffectivelyColorInverted
         if visible {
             notesTextView.string = L("notes_placeholder")
-            notesTextView.textColor = NSColor(white: 0.45, alpha: 1)
+            notesTextView.textColor = isLight ? NSColor(white: 0.55, alpha: 1) : NSColor(white: 0.45, alpha: 1)
         } else {
-            notesTextView.textColor = .white
+            notesTextView.textColor = isLight ? .black : .white
         }
     }
 
@@ -1021,7 +1022,7 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
         guard let textView = notification.object as? NSTextView, textView == notesTextView else { return }
         if notesIsShowingPlaceholder && textView.string != L("notes_placeholder") {
             notesIsShowingPlaceholder = false
-            notesTextView.textColor = .white
+            notesTextView.textColor = AccessibilityManager.shared.isEffectivelyColorInverted ? .black : .white
         }
     }
 
@@ -1032,7 +1033,7 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
     func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
         if textView == notesTextView, notesIsShowingPlaceholder {
             notesIsShowingPlaceholder = false
-            textView.textColor = .white
+            textView.textColor = AccessibilityManager.shared.isEffectivelyColorInverted ? .black : .white
             textView.string = replacementString ?? ""
             return false 
         }
@@ -1048,7 +1049,7 @@ class AddContactWindowController: NSWindowController, NSTextFieldDelegate, NSWin
             if textView == notesTextView, notesIsShowingPlaceholder, textView.window?.firstResponder == textView {
             notesIsShowingPlaceholder = false
             textView.string = ""
-            textView.textColor = .white
+            textView.textColor = AccessibilityManager.shared.isEffectivelyColorInverted ? .black : .white
             
             return NSRange(location: 0, length: 0)
         }
@@ -1500,7 +1501,7 @@ private class SettingsSidebarController: NSViewController, NSTableViewDataSource
     }
 }
 
-class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearchFieldDelegate {
+class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearchFieldDelegate, NSTextViewDelegate {
 
     private var updateStatusLabel: NSTextField!
     private var updateStatusIconView: NSImageView!
@@ -1524,6 +1525,12 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
     private var speedDialTextFields: [Int: NSTextField] = [:]
     private var speedDialFieldsActivelyEditing: Set<Int> = []
     private var selectedCategoryIndex: Int = 0
+    
+    // MARK: - Release Notes (What's New)
+    private weak var releaseNotesTextView: NSTextView?
+    private var releaseNotesRawText: String = ""
+    private var releaseNotesDetailsBlocks: [String: (summary: String, content: String)] = [:]
+    private var releaseNotesOpenDetailsIDs: Set<String> = []
 
     // MARK: - Reminders Tab
     private var callRemindersSwitch: NSSwitch!
@@ -2587,6 +2594,8 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
         rnTextView.drawsBackground = false
         rnTextView.isRichText = true
         rnTextView.textContainerInset = NSSize(width: 12, height: 12)
+        rnTextView.delegate = self
+        releaseNotesTextView = rnTextView
         
         rnTextView.minSize = NSSize(width: 0, height: 0)
         rnTextView.maxSize = NSSize(width: rowWidth, height: .greatestFiniteMagnitude)
@@ -2620,7 +2629,9 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 let localizedText = self.extractLocalizedReleaseNotes(text, isGreek: self.isGreek)
-                rnTextView.textStorage?.setAttributedString(self.parseMarkdown(localizedText))
+                self.releaseNotesRawText = localizedText
+                self.releaseNotesOpenDetailsIDs.removeAll()
+                self.renderReleaseNotes()
             }
         }
 
@@ -3104,12 +3115,49 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
         }
     }
 
-    private func parseMarkdown(_ text: String) -> NSAttributedString {
+    private func renderReleaseNotes() {
+        guard let textView = releaseNotesTextView else { return }
+        textView.textStorage?.setAttributedString(parseMarkdown(releaseNotesRawText))
+    }
+
+    private func extractDetailsBlocks(_ text: String) -> String {
+        releaseNotesDetailsBlocks.removeAll()
+        var result = text
+        
+        guard let regex = try? NSRegularExpression(
+            pattern: "<details>\\s*<summary>(.*?)</summary>(.*?)</details>",
+            options: [.dotMatchesLineSeparators, .caseInsensitive]
+        ) else { return result }
+        
+        let matches = regex.matches(in: result, range: NSRange(location: 0, length: (result as NSString).length))
+        let ns = result as NSString
+        var replacements: [(NSRange, String)] = []
+        
+        for match in matches {
+            let summaryRange = match.range(at: 1)
+            let contentRange = match.range(at: 2)
+            let summary = ns.substring(with: summaryRange).trimmingCharacters(in: .whitespacesAndNewlines)
+            let content = ns.substring(with: contentRange).trimmingCharacters(in: .whitespacesAndNewlines)
+            let id = UUID().uuidString
+            releaseNotesDetailsBlocks[id] = (summary: summary, content: content)
+            replacements.append((match.range, "@@DETAILS:\(id)@@"))
+        }
+        
+        for (range, placeholder) in replacements.reversed() {
+            result = (result as NSString).replacingCharacters(in: range, with: placeholder)
+        }
+        
+        return result
+    }
+    
+    private func parseMarkdown(_ rawText: String) -> NSAttributedString {
+        let text = extractDetailsBlocks(rawText)
         let baseFont = NSFont.systemFont(ofSize: 13)
         let boldFont = NSFont.boldSystemFont(ofSize: 13)
         let h2Font = NSFont.boldSystemFont(ofSize: 17)
         let h3Font = NSFont.boldSystemFont(ofSize: 15)
         let italicFont = NSFontManager.shared.convert(baseFont, toHaveTrait: .italicFontMask)
+        let codeFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         
         let defaultParagraphStyle = NSMutableParagraphStyle()
         defaultParagraphStyle.lineSpacing = 4
@@ -3136,32 +3184,7 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
                 }
             }
         }
-        
-        if let regex = try? NSRegularExpression(pattern: "\\*\\*(.*?)\\*\\*") {
-            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
-            for match in matches.reversed() {
-                attrString.addAttributes([.font: boldFont, .foregroundColor: NSColor.labelColor], range: match.range(at: 1))
-                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).upperBound, length: 2), with: "")
-                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).lowerBound - 2, length: 2), with: "")
-            }
-        }
-        
-        if let regex = try? NSRegularExpression(pattern: "(?<!\\*)\\*(?!\\*)(.*?)(?<!\\*)\\*(?!\\*)") {
-            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
-            for match in matches.reversed() {
-                attrString.addAttributes([.font: italicFont], range: match.range(at: 1))
-                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).upperBound, length: 1), with: "")
-                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).lowerBound - 1, length: 1), with: "")
-            }
-        }
-        
-        if let regex = try? NSRegularExpression(pattern: "^---$", options: .anchorsMatchLines) {
-            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
-            for match in matches.reversed() {
-                attrString.replaceCharacters(in: match.range, with: "───────────────")
-            }
-        }
-        
+
         if let regex = try? NSRegularExpression(pattern: "^ {1,4}[*\\-] +(.*)$", options: .anchorsMatchLines) {
             let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
             
@@ -3195,10 +3218,141 @@ class SettingsWindowController: NSWindowController, NSTextFieldDelegate, NSSearc
                 attrString.replaceCharacters(in: NSRange(location: match.range.location, length: prefixLength), with: "•\t")
             }
         }
+
+        if let regex = try? NSRegularExpression(pattern: "^(\\d{1,3})\\. +(.*)$", options: .anchorsMatchLines) {
+            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
+            
+            let numberedPara = NSMutableParagraphStyle()
+            numberedPara.lineSpacing = 4
+            numberedPara.firstLineHeadIndent = 0
+            numberedPara.headIndent = 20
+            numberedPara.tabStops = [NSTextTab(textAlignment: .left, location: 20, options: [:])]
+            numberedPara.lineBreakMode = .byWordWrapping
+            
+            for match in matches.reversed() {
+                attrString.addAttribute(.paragraphStyle, value: numberedPara, range: match.range)
+                let number = (attrString.string as NSString).substring(with: match.range(at: 1))
+                let prefixLength = match.range(at: 2).location - match.range.location
+                attrString.replaceCharacters(in: NSRange(location: match.range.location, length: prefixLength), with: "\(number).\t")
+            }
+        }
+
+        if let regex = try? NSRegularExpression(pattern: "`([^`]+?)`") {
+            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
+            for match in matches.reversed() {
+                attrString.addAttributes([
+                    .font: codeFont,
+                    .backgroundColor: NSColor(white: 0.5, alpha: 0.15)
+                ], range: match.range(at: 1))
+                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).upperBound, length: 1), with: "")
+                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).lowerBound - 1, length: 1), with: "")
+            }
+        }
+        if let regex = try? NSRegularExpression(pattern: "\\[([^\\]]+)\\]\\(([^)]+)\\)") {
+            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
+            for match in matches.reversed() {
+                let labelRange = match.range(at: 1)
+                let urlRange = match.range(at: 2)
+                let urlString = (attrString.string as NSString).substring(with: urlRange)
+                
+                if let url = URL(string: urlString) {
+                    attrString.addAttributes([
+                        .link: url,
+                        .foregroundColor: NSColor.linkColor,
+                        .underlineStyle: NSUnderlineStyle.single.rawValue
+                    ], range: labelRange)
+                }
+
+                attrString.replaceCharacters(in: NSRange(location: labelRange.upperBound, length: match.range.upperBound - labelRange.upperBound), with: "")
+                attrString.replaceCharacters(in: NSRange(location: labelRange.lowerBound - 1, length: 1), with: "")
+            }
+        }
         
+        if let regex = try? NSRegularExpression(pattern: "\\*\\*(.*?)\\*\\*") {
+            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
+            for match in matches.reversed() {
+                attrString.addAttributes([.font: boldFont, .foregroundColor: NSColor.labelColor], range: match.range(at: 1))
+                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).upperBound, length: 2), with: "")
+                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).lowerBound - 2, length: 2), with: "")
+            }
+        }
+        
+        if let regex = try? NSRegularExpression(pattern: "(?<!\\*)\\*(?!\\*)(.*?)(?<!\\*)\\*(?!\\*)") {
+            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
+            for match in matches.reversed() {
+                attrString.addAttributes([.font: italicFont], range: match.range(at: 1))
+                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).upperBound, length: 1), with: "")
+                attrString.replaceCharacters(in: NSRange(location: match.range(at: 1).lowerBound - 1, length: 1), with: "")
+            }
+        }
+        
+        if let regex = try? NSRegularExpression(pattern: "^---$", options: .anchorsMatchLines) {
+            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
+            for match in matches.reversed() {
+                attrString.replaceCharacters(in: match.range, with: "───────────────")
+            }
+        }
+
+        if !releaseNotesDetailsBlocks.isEmpty,
+           let regex = try? NSRegularExpression(pattern: "@@DETAILS:([0-9A-Fa-f\\-]+)@@") {
+            let matches = regex.matches(in: attrString.string, range: NSRange(location: 0, length: attrString.length))
+            for match in matches.reversed() {
+                let id = (attrString.string as NSString).substring(with: match.range(at: 1))
+                guard let block = releaseNotesDetailsBlocks[id] else { continue }
+                let isOpen = releaseNotesOpenDetailsIDs.contains(id)
+                
+                let replacement = NSMutableAttributedString()
+                let arrow = isOpen ? "▼ " : "▶ "
+                let summaryPara = NSMutableParagraphStyle()
+                summaryPara.lineSpacing = 4
+                
+                let summaryAttr = NSMutableAttributedString(string: arrow + block.summary, attributes: [
+                    .font: boldFont,
+                    .foregroundColor: NSColor.linkColor,
+                    .paragraphStyle: summaryPara,
+                    .link: URL(string: "hellomac-details://\(id)")!,
+                    .cursor: NSCursor.pointingHand
+                ])
+                replacement.append(summaryAttr)
+                
+                if isOpen {
+                    replacement.append(NSAttributedString(string: "\n"))
+                    let innerAttr = parseMarkdown(block.content)
+                    replacement.append(innerAttr)
+                }
+                
+                attrString.replaceCharacters(in: match.range, with: replacement)
+            }
+        }
+        
+
         return attrString
     }
 
+    // MARK: - NSTextViewDelegate (Release Notes links & details toggle)
+    
+    func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        guard let urlString = (link as? URL)?.absoluteString ?? (link as? String) else { return false }
+        
+        if urlString.hasPrefix("hellomac-details://") {
+            let id = String(urlString.dropFirst("hellomac-details://".count))
+            if releaseNotesOpenDetailsIDs.contains(id) {
+                releaseNotesOpenDetailsIDs.remove(id)
+            } else {
+                releaseNotesOpenDetailsIDs.insert(id)
+            }
+            renderReleaseNotes()
+            return true
+        }
+        
+        if let url = URL(string: urlString), textView == releaseNotesTextView {
+            NSWorkspace.shared.open(url)
+            return true
+        }
+        
+        return false
+    }
+    
     private func showCategory(at index: Int, highlighting anchorView: NSView? = nil) {
         guard let contentScroll = contentScrollView,
               index >= 0, index < tabContentViews.count else { return }

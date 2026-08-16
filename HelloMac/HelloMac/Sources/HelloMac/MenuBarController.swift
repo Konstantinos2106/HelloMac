@@ -5,11 +5,12 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
     var menu: NSMenu!
     var searchField: NSSearchField!
     var searchMenuItem: NSMenuItem!
-    var dialerHeaderMenuItem: NSMenuItem!
-    
-    var isDialerActive: Bool = false
+
+    var keypadMenuItem: NSMenuItem!
+    var isMenuOpen: Bool = false
     var dialerMenuItem: NSMenuItem!
     var dialerView: MenuBarDialerView!
+    var speedDialMenuItem: NSMenuItem!
     
     private var isRefreshingMenuItems = false
     
@@ -42,69 +43,23 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 
                 menu = NSMenu()
                 menu.delegate = self
-                
                 searchMenuItem = NSMenuItem()
                 let headerView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 32))
                 headerView.autoresizingMask = [.width]
-                
                 searchField = NSSearchField()
                 searchField.delegate = self
                 searchField.placeholderString = L("search_placeholder")
                 searchField.translatesAutoresizingMaskIntoConstraints = false
                 headerView.addSubview(searchField)
-                
-                let keypadBtn = MenuBarDialerActionBtn(symbol: "circle.grid.3x3.fill", color: .labelColor, pointSize: 13, weight: .regular)
-                keypadBtn.onTap = { [weak self] in
-                    self?.toggleDialer()
-                }
-                keypadBtn.translatesAutoresizingMaskIntoConstraints = false
-                headerView.addSubview(keypadBtn)
-                
                 NSLayoutConstraint.activate([
                     searchField.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
+                    searchField.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16),
                     searchField.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-                    searchField.heightAnchor.constraint(equalToConstant: 22),
-                    
-                    keypadBtn.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16),
-                    keypadBtn.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-                    keypadBtn.widthAnchor.constraint(equalToConstant: 24),
-                    keypadBtn.heightAnchor.constraint(equalToConstant: 24),
-                    
-                    searchField.trailingAnchor.constraint(equalTo: keypadBtn.leadingAnchor, constant: -8)
+                    searchField.heightAnchor.constraint(equalToConstant: 22)
                 ])
                 
                 searchMenuItem.view = headerView
 
-                dialerHeaderMenuItem = NSMenuItem()
-                let dialerHeaderView = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 32))
-                dialerHeaderView.autoresizingMask = [.width]
-                
-                let dialerTitleLabel = NSTextField(labelWithString: L("dialer_title"))
-                dialerTitleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-                dialerTitleLabel.textColor = .labelColor
-                dialerTitleLabel.alignment = .center
-                dialerTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-                dialerHeaderView.addSubview(dialerTitleLabel)
-                
-                let backBtn = MenuBarDialerActionBtn(symbol: "xmark.circle.fill", color: .labelColor, pointSize: 18, weight: .medium)
-                backBtn.onTap = { [weak self] in
-                    self?.toggleDialer()
-                }
-                backBtn.translatesAutoresizingMaskIntoConstraints = false
-                dialerHeaderView.addSubview(backBtn)
-                
-                NSLayoutConstraint.activate([
-                    dialerTitleLabel.centerXAnchor.constraint(equalTo: dialerHeaderView.centerXAnchor),
-                    dialerTitleLabel.centerYAnchor.constraint(equalTo: dialerHeaderView.centerYAnchor),
-                    
-                    backBtn.trailingAnchor.constraint(equalTo: dialerHeaderView.trailingAnchor, constant: -16),
-                    backBtn.centerYAnchor.constraint(equalTo: dialerHeaderView.centerYAnchor),
-                    backBtn.widthAnchor.constraint(equalToConstant: 28),
-                    backBtn.heightAnchor.constraint(equalToConstant: 28)
-                ])
-                
-                dialerHeaderMenuItem.view = dialerHeaderView
-                
                 dialerView = MenuBarDialerView(frame: NSRect(x: 0, y: 0, width: 240, height: 330))
                 dialerView.autoresizingMask = [.width]
                 dialerView.onCall = { [weak self] phone in
@@ -113,6 +68,16 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 }
                 dialerMenuItem = NSMenuItem()
                 dialerMenuItem.view = dialerView
+
+                keypadMenuItem = NSMenuItem(title: L("keypad"), action: nil, keyEquivalent: "")
+                keypadMenuItem.image = NSImage(systemSymbolName: "circle.grid.3x3.fill", accessibilityDescription: nil)
+                let submenu = NSMenu()
+                submenu.addItem(dialerMenuItem)
+                keypadMenuItem.submenu = submenu
+
+                speedDialMenuItem = NSMenuItem(title: L("tab_speed_dial"), action: nil, keyEquivalent: "")
+                speedDialMenuItem.image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)
+                speedDialMenuItem.submenu = NSMenu()
                 
                 statusItem?.menu = menu
                 buildInitialMenu()
@@ -122,38 +87,94 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 NSStatusBar.system.removeStatusItem(item)
                 statusItem = nil
             }
-            NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(toggleDialer), object: nil)
             menu = nil
             searchMenuItem = nil
-            dialerHeaderMenuItem = nil
+            keypadMenuItem = nil
             dialerMenuItem = nil
             dialerView = nil
+            speedDialMenuItem = nil
             searchField = nil
-            isDialerActive = false
         }
     }
     
     private func buildInitialMenu() {
         menu.removeAllItems()
         menu.addItem(searchMenuItem)
+        menu.addItem(keypadMenuItem)
     }
     
     func menuWillOpen(_ menu: NSMenu) {
-        NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(toggleDialer), object: nil)
+        isMenuOpen = true
         searchField.stringValue = ""
-        isDialerActive = false
         dialerView.updatePlusButtonVisibility()
         refreshMenuItems(searchText: "")
-
-        DispatchQueue.main.async {
-            self.searchField.window?.makeFirstResponder(nil)
+        DispatchQueue.main.async { [weak self] in
+            self?.dialerView.focusInput()
         }
     }
        
     func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
         DispatchQueue.main.async { [weak self] in
             self?.statusItem?.button?.needsDisplay = true
         }
+    }
+    
+    private func rebuildSpeedDialSubmenu() {
+        let sdMenu = NSMenu()
+        
+        var hasEntries = false
+        for i in 1...9 {
+            let savedValue = UserDefaults.standard.string(forKey: "SpeedDial_\(i)") ?? ""
+            guard !savedValue.isEmpty else { continue }
+            
+            let display: String
+            let phone: String
+            if let contact = ContactStore.shared.contacts.first(where: { $0.phone.sanitizedForCall == savedValue.sanitizedForCall }) {
+                display = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(contact.fullName) : contact.fullName
+                phone = contact.phone
+            } else {
+                display = PrivacyMode.shared.isEnabled ? PrivacyMode.shared.maskedText(savedValue) : savedValue
+                phone = savedValue
+            }
+            
+            let item = NSMenuItem(title: "\(i)  \(display)", action: #selector(speedDialEntryTapped(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = phone
+            item.image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: nil)
+            sdMenu.addItem(item)
+            hasEntries = true
+        }
+        
+        if !hasEntries {
+            let emptyItem = NSMenuItem(title: L("speed_dial_empty"), action: nil, keyEquivalent: "")
+            emptyItem.isEnabled = false
+            sdMenu.addItem(emptyItem)
+        }
+        
+        sdMenu.addItem(NSMenuItem.separator())
+        let manageItem = NSMenuItem(title: L("speed_dial_manage_menu_item"), action: #selector(speedDialManageTapped), keyEquivalent: "")
+        manageItem.target = self
+        manageItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
+        sdMenu.addItem(manageItem)
+        
+        speedDialMenuItem.submenu = sdMenu
+    }
+    
+    @objc private func speedDialEntryTapped(_ sender: NSMenuItem) {
+        guard let phone = sender.representedObject as? String else { return }
+        if PrivacyMode.shared.isEnabled {
+            PrivacyMode.shared.showBlockedAlert()
+            return
+        }
+        makeCall(phone: phone, name: nil, contactID: nil)
+        menu.cancelTracking()
+    }
+    
+    @objc private func speedDialManageTapped() {
+        menu.cancelTracking()
+        NSApp.activate(ignoringOtherApps: true)
+        (NSApp.delegate as? AppDelegate)?.showSettingsToSpeedDial()
     }
     
     func controlTextDidChange(_ obj: Notification) {
@@ -168,22 +189,6 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
                 if let editor = field.currentEditor() as? NSTextView {
                     editor.insertionPointColor = .labelColor
                 }
-            }
-        }
-    }
-    
-    @objc func toggleDialer() {
-        isDialerActive.toggle()
-        searchField.stringValue = ""
-        refreshMenuItems(searchText: "")
-    
-        if isDialerActive {
-            DispatchQueue.main.async {
-                self.dialerView.focusInput()
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.searchField.window?.makeFirstResponder(nil)
             }
         }
     }
@@ -208,15 +213,20 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         guard !isRefreshingMenuItems else { return }
         isRefreshingMenuItems = true
         defer { isRefreshingMenuItems = false }
-        menu.removeAllItems()
-        if isDialerActive {
-            menu.addItem(dialerHeaderMenuItem)
-            menu.addItem(dialerMenuItem)
-            addFooterItems()
-            menu.update()
-            return
+
+        if menu.items.isEmpty {
+            menu.addItem(searchMenuItem)
+            menu.addItem(keypadMenuItem)
         }
-        menu.addItem(searchMenuItem)
+        while menu.items.count > 2 {
+            menu.removeItem(at: 2)
+        }
+        
+        if UserDefaults.standard.bool(forKey: "enableSpeedDial") {
+            rebuildSpeedDialSubmenu()
+            menu.addItem(speedDialMenuItem)
+        }
+        
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         menu.addItem(NSMenuItem.separator())
         
@@ -350,34 +360,89 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
     // MARK: - Βοηθητικά για Μεγάλες Λίστες (Scrollable Submenus)
     
     private let scrollThreshold = 8
-    private let scrollRowHeight: CGFloat = 28
+    private let scrollRowHeight: CGFloat = 22
     private let scrollMaxVisibleRows: CGFloat = 8
     
     private final class ScrollableMenuRow: NSView {
         var onClick: (() -> Void)?
-        private let button: NSButton
+        private let horizontalInset: CGFloat = 14
+        private let iconTextSpacing: CGFloat = 6
+        private let iconView = NSImageView()
+        private let label = NSTextField(labelWithString: "")
+        private var isHighlighted = false {
+            didSet { updateAppearance() }
+        }
         
         init(title: String, symbolName: String, width: CGFloat, height: CGFloat) {
-            button = NSButton(frame: NSRect(x: 0, y: 0, width: width, height: height))
             super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
             
-            button.title = "  " + title
-            button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
-            button.imagePosition = .imageLeading
-            button.isBordered = false
-            button.bezelStyle = .regularSquare
-            button.alignment = .left
-            button.contentTintColor = .labelColor
-            button.font = NSFont.menuFont(ofSize: 13)
-            button.autoresizingMask = [.width]
-            button.target = self
-            button.action = #selector(handleClick)
-            addSubview(button)
+            wantsLayer = true
+            layer?.cornerRadius = 4
+            
+            let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
+            let img = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+                .withSymbolConfiguration(config)
+            img?.isTemplate = true 
+            iconView.image = img
+            iconView.imageScaling = .scaleProportionallyUpOrDown
+            iconView.contentTintColor = .labelColor
+            iconView.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(iconView)
+            
+            label.stringValue = title
+            label.font = NSFont.menuFont(ofSize: 13)
+            label.textColor = .labelColor
+            label.lineBreakMode = .byTruncatingTail
+            label.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(label)
+            
+            NSLayoutConstraint.activate([
+                iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: horizontalInset),
+                iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
+                iconView.widthAnchor.constraint(equalToConstant: 16),
+                iconView.heightAnchor.constraint(equalToConstant: 16),
+                
+                label.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: iconTextSpacing),
+                label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -horizontalInset),
+                label.centerYAnchor.constraint(equalTo: centerYAnchor)
+            ])
         }
         
         required init?(coder: NSCoder) { fatalError() }
         
-        @objc private func handleClick() { onClick?() }
+        private func updateAppearance() {
+            if isHighlighted {
+                layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+                label.textColor = .white
+                iconView.contentTintColor = .white
+            } else {
+                layer?.backgroundColor = NSColor.clear.cgColor
+                label.textColor = .labelColor
+                iconView.contentTintColor = .labelColor
+            }
+        }
+        
+        private var trackingArea: NSTrackingArea?
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let existing = trackingArea { removeTrackingArea(existing) }
+            let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+            addTrackingArea(area)
+            trackingArea = area
+        }
+        
+        override func mouseEntered(with event: NSEvent) { isHighlighted = true }
+        override func mouseExited(with event: NSEvent) { isHighlighted = false }
+        
+        override func mouseDown(with event: NSEvent) {
+        }
+        
+        override func mouseUp(with event: NSEvent) {
+            let point = convert(event.locationInWindow, from: nil)
+            if bounds.contains(point) {
+                onClick?()
+            }
+        }
     }
     
     private func makeMoreItem(title: String, entries: [(title: String, symbol: String, action: () -> Void)]) -> NSMenuItem {
@@ -385,7 +450,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
         let submenu = NSMenu()
         
         if entries.count > scrollThreshold {
-            let width: CGFloat = 260
+            let width: CGFloat = 240
             let visibleRows = min(CGFloat(entries.count), scrollMaxVisibleRows)
             let contentHeight = CGFloat(entries.count) * scrollRowHeight
             let visibleHeight = visibleRows * scrollRowHeight
@@ -501,7 +566,7 @@ class MenuBarController: NSObject, NSSearchFieldDelegate, NSMenuDelegate {
     }
     
     @objc func contactsChanged() {
-        if statusItem?.menu != nil {
+        if isMenuOpen, statusItem?.menu != nil {
             refreshMenuItems(searchText: searchField.stringValue)
         }
     }
@@ -522,8 +587,26 @@ class MenuBarDialerView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     
     func focusInput() {
-        if let win = self.window {
-            win.makeFirstResponder(self)
+        attemptFocus(retriesLeft: 5)
+    }
+
+    private func attemptFocus(retriesLeft: Int) {
+        guard let win = self.window else {
+            if retriesLeft > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+                    self?.attemptFocus(retriesLeft: retriesLeft - 1)
+                }
+            }
+            return
+        }
+        if !win.isKeyWindow {
+            win.makeKey()
+        }
+        let success = win.makeFirstResponder(self)
+        if !success && retriesLeft > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
+                self?.attemptFocus(retriesLeft: retriesLeft - 1)
+            }
         }
     }
 
@@ -558,7 +641,6 @@ class MenuBarDialerView: NSView {
         deleteBtn.onTap = { [weak self] in
             guard let self = self, !self.displayField.stringValue.isEmpty else { return }
             self.displayField.stringValue = String(self.displayField.stringValue.dropLast())
-            self.focusInput()
         }
         deleteBtn.translatesAutoresizingMaskIntoConstraints = false
         addSubview(deleteBtn)
@@ -597,7 +679,6 @@ class MenuBarDialerView: NSView {
                         if (self?.displayField.stringValue.count ?? 0) < 20 {
                             self?.displayField.stringValue += d
                         }
-                        self?.focusInput()
                     }
                     wrapper.addSubview(btn)
                     NSLayoutConstraint.activate([
@@ -617,7 +698,6 @@ class MenuBarDialerView: NSView {
                         if (self?.displayField.stringValue.count ?? 0) < 20 {
                             self?.displayField.stringValue += d
                         }
-                        self?.focusInput()
                     }
                     rowStack.addArrangedSubview(btn)
                 }
@@ -660,7 +740,6 @@ class MenuBarDialerView: NSView {
         if UserDefaults.standard.bool(forKey: "enableSpeedDial"), number.count == 1 {
             if let num = Int(number), num >= 1, num <= 9 {
                 if let target = UserDefaults.standard.string(forKey: "SpeedDial_\(num)"), !target.isEmpty {
-                    // Αν υπάρχει αποθηκευμένος αριθμός αλλά είναι κενός (π.χ. λάθος), κάνε κανονική κλήση του ψηφίου
                     guard !target.sanitizedForCall.isEmpty else {
                         onCall?(number)
                         return
@@ -743,15 +822,10 @@ class MenuBarDialerKey: NSButton {
             self.widthAnchor.constraint(equalToConstant: 42),
             self.heightAnchor.constraint(equalToConstant: 42)
         ])
-        self.target = self
-        self.action = #selector(handleClick)
     }
     
     required init?(coder: NSCoder) { fatalError() }
     
-    @objc private func handleClick() {
-        onTap?(digit)
-    }
     private var trackingArea: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -762,10 +836,25 @@ class MenuBarDialerKey: NSButton {
     }
     override func mouseEntered(with event: NSEvent) { layer?.backgroundColor = NSColor(white: 0.32, alpha: 1).cgColor }
     override func mouseExited(with event: NSEvent) { layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor }
+
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self.superview ?? self)
         layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
-        super.mouseDown(with: event)
-        layer?.backgroundColor = NSColor(white: 0.32, alpha: 1).cgColor
+    }
+    
+    override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let isInside = bounds.contains(point)
+        
+        layer?.backgroundColor = isInside ? NSColor(white: 0.32, alpha: 1).cgColor : NSColor(white: 0.22, alpha: 1).cgColor
+        
+        if isInside {
+            let action = self.onTap
+            let tappedDigit = self.digit
+            DispatchQueue.main.async {
+                action?(tappedDigit)
+            }
+        }
     }
 }
 
@@ -803,15 +892,10 @@ class MenuBarDialerActionBtn: NSButton {
             iconView.centerXAnchor.constraint(equalTo: self.centerXAnchor),
             iconView.centerYAnchor.constraint(equalTo: self.centerYAnchor)
         ])
-        self.target = self
-        self.action = #selector(handleClick)
     }
     
     required init?(coder: NSCoder) { fatalError() }
     
-    @objc private func handleClick() {
-        onTap?()
-    }
     private var trackingArea: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -836,16 +920,31 @@ class MenuBarDialerActionBtn: NSButton {
             layer?.backgroundColor = NSColor.clear.cgColor 
         }
     }
-    
+
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self.superview ?? self)
         if isPrimary { 
             layer?.backgroundColor = baseColor.blended(withFraction: 0.2, of: .black)?.cgColor 
         } else { 
             layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.2).cgColor 
         }
-        super.mouseDown(with: event)
-        mouseEntered(with: event)
     }
+    
+    override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let isInside = bounds.contains(point)
+        
+        if isInside {
+            mouseEntered(with: event)
+            let action = self.onTap
+            DispatchQueue.main.async {
+                action?()
+            }
+        } else {
+            mouseExited(with: event)
+        }
+    }
+    
     override func updateLayer() {
         super.updateLayer()
         if !isPrimary {

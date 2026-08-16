@@ -5,7 +5,7 @@ func L(_ key: String, _ arg: String = "") -> String {
     
     let strings: [String: (el: String, en: String)] = [
         "about_menu": ("Σχετικά με το HelloMac", "About HelloMac"),
-        "about_text": ("Έκδοση: 3.0\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 3.0\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
+        "about_text": ("Έκδοση: 3.0.1\n\nKonstantinos2106\n\nΠραγματοποιήστε κλήσεις απευθείας από το Mac σας\n\nΣυντόμευση: Ctrl + Option + Cmd + H", "Version: 3.0.1\n\nKonstantinos2106\n\nMake calls directly from your Mac via your iPhone\n\nShortcut: Ctrl + Option + Cmd + H"),
         "learn_more": ("Δείτε περισσότερα", "Learn More"),
         "check_updates": ("Έλεγχος για Ενημερώσεις...", "Check for Updates..."),
         "exit": ("Τερματισμός HelloMac", "Quit HelloMac"),
@@ -132,7 +132,7 @@ func L(_ key: String, _ arg: String = "") -> String {
         "tab_contacts_sync": ("Επαφές", "Contacts"),
         "tab_info": ("Πληροφορίες", "Info"),
         "app_tagline": ("Εφαρμογή κλήσεων", "Calling app"),
-        "app_description": ("Πραγματοποίηση κλήσεων απευθείας από το Mac μέσω του iPhone.\n\nΜια ταχύτατη και ελαφριά εφαρμογή κλήσεων που μετατρέπει το Mac σας σε ένα πλήρες τηλεφωνικό κέντρο.\nΔιαθέτει άμεση πρόσβαση σε αγαπημένα, ιστορικό κλήσεων, πλήρη λίστα επαφών με αυτόματο συγχρονισμό iCloud και κλασικό πληκτρολόγιο με ταχεία κλήση.\nΕνσωματώνεται άψογα στο σύστημα, προσφέροντας κλήσεις από τη γραμμή μενού ή από οποιοδήποτε επιλεγμένο κείμενο, έξυπνες υπενθυμίσεις, λειτουργία απορρήτου, καθώς και εκτεταμένες επιλογές προσβασιμότητας και εμφάνισης.", "Make calls directly from your Mac via your iPhone.\n\nA blazing-fast and lightweight calling utility that turns your Mac into a complete telephony hub.\nIt features quick access to favorites, call history, a full contact list with seamless iCloud sync, and a classic keypad with speed dial.\nFlawlessly integrated into macOS, it offers one-click calls from the menu bar or any highlighted text, smart reminders, a dedicated privacy mode, and extensive accessibility and appearance options."),
+        "app_description": ("Πραγματοποίηση κλήσεων απευθείας από το Mac μέσω του iPhone.\n\nΜια ταχύτατη και ελαφριά εφαρμογή κλήσεων που μετατρέπει το Mac σας σε ένα πλήρες τηλεφωνικό κέντρο.\nΔιαθέτει άμεση πρόσβαση σε αγαπημένα, ιστορικό κλήσεων, πλήρη λίστα επαφών με αυτόματο συγχρονισμό από τις Επαφές του macOS και κλασικό πληκτρολόγιο με ταχεία κλήση.\nΕνσωματώνεται άψογα στο σύστημα, προσφέροντας κλήσεις από τη γραμμή μενού ή από οποιοδήποτε επιλεγμένο κείμενο, έξυπνες υπενθυμίσεις, λειτουργία απορρήτου, καθώς και εκτεταμένες επιλογές προσβασιμότητας και εμφάνισης.", "Make calls directly from your Mac via your iPhone.\n\nA blazing-fast and lightweight calling utility that turns your Mac into a complete telephony hub.\nIt features quick access to favorites, call history, a full contact list with automatic synchronization from macOS Contacts, and a classic keypad with speed dial.\nFlawlessly integrated into macOS, it offers one-click calls from the menu bar or any highlighted text, smart reminders, a dedicated privacy mode, and extensive accessibility and appearance options."),
         "app_website_label": ("Ιστοσελίδα εφαρμογής", "App Website"),
         "app_github_label": ("GitHub", "GitHub"),
         "app_shortcut_label": ("Συντόμευση: Ctrl + Option + Cmd + H", "Shortcut: Ctrl + Option + Cmd + H"),
@@ -215,7 +215,7 @@ func L(_ key: String, _ arg: String = "") -> String {
         "import_error_text": ("Το αρχείο δεν είναι έγκυρο ή έχει καταστραφεί.", "The file is invalid or corrupted."),
 
         // --- CONTACTS FRAMEWORK SYNC (iCloud / iPhone μέσω Επαφών) ---
-        "sync_with_contacts_app": ("Συγχρονισμός με Επαφές (iCloud)...", "Sync with Contacts (iCloud)..."),
+        "sync_with_contacts_app": ("Συγχρονισμός με Επαφές...", "Sync with Contacts..."),
         "contacts_sync_success_title": ("Ο συγχρονισμός ολοκληρώθηκε", "Sync Complete"),
         "contacts_sync_success_text": ("Προστέθηκαν %d νέες επαφές, ενημερώθηκαν %d υπάρχουσες.", "Added %d new contacts, updated %d existing."),
         "contacts_sync_error_title": ("Σφάλμα Συγχρονισμού", "Sync Error"),
@@ -233,7 +233,7 @@ func L(_ key: String, _ arg: String = "") -> String {
         "contacts_sync_settings_intro": ("Το HelloMac μπορεί μόνο να διαβάζει αυτόματα τις επαφές σας από την εφαρμογή Επαφές του macOS.\n\nΠροσοχή: Για τις επαφές που προέρχονται από αυτόν τον συγχρονισμό, τυχόν αλλαγή στο όνομα ή στο τηλέφωνο μέσα στο HelloMac δεν διατηρείται.\nΗ επαφή θα αντικατασταθεί στον επόμενο συγχρονισμό.", "HelloMac can only automatically read your contacts from the macOS Contacts app.\n\nNote: For contacts originating from this sync, any change to the name or phone number within HelloMac is not preserved.\nThe contact will be overwritten on the next sync."),
         "contacts_sync_enable_toggle": ("Ενεργοποίηση συγχρονισμού επαφών", "Enable Contacts sync"),
         "contacts_sync_auto_toggle": ("Αυτόματη ανανέωση στο παρασκήνιο", "Automatic background refresh"),
-        "contacts_sync_auto_hint": ("Όταν είναι ενεργή, η εφαρμογή ελέγχει περιοδικά στο παρασκήνιο για αλλαγές στις Επαφές (iCloud) και ενημερώνει την λίστα επαφών σας αυτόματα.", "When active, the app periodically checks in the background for changes to Contacts (iCloud) and updates your contact list automatically."),
+        "contacts_sync_auto_hint": ("Όταν είναι ενεργή, η εφαρμογή ελέγχει περιοδικά στο παρασκήνιο για αλλαγές στις Επαφές και ενημερώνει την λίστα επαφών σας αυτόματα.", "When active, the app periodically checks in the background for changes to Contacts and updates your contact list automatically."),
         "contacts_services_hint": ("Για να εμφανιστεί η επιλογή \"Κλήση με το HelloMac\" στο δεξί κλικ πάνω σε επιλεγμένο κείμενο, πρέπει να ενεργοποιηθεί μία φορά από τις Ρυθμίσεις Συστήματος (Πληκτρολόγιο → Συντομεύσεις πληκτρολογίου… → Υπηρεσίες → Κείμενο).", "To make \"Call with HelloMac\" appear when right-clicking selected text, it needs to be enabled once from System Settings (Keyboard → Keyboard Shortcuts… → Services → Text)."),
         "contacts_open_services_settings_btn": ("Άνοιγμα Ρυθμίσεων Υπηρεσιών…", "Open Services Settings…"),
 

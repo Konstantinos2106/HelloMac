@@ -192,10 +192,21 @@ final class AccessibilityManager {
         window.appearance = preferredWindowAppearance
     }
 
+    private static let alertTextWidth: CGFloat = 260
+
     func applyAccessibility(to alert: NSAlert) {
         alert.window.appearance = preferredWindowAppearance
+        constrainAlertWidth(alert)
         guard let contentView = alert.window.contentView else { return }
         applyToViewTree(contentView)
+    }
+
+    private func constrainAlertWidth(_ alert: NSAlert) {
+        guard let contentView = alert.window.contentView else { return }
+        for view in contentView.subviews {
+            guard let textField = view as? NSTextField, !textField.stringValue.isEmpty else { continue }
+            textField.preferredMaxLayoutWidth = Self.alertTextWidth
+        }
     }
 
     func applyHighContrastBorder(to view: NSView, cornerRadius: CGFloat = 4) {

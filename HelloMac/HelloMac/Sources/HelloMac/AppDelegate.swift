@@ -38,7 +38,7 @@ class HotKeyManager {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var mainWindowController: MainWindowController?
     var appearanceObservation: NSKeyValueObservation?
-    private static let baseWindowSize = NSSize(width: 335, height: 680)
+    private static let baseWindowSize = NSSize(width: 360, height: 680)
     var naturalWindowSize: NSSize {
         get {
             guard let saved = UserDefaults.standard.string(forKey: "a11yNaturalWindowSize") else {
@@ -292,6 +292,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateItem.target = self
         appMenu.addItem(updateItem)
         
+        let syncSeparator = NSMenuItem.separator()
+        appMenu.addItem(syncSeparator)
+
+        let syncContactsItem = NSMenuItem(title: L("sync_with_contacts_app"), action: #selector(syncWithSystemContacts), keyEquivalent: "r")
+        syncContactsItem.keyEquivalentModifierMask = [.command, .shift]
+        syncContactsItem.target = self
+        appMenu.addItem(syncContactsItem)
+        self.syncContactsMenuItem = syncContactsItem
+        self.syncContactsSeparatorItem = syncSeparator
+        updateSyncContactsMenuVisibility()
+
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(withTitle: L("exit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
@@ -310,17 +321,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         exportItem.target = self
         fileMenu.addItem(exportItem)
         
-        let syncSeparator = NSMenuItem.separator()
-        fileMenu.addItem(syncSeparator)
-
-        let syncContactsItem = NSMenuItem(title: L("sync_with_contacts_app"), action: #selector(syncWithSystemContacts), keyEquivalent: "r")
-        syncContactsItem.keyEquivalentModifierMask = [.command, .shift]
-        syncContactsItem.target = self
-        fileMenu.addItem(syncContactsItem)
-        self.syncContactsMenuItem = syncContactsItem
-        self.syncContactsSeparatorItem = syncSeparator
-        updateSyncContactsMenuVisibility()
-
         fileMenu.addItem(NSMenuItem.separator())
         
         let importBackupItem = NSMenuItem(title: L("import_backup"), action: #selector(importBackup), keyEquivalent: "i")
