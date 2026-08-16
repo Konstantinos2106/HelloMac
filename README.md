@@ -23,15 +23,15 @@
 ## 📸 Screenshots / Στιγμιότυπα
 
 <p align="center">
-  <img src="Icns_Photos/HelloMac1en.png" alt="HelloMac Favorites" width="30%">
+  <img src="Icns_Photos/HelloMac1en_dm.png" alt="HelloMac Favorites" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac2en.png" alt="HelloMac Contacts" width="30%">
+  <img src="Icns_Photos/HelloMac2en_dm.png" alt="HelloMac Contacts" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac3en.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/HelloMac3en_dm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac4en.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/HelloMac4en_dm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac5en.png" alt="HelloMac Keypad" width="59%">
+  <img src="Icns_Photos/HelloMac5en_dm.png" alt="HelloMac Keypad" width="59%">
 </p>
 
 ---
