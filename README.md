@@ -1,13 +1,10 @@
 <p align="center">
-  <img src="Icns_Photos/Banner.png" alt="HelloMac Banner" width="100%">
-</p>
-<p align="center">
   <img src="Icns_Photos/phone.png" alt="HelloMac Icon" width="200" height="200">
 </p>
 <h1 align="center">HelloMac</h1>
 <p align="center">
-  <strong>Make calls directly from your Mac via your iPhone.<br>A blazing-fast and lightweight app, featuring a classic dialpad and a full contacts list.</strong><br><br>
-  <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή, με κλασικό πληκτρολόγιο και πλήρη λίστα επαφών.</strong>
+  <strong>Make calls directly from your Mac via your iPhone.<br>A fast and lightweight application with a familiar phone interface.</strong><br><br>
+  <strong>Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη και ελαφριά εφαρμογή με γνώριμο περιβάλλον τηλεφώνου.</strong>
 </p>
 <p align="center">
   <a href="https://github.com/Konstantinos2106/HelloMac/releases/latest">
@@ -176,3 +173,7 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
 
 _Για αυτόματες ενημερώσεις πρέπει να έχετε τουλάχιστον την έκδοση 2.0. Οι προηγούμενες εκδόσεις δεν διαθέτουν μηχανισμό αυτόματου ελέγχου και ενημέρωσης._
+
+<p align="center">
+  <img src="Icns_Photos/Banner.png" alt="HelloMac Banner" width="100%">
+</p>
