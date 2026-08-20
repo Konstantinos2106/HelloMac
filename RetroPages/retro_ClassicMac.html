@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HelloMac | Phone Calls Utility for older macOS</title>
+  <meta name="google-site-verification" content="5xGVIA18-POsc-wx-dAljCETDs4Q5NiAKTrYUYJ91cw" />
+  <meta name="description" id="meta-desc" content="HelloMac is a lightweight phone utility for legacy macOS (Big Sur, Monterey, Ventura). Make calls via iPhone Handoff seamlessly." />
+  <link rel="icon" type="image/png" href="Icns_Photos/phone.png" sizes="48x48">
+  <link rel="apple-touch-icon" href="Icns_Photos/phone.png">  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* VARIABLES (Dark/Light Mode) */
+    :root[data-theme="dark"] {
+      --bg:#0d0d0f; --surface:#161618; --surface2:#1c1c1e;
+      --border:rgba(255,255,255,0.08); --green:#30d158;
+      --green-dim:rgba(48,209,88,0.12); --text:#f5f5f7;
+      --text-secondary:#86868b; --text-tertiary:#48484a;
+      --radius:18px; --radius-sm:10px;
+    }
+    :root[data-theme="light"] {
+      --bg:#ffffff; --surface:#f5f5f7; --surface2:#e5e5ea;
+      --border:rgba(0,0,0,0.1); --green:#28cd41;
+      --green-dim:rgba(40,205,65,0.15); --text:#1d1d1f;
+      --text-secondary:#86868b; --text-tertiary:#86868b;
+      --radius:18px; --radius-sm:10px;
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    
+    /* Καθολική κληρονομικότητα γραμματοσειράς για όλα τα κουμπιά */
+    button, input, select, textarea { font-family: inherit; }
+    
+    html{scroll-behavior:smooth;}
+    body{
+      background:var(--bg); color:var(--text);
+      /* Native for Mac first, then Inter for Windows */
+      font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Inter',sans-serif;
+      font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+      transition: background-color 0.3s, color 0.3s;
+      overflow-x: hidden;
+    }
+
+    /* LANG */
+    span[data-lang],div[data-lang]{display:none;}
+    body.lang-el [data-lang="el"],body.lang-en [data-lang="en"]{display:revert;}
+    span[data-lang]{display:none;}
+    body.lang-el span[data-lang="el"],body.lang-en span[data-lang="en"]{display:inline;}
+
+    /* MOUSE GLOW */
+    .mouse-glow {
+      position: fixed;
+      top: 0; left: 0;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(48,209,88,0.12) 0%, rgba(48,209,88,0) 60%);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
+
+    /* NAV */
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;padding:0 32px;height:60px;background:rgba(13,13,15,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+    :root[data-theme="light"] nav { background:rgba(255,255,255,.85); }
+    
+    .nav-logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;text-decoration:none;color:var(--text); cursor:pointer;}
+    .logo-icon{width:28px;height:28px;border-radius:7px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+    .logo-icon img{width:100%;height:100%;object-fit:cover;}
+    
+    /* ΝΕΟ ΚΑΘΑΡΟ FALLBACK (Αντί για emoji) */
+    .logo-icon-fallback{width:28px;height:28px;background:var(--green);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#000;}
+    .hero-big-logo .logo-icon-fallback { width: 150px; height: 150px; border-radius: 35px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+    .hero-big-logo .logo-icon-fallback svg { width: 64px; height: 64px; }
+    
+    .nav-right-actions { margin-left:auto; display:flex; gap:16px; align-items:center; }
+    
+    .nav-stars{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--text-secondary);text-decoration:none;transition:border-color .2s;}
+    .nav-stars:hover{border-color:rgba(128,128,128,.4);}
+
+    /* TOGGLE BUTTONS IN NAV */
+    .icon-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text-secondary); border-radius:6px; padding:4px 8px; cursor:pointer; display:flex; align-items:center; transition:all .2s; }
+    .icon-btn:hover { border-color:rgba(128,128,128,.4); color:var(--text); }
+    
+    #lang-switch{display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px;}
+    #lang-switch button{background:none;border:none;color:var(--text-secondary);font-size:12px;font-weight:600;padding:4px 10px;border-radius:4px;cursor:pointer;transition:all .2s;}
+    #lang-switch button.active{background:var(--green);color:#000;}
+
+    /* HERO */
+    .hero{min-height:85vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 80px;position:relative;overflow:hidden;}
+    .hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(48,209,88,.12) 0%,transparent 65%);pointer-events:none;}
+    
+    /* BIG OCLP STYLE LOGO */
+    .hero-big-logo { margin-bottom: 30px; display: flex; justify-content: center; }
+    .hero-big-logo img { width: 150px; height: 150px; border-radius: 35px; object-fit: cover; box-shadow: 0 20px 40px rgba(0,0,0,0.15); transition: box-shadow 0.3s; }
+    
+    /* FIX FOR LIGHT MODE IMAGES */
+    :root[data-theme="light"] .hero-big-logo img { border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
+    :root[data-theme="light"] .banner-wrap { border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
+    :root[data-theme="light"] .banner-wrap img { border: none; box-shadow: none; }
+
+    .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--green-dim);border:1px solid rgba(48,209,88,.25);border-radius:100px;padding:6px 14px;font-size:13px;font-weight:500;color:var(--green);margin-bottom:28px;min-height:34px;}
+    .hero h1{font-size:clamp(42px,8vw,80px);font-weight:700;letter-spacing:-2.5px;line-height:1.05;margin-bottom:22px;}
+    .hero h1 .accent{color:var(--green); text-shadow: 0 0 25px rgba(48,209,88,0.25);}
+    .hero-sub{font-size:clamp(16px,2.5vw,20px);color:var(--text-secondary);max-width:580px;margin:0 auto 42px;line-height:1.55;}
+    body.lang-el .hero-sub { max-width: 690px; }
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+
+    .btn-primary{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#000;font-weight:600;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none;transition:all .2s;cursor:pointer;border:none;}
+    .btn-primary:hover{background:#34e05a;transform:translateY(-1px);box-shadow:0 8px 30px rgba(48,209,88,.3);}
+    .btn-primary svg { width: 18px; height: 18px; }
+
+    .btn-secondary{display:inline-flex;align-items:center;gap:8px;background:var(--surface2);color:var(--text);font-weight:600;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none;border:1px solid var(--border);transition:all .2s;cursor:pointer;}
+    .btn-secondary:hover{background:var(--surface);border-color:rgba(128,128,128,.4);}
+
+    .spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* SECTIONS */
+    section{padding:100px 24px;}
+    .container{max-width:1000px;margin:0 auto;}
+    .section-label{font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:14px;}
+    .section-title{font-size:clamp(28px,4vw,36px);font-weight:700;letter-spacing:-1px;line-height:1.15;margin-bottom:16px;}
+    .section-sub{font-size:17px;color:var(--text-secondary);max-width:520px;line-height:1.6; margin-bottom: 30px;}
+
+    /* FEATURES GRID */
+    .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:56px;}
+    .feature-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;transition:all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);}
+    .feature-card:hover{border-color:rgba(48,209,88,.4);transform:translateY(-6px);box-shadow:0 12px 30px rgba(0,0,0,.2), 0 0 25px rgba(48,209,88,.08);}
+    :root[data-theme="light"] .feature-card:hover { box-shadow:0 12px 30px rgba(0,0,0,.08), 0 0 25px rgba(48,209,88,.15); }
+    .feature-icon{width:44px;height:44px;background:var(--green-dim);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:18px;transition: transform 0.3s ease;}
+    .feature-card:hover .feature-icon{transform: scale(1.1);}
+    .feature-card h3{font-size:17px;font-weight:600;margin-bottom:8px;}
+    .feature-card p{font-size:14px;color:var(--text-secondary);line-height:1.6;}
+
+    body.is-docs-view {
+      height: 100vh;
+      overflow: hidden; /* Prevent body from scrolling */
+      display: flex;
+      flex-direction: column;
+    }
+    body.is-docs-view nav {
+      position: relative; /* Integrates into flex layout */
+      flex-shrink: 0;
+    }
+    body.is-docs-view footer {
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+    body.is-docs-view #page-docs {
+      display: flex !important;
+      flex: 1; /* Takes remaining height between nav and footer */
+      min-height: 0; /* Needed for nested scrollbars in flexbox */
+      padding-top: 0;
+    }
+
+    .docs-layout { display: none; }
+    
+    .docs-sidebar { 
+      width: 280px; border-right: 1px solid var(--border); padding: 40px 24px; 
+      overflow-y: auto; flex-shrink: 0; background: var(--bg);
+    }
+    
+    .docs-sidebar-group { margin-bottom: 24px; }
+    .docs-sidebar-group h4 { font-size: 14px; color: var(--text-tertiary); margin-bottom: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .docs-sidebar-group ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .docs-sidebar-group a { 
+      color: var(--text-secondary); text-decoration: none; font-size: 15px; font-weight: 500;
+      display: block; padding: 8px 12px; border-radius: 8px; margin-left: -12px; transition: all 0.2s;
+    }
+    .docs-sidebar-group a:hover { background: var(--surface2); color: var(--text); }
+    .docs-sidebar-group a.active { background: var(--green-dim); color: var(--green); font-weight: 600; }
+    
+    .docs-content { 
+      flex: 1; 
+      overflow-y: auto; 
+      scroll-behavior: smooth;
+    }
+    .docs-content-inner {
+      padding: 40px 60px; 
+      max-width: 950px;
+      margin: 0 auto; /* Centered content inside the scrollable pane */
+    }
+    .doc-section { display: none; animation: fadeIn 0.3s ease; }
+    .doc-section.active { display: block; }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .banner-wrap{width:100%;max-width:900px;margin:30px 0;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);box-shadow:0 20px 50px rgba(0,0,0,.3);}
+    .banner-wrap img{width:100%;display:block;object-fit:cover;}
+
+    /* SCREENSHOTS GRID: 3 COLUMNS */
+    .screenshots-grid{display:grid;grid-template-columns:repeat(3, 1fr);gap:20px;margin-top:40px;align-items:start;}
+    .screenshot-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);background:var(--surface2);transition: transform 0.3s ease, box-shadow 0.3s ease;}
+    .screenshot-card:hover{transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.25);}
+    .screenshot-card img{width:100%;display:block;object-fit:cover;}
+    .screenshot-card.span-2{grid-column:span 2;}
+
+    .steps{margin-top:20px;display:flex;flex-direction:column;}
+    .step{display:flex;gap:28px;align-items:flex-start;padding:32px 0;border-bottom:1px solid var(--border);}
+    .step:last-child{border-bottom:none;}
+    .step-num{flex-shrink:0;width:36px;height:36px;border-radius:50%;background:var(--green-dim);border:1px solid rgba(48,209,88,.3);color:var(--green);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+    .step-content h3{font-size:17px;font-weight:600;margin-bottom:6px;}
+    .step-content p{font-size:14px;color:var(--text-secondary);line-height:1.65;}
+    .step-content code{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-family:'SF Mono',monospace;font-size:13px;color:var(--green);}
+    .step-content a.step-link{color:var(--green); text-decoration:none; font-weight:500;}
+    .step-content a.step-link:hover{text-decoration:underline;}
+
+    .release-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 32px;margin-top:20px;display:none;}
+    .release-box-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+    .release-tag{background:var(--green-dim);border:1px solid rgba(48,209,88,.3);color:var(--green);font-size:12px;font-weight:700;padding:3px 10px;border-radius:100px;}
+    .release-date{font-size:13px;color:var(--text-tertiary);}
+    .release-body{font-size:14px;color:var(--text-secondary);line-height:1.7;white-space:normal;} 
+
+    .notice{background:rgba(48,209,88,.07);border:1px solid rgba(48,209,88,.2);border-radius:var(--radius-sm);padding:18px 22px;font-size:14px;color:var(--text-secondary);margin-top:40px;line-height:1.65;}
+    .notice strong{color:var(--text);}
+
+    .download-card{max-width:100%;margin:40px 0 0;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:56px 48px;position:relative;overflow:hidden;}
+    .download-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(48,209,88,.08) 0%,transparent 60%);pointer-events:none;}
+    .download-card h2{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:12px;}
+    .download-card>p{color:var(--text-secondary);font-size:15px;margin-bottom:32px;}
+    .req-list{margin-top:24px;display:flex;flex-direction:column;gap:6px;text-align:left;}
+    .req-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);}
+    .req-item::before{content:'✓';color:var(--green);font-weight:700;}
+
+    .scroll-top-btn {
+      position: fixed; bottom: 30px; right: 30px; z-index: 9000; width: 46px; height: 46px;
+      background: var(--green); color: black; border: none; border-radius: 50%;
+      font-size: 20px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center;
+      opacity: 0; visibility: hidden; transform: translateY(15px); transition: all 0.3s ease;
+    }
+    .scroll-top-btn.show { opacity: 1; visibility: visible; transform: translateY(0); }
+    .scroll-top-btn:hover { background: #34e05a; transform: translateY(-3px); box-shadow: 0 6px 16px rgba(48,209,88,0.4); }
+    
+    .scroll-top-btn.above-footer { bottom: 120px; }
+
+    @media(min-width: 769px) {
+      body.is-docs-view .scroll-top-btn { bottom: 120px; }
+    }
+
+    footer{border-top:1px solid var(--border);padding:40px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px; background:var(--bg); position: relative; z-index: 10;}
+    .footer-left{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--text-secondary);}
+    .footer-links{display:flex;gap:24px;flex-wrap:wrap;}
+    .footer-links a{font-size:13px;color:var(--text-tertiary);text-decoration:none;transition:color .2s;}
+    .footer-links a:hover{color:var(--text-secondary);}
+
+    @media(max-width:768px){
+      nav{padding:0 18px;}
+      body.is-docs-view { display: block; overflow: auto; height: auto; }
+      body.is-docs-view nav { position: fixed; }
+      body.is-docs-view #page-docs { display: flex; flex-direction: column; margin-top: 60px; }
+      .docs-sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 20px; }
+      .docs-content { overflow: visible; padding: 20px; }
+      .docs-content-inner { padding: 0; }
+      .screenshots-grid{grid-template-columns:1fr;} /* Στα κινητά γίνεται 1 στήλη */
+      .screenshot-card{height:auto;}
+      .screenshot-card img{height:auto;}
+      footer{flex-direction:column;text-align:center;}
+      .scroll-top-btn { display: none !important; }
+    }
+
+    /* ============================================================
+       ========  CLASSIC MAC OS (SYSTEM 7 / OS 9) SKIN  ============
+       ============================================================ */
+
+    @font-face {
+      font-family: 'ChiWin';
+      src: local('Chicago'), local('Monaco');
+    }
+
+    :root[data-theme="dark"], :root[data-theme="light"] {
+      --sys-bg:#c0c0c0;
+      --sys-white:#ffffff;
+      --sys-black:#000000;
+      --sys-gray-lt:#dddddd;
+      --sys-gray-md:#999999;
+      --sys-gray-dk:#4d4d4d;
+      --sys-blue-select:#000090;
+      --sys-blue-select-lt:#0000c8;
+      --bg: var(--sys-bg);
+      --surface: var(--sys-white);
+      --surface2: var(--sys-gray-lt);
+      --border: var(--sys-black);
+      --green: var(--sys-blue-select-lt);
+      --green-dim: rgba(0,0,144,0.08);
+      --text: var(--sys-black);
+      --text-secondary: #333333;
+      --text-tertiary: #555555;
+      --radius: 0px;
+      --radius-sm: 0px;
+    }
+
+    body{
+      font-family: 'Geneva','Chicago','MS Sans Serif',Tahoma,sans-serif;
+      background:
+        repeating-linear-gradient(45deg, #b8b8b8 0px, #b8b8b8 2px, #c8c8c8 2px, #c8c8c8 4px);
+      color: var(--sys-black);
+      image-rendering: pixelated;
+    }
+    .mouse-glow{ display:none; }
+
+    /* Menu bar (top): flat white bar w/ black bottom border like classic Mac menu bar */
+    nav{
+      background:#ffffff !important;
+      border-bottom: 2px solid #000000;
+      box-shadow:none;
+      backdrop-filter:none !important;
+      height:26px;
+      font-size:12px;
+    }
+    :root[data-theme="light"] nav{ background:#ffffff !important; }
+    .nav-logo{ color:#000; font-weight:700; font-size:13px; }
+    .logo-icon-fallback{
+      background: repeating-linear-gradient(180deg,#ff3b30 0 14%,#ff9500 14% 28%,#ffcc00 28% 42%,#34c759 42% 56%,#32ade6 56% 70%,#af52de 70% 100%);
+      border-radius:0; border:1px solid #000;
+      box-shadow:none;
+    }
+
+    .icon-btn, #lang-switch, .nav-stars{
+      background:#ffffff;
+      border: 1px solid #000000;
+      border-radius: 0;
+      box-shadow: 1px 1px 0 #000;
+      color:#000;
+    }
+    .icon-btn:hover{ background:#eee; }
+    #lang-switch button{ color:#000; border-radius:0; }
+    #lang-switch button.active{
+      background: var(--sys-blue-select);
+      color:#fff;
+      box-shadow:none;
+    }
+
+    /* HERO: turn into a big classic window with striped titlebar */
+    .hero{
+      margin: 90px 16px 40px;
+      background: var(--sys-white);
+      border: 2px solid #000;
+      box-shadow: 3px 3px 0 rgba(0,0,0,.4);
+      padding-top: 46px !important;
+      position: relative;
+    }
+    .hero::before{ display:none; }
+    .hero::after{
+      content:'HelloMac';
+      position:absolute; top:0; left:0; right:0; height:22px;
+      background: repeating-linear-gradient(180deg,#000 0 2px, #fff 2px 4px);
+      border-bottom: 2px solid #000;
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Chicago','Geneva',sans-serif; font-size:12px; font-weight:700;
+      color:#000; letter-spacing:1px;
+      background-color:#fff;
+    }
+    .hero h1{ color:#000; text-shadow:none; letter-spacing:-1px; }
+    .hero h1 .accent{ color: var(--sys-blue-select); text-shadow:none; }
+    .hero-sub{ color:#222; }
+    .hero-eyebrow{
+      background:#fff; border:1px solid #000; border-radius:0; color:#000;
+      box-shadow:1px 1px 0 #000;
+    }
+    .hero-big-logo .logo-icon-fallback, .hero-big-logo img{
+      border-radius:0 !important; border:2px solid #000 !important;
+      box-shadow: 3px 3px 0 rgba(0,0,0,.35) !important;
+    }
+
+    /* Classic Mac square 3D buttons */
+    .btn-primary{
+      background: var(--sys-gray-lt);
+      color:#000;
+      text-shadow:none;
+      border: 2px solid #000;
+      border-radius: 6px;
+      box-shadow: 1px 1px 0 #000;
+      font-weight:600;
+    }
+    .btn-primary:hover{ background:#eee; transform:none; box-shadow:1px 1px 0 #000; }
+    .btn-primary:active{ background: var(--sys-blue-select); color:#fff; }
+
+    .btn-secondary{
+      background:#fff;
+      color:#000;
+      border: 2px solid #000;
+      border-radius: 6px;
+      box-shadow: 1px 1px 0 #000;
+    }
+    .btn-secondary:hover{ background:#eee; }
+
+    .scroll-top-btn{
+      background: var(--sys-gray-lt);
+      color:#000;
+      border: 2px solid #000;
+      border-radius: 6px;
+      box-shadow: 1px 1px 0 #000;
+    }
+
+    .section-label{ color: var(--sys-blue-select); font-weight:700; }
+    .section-title{ color:#000; text-shadow:none; letter-spacing:-0.5px; }
+    .section-sub{ color:#222; }
+
+    /* Feature cards -> classic Mac panels/icons boxes */
+    .feature-card{
+      background:#fff;
+      border: 2px solid #000;
+      border-radius: 0;
+      box-shadow: 2px 2px 0 rgba(0,0,0,.5);
+    }
+    .feature-card:hover{
+      transform:none;
+      border-color:#000;
+      box-shadow: 3px 3px 0 rgba(0,0,0,.6);
+    }
+    .feature-icon{
+      background: var(--sys-gray-lt);
+      border: 1px solid #000;
+      border-radius: 0;
+      box-shadow:none;
+    }
+    .feature-icon:hover, .feature-card:hover .feature-icon{ transform:none; }
+    .feature-icon svg, .feature-icon svg *{ stroke:#000 !important; }
+    .feature-icon svg circle[fill]{ fill:#000 !important; }
+    .feature-card h3{ color:#000; }
+    .feature-card p{ color:#333; }
+
+    /* Docs sidebar -> classic finder sidebar */
+    .docs-sidebar{
+      background: var(--sys-gray-lt);
+      border-right: 2px solid #000;
+    }
+    .docs-sidebar-group h4{ color:#444; }
+    .docs-sidebar-group a{ border-radius:0; }
+    .docs-sidebar-group a.active{
+      background: var(--sys-blue-select);
+      color:#fff;
+      box-shadow:none;
+    }
+    .docs-sidebar-group a:hover{ background:#ccc; color:#000; }
+
+    .step{ border-bottom: 1px solid #000; }
+    .step-num{
+      background: var(--sys-gray-lt);
+      color:#000;
+      border: 2px solid #000;
+      box-shadow:1px 1px 0 #000;
+      border-radius: 6px;
+      text-shadow:none;
+    }
+    .step-content code{ background:#eee; border:1px solid #000; color: var(--sys-blue-select); border-radius:0; }
+    .step-content a.step-link{ color: var(--sys-blue-select); }
+
+    .release-box, .download-card{
+      background:#fff;
+      border: 2px solid #000;
+      border-radius: 0;
+      box-shadow: 2px 2px 0 rgba(0,0,0,.5);
+    }
+    .release-tag{
+      background: var(--sys-blue-select);
+      color:#fff; border: 1px solid #000; border-radius:0; text-shadow:none;
+    }
+    .req-item::before{ color: var(--sys-blue-select); }
+
+    .notice{ background:#fff; border: 1px dashed #000; border-radius:0; color:#222; }
+    .notice strong{ color:#000; }
+
+    /* Footer -> classic desktop pattern strip */
+    footer{
+      background: repeating-linear-gradient(45deg, #b8b8b8 0px, #b8b8b8 2px, #c8c8c8 2px, #c8c8c8 4px) !important;
+      border-top: 2px solid #000;
+    }
+    .footer-links a{ color:#333; }
+    .footer-links a:hover{ color: var(--sys-blue-select); }
+
+    .banner-wrap, .screenshot-card{
+      border: 2px solid #000 !important;
+      border-radius:0 !important;
+      box-shadow: 2px 2px 0 rgba(0,0,0,.5) !important;
+    }
+  </style>
+</head>
+<body class="lang-en">
+
+<div class="mouse-glow" id="mouse-glow"></div>
+
+<nav>
+  <a class="nav-logo" onclick="showHome()">
+    <div class="logo-icon" id="nav-logo-wrap">
+      <div class="logo-icon-fallback">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+      </div>
+    </div>
+    HelloMac
+  </a>
+  
+  <div class="nav-right-actions">
+    <div id="lang-switch">
+      <button class="active" onclick="setLang('el')">ΕΛ</button>
+      <button onclick="setLang('en')">EN</button>
+    </div>
+
+    <a class="nav-stars" id="nav-downloads" href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank" style="display: none;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span id="downloads-count"></span>
+    </a>
+  </div>
+</nav>
+
+<div id="page-home" style="padding-top: 60px;">
+  <section class="hero" style="padding-top: 80px;">
+    <div class="hero-big-logo">
+      <div id="main-logo-wrap">
+        <div class="logo-icon-fallback">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-eyebrow" id="hero-badge" style="display: none;"><span class="spinner"></span></div>
+    <h1>
+      <span data-lang="el">Εφαρμογή κλήσεων<br>για <span class="accent">παλαιότερα macOS</span></span>
+      <span data-lang="en">Calling app<br>for <span class="accent">older macOS</span></span>
+    </h1>
+    <p class="hero-sub" id="hero-desc">
+      <span data-lang="el">Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη, κομψή και ελαφριά εφαρμογή, ειδικά σχεδιασμένη για να προσφέρει το απόλυτο τηλεφωνικό κέντρο σε παλαιότερα macOS.</span>
+      <span data-lang="en">Make calls directly from your Mac via your iPhone.<br>A blazing-fast, elegant, and lightweight application, specially designed to bring the ultimate telephony hub to older macOS.</span>
+    </p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="showDocs()">
+        <span data-lang="el">Ξεκινήστε</span><span data-lang="en">Getting Started</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+      </button>
+      <a class="btn-secondary" href="https://github.com/Konstantinos2106/HelloMac" target="_blank">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;vertical-align:middle"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+        <span data-lang="el">GitHub</span><span data-lang="en">GitHub</span>
+      </a>
+    </div>
+  </section>
+
+  <section id="features" style="padding-top: 0;">
+    <div class="container">
+      <div class="section-label"><span data-lang="el">Χαρακτηριστικά</span><span data-lang="en">Features</span></div>
+      <h2 class="section-title">
+        <span data-lang="el">Όλα όσα χρειάζεσαι για μια κλήση</span>
+        <span data-lang="en">Everything you need to make a call</span>
+      </h2>
+      <p class="section-sub">
+        <span data-lang="el">Το HelloMac δημιουργήθηκε με γνώμονα την παραγωγικότητα.<br>Διαχειριστείτε από το Mac σας τις επικοινωνίες σας με μια εφαρμογή που σέβεται την ιδιωτικότητά σας και τους πόρους του συστήματός σας.</span>
+        <span data-lang="en">HelloMac was built with productivity in mind.<br>Manage your communications from your Mac with an app that respects your privacy and system resources.</span>
+      </p>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <h3><span data-lang="el">Ανοιχτόχρωμη & Σκουρόχρωμη Λειτουργία</span><span data-lang="en">Light & Dark Mode</span></h3>
+            <p><span data-lang="el">Ενσωματώνεται άψογα στο περιβάλλον του macOS με πλήρη υποστήριξη ανοιχτόχρωμης & σκουρόχρωμης λειτουργίας.</span><span data-lang="en">Integrates flawlessly into the macOS environment with full Light & Dark Mode support.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          </div>
+          <h3><span data-lang="el">Menu Bar & Απόρρητο</span><span data-lang="en">Menu Bar & Privacy</span></h3>
+          <p><span data-lang="el"> Κλήσεις με ένα κλικ από την πάνω μπάρα εργασιών του macOS.<br>Η "Λειτουργία Απορρήτου" κρύβει ευαίσθητα δεδομένα κατά την κοινή χρήση οθόνης σε meetings. </span><span data-lang="en">One-click calling from the macOS menu bar.<br>'Privacy Mode' hides sensitive data while screen sharing during meetings.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M20.4 14.5L16 10 4 20"/></svg>
+          </div>
+          <h3><span data-lang="el">Φωτογραφίες & Σημειώσεις</span><span data-lang="en">Photos & Notes</span></h3>
+          <p><span data-lang="el">Δώστε ζωή στις επαφές σας.<br>Προσθέστε εικόνες με δυνατότητα έξυπνου ζουμ και κρατήστε προσωπικές σημειώσεις για την κάθε σας κλήση.</span><span data-lang="en">Bring your contacts to life.<br>Add profile pictures with smart zoom capabilities and keep custom text notes for every caller.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3><span data-lang="el">SMS & iMessage</span><span data-lang="en">SMS & iMessage</span></h3>
+          <p><span data-lang="el">Άμεση αποστολή μηνυμάτων μέσω της εγγενούς εφαρμογής του macOS.</span><span data-lang="en">Instantly send messages directly via the native macOS Messages app.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <h3><span data-lang="el">Αγαπημένα</span><span data-lang="en">Favorites</span></h3>
+          <p><span data-lang="el">Άμεση πρόσβαση με drag & drop στις πιο σημαντικές επαφές σας.</span><span data-lang="en">Quick access with drag & drop reordering for your most important contacts.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <h3><span data-lang="el">Λίστα Επαφών</span><span data-lang="en">Contacts List</span></h3>
+          <p><span data-lang="el">Προσθήκη, επεξεργασία και γρήγορη πρόσβαση με ένα κλικ.</span><span data-lang="en">Add, edit, and quickly access everyone with just one click.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </div>
+          <h3><span data-lang="el">Έξυπνη Αναζήτηση</span><span data-lang="en">Smart Search</span></h3>
+          <p><span data-lang="el">Αναζήτηση στις επαφές, στο ιστορικό και γρήγορη εύρεση με συντομεύσεις.</span><span data-lang="en">Search in contacts, history, and find quickly using shortcuts.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+          </div>
+          <h3><span data-lang="el">Ιστορικό Κλήσεων</span><span data-lang="en">Call History</span></h3>
+          <p><span data-lang="el">Πλήρες ιστορικό των κλήσεών σας με ημερομηνία και αυτόματη διαχείριση.</span><span data-lang="en">Full history of your calls with date, time, and automatic management.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="7" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="7" cy="10" r="1.5" fill="var(--green)"/><circle cx="12" cy="10" r="1.5" fill="var(--green)"/><circle cx="17" cy="10" r="1.5" fill="var(--green)"/><circle cx="7" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="21" r="1.5" fill="var(--green)"/></svg>
+          </div>
+          <h3><span data-lang="el">Κλασικό Πληκτρολόγιο</span><span data-lang="en">Classic Keypad</span></h3>
+          <p><span data-lang="el">Καντράν για γρήγορη πληκτρολόγηση αριθμών.</span><span data-lang="en">Dialpad for quick number entry.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="7" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="7" cy="10" r="1.5" fill="var(--green)"/><circle cx="12" cy="10" r="1.5" fill="var(--green)"/><circle cx="17" cy="10" r="1.5" fill="var(--green)"/><circle cx="7" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="21" r="1.5" fill="var(--green)"/></svg>
+          </div>
+          <h3><span data-lang="el">Ταχεία Κλήση</span><span data-lang="en">Speed Dial Keypad</span></h3>
+          <p><span data-lang="el">Αναθέστε επαφές στα πλήκτρα 1-9 για γρήγορη κλήση κατευθείαν από το καντράν.</span><span data-lang="en">Assign contacts to keys 1-9 for rapid calling right from the dialpad.</span></p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon" style="font-size:0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <h3><span data-lang="el">Επαφές macOS (iCloud)</span><span data-lang="en">macOS Contacts (iCloud)</span></h3>
+            <p><span data-lang="el">Άμεση ανάγνωση και προβολή των επαφών σας από το iCloud μέσω του native Contacts framework της Apple.</span><span data-lang="en">Directly read and view your iCloud contacts using Apple's native Contacts framework.</span></p>
+        </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+        </div>
+        <h3><span data-lang="el">Κλήση από Παντού</span><span data-lang="en">Call from Anywhere</span></h3>
+        <p><span data-lang="el">Μαρκάρετε οποιονδήποτε αριθμό στο Mac και καλέστε τον άμεσα μέσω του μενού Υπηρεσιών (System Service).</span><span data-lang="en">Highlight any phone number on your Mac and call instantly via the System Services menu.</span></p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <h3><span data-lang="el">Υπενθυμίσεις Κλήσεων</span><span data-lang="en">Call Reminders</span></h3>
+        <p><span data-lang="el">Ορίστε ειδοποιήσεις με προσαρμοσμένα μηνύματα για να μην ξεχάσετε ποτέ μια σημαντική μελλοντική κλήση.</span><span data-lang="en">Set alerts with custom notes so you never miss an important future call.</span></p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
+        </div>
+        <h3><span data-lang="el">Επιλογή Ζώνης Ώρας</span><span data-lang="en">Time Zone Selection</span></h3>
+        <p><span data-lang="el">Αλλάξτε τη ζώνη ώρας στις ρυθμίσεις για να προσαρμόζονται αυτόματα όλες οι ενδείξεις χρόνου στην εφαρμογή.</span><span data-lang="en">Change your time zone in settings to automatically adjust all time displays across the app.</span></p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+        <h3><span data-lang="el">Προσβασιμότητα</span><span data-lang="en">Accessibility</span></h3>
+        <p><span data-lang="el">Πλήρης υποστήριξη για υψηλή αντίθεση, μεγέθυνση κειμένου και ασπρόμαυρη προβολή.</span><span data-lang="en">Full support for high contrast, text scaling, and black & white viewing modes.</span></p>
+    </div>
+    
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <h3><span data-lang="el">Αντίγραφα Ασφαλείας</span><span data-lang="en">Data Backups</span></h3>
+          <p><span data-lang="el">Τα δεδομένα σας ανήκουν σε εσάς.<br>Δημιουργήστε πλήρη τοπικά αντίγραφα ασφαλείας (επαφές, ιστορικό, φωτογραφίες) και μεταφέρετέ τα εύκολα σε άλλο Mac.</span><span data-lang="en">Your data belongs to you.<br>Create full local backups (contacts, history, photos) and seamlessly migrate them to any other Mac.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="23 4 23 10 17 10"></polyline>
+  <polyline points="1 20 1 14 7 14"></polyline>
+  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+</svg>g>
+          </div>
+          <h3><span data-lang="el">Αυτόματες Ενημερώσεις</span><span data-lang="en">Auto-Updates</span></h3>
+          <p><span data-lang="el">Έξυπνος μηχανισμός στο παρασκήνιο που εγκαθιστά τις νέες εκδόσεις.</span><span data-lang="en">Smart background mechanism that automatically downloads and installs new versions.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+          </div>
+          <h3><span data-lang="el">Ελαφρύ & Γρήγορο</span><span data-lang="en">Lightweight & Fast</span></h3>
+          <p><span data-lang="el">Minimal αποτύπωμα, ανοίγει σε δευτερόλεπτα.</span><span data-lang="en">Minimal footprint, opens in seconds.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </div>
+          <h3><span data-lang="el">Συμβατότητα</span><span data-lang="en">Compatibility</span></h3>
+          <p>macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia.</p>
+        </div>
+
+        <div class="feature-card license-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3 class="license-card-title"><span class="spinner"></span></h3>
+          <p class="license-card-body"><span data-lang="el">Φόρτωση από GitHub…</span><span data-lang="en">Loading from GitHub…</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="page-docs" class="docs-layout">
+  <aside class="docs-sidebar">
+    <div class="docs-sidebar-group">
+      <h4><span data-lang="el">Εξερεύνηση</span><span data-lang="en">Explore</span></h4>
+      <ul>
+        <li><a href="#" class="sidebar-link active" onclick="switchDoc('doc-intro', this, event)"><span data-lang="el">Εισαγωγή</span><span data-lang="en">Introduction</span></a></li>
+        <li><a href="#" class="sidebar-link" onclick="switchDoc('doc-features', this, event)"><span data-lang="el">Χαρακτηριστικά</span><span data-lang="en">Features</span></a></li>
+        <li id="sidebar-screenshots-item"><a href="#" class="sidebar-link" onclick="switchDoc('doc-screenshots', this, event)"><span data-lang="el">Στιγμιότυπα</span><span data-lang="en">Screenshots</span></a></li>
+      </ul>
+    </div>
+    <div class="docs-sidebar-group">
+      <h4><span data-lang="el">Οδηγίες</span><span data-lang="en">Guides</span></h4>
+      <ul>
+        <li><a href="#" class="sidebar-link" onclick="switchDoc('doc-install', this, event)"><span data-lang="el">Εγκατάσταση</span><span data-lang="en">Installation</span></a></li>
+        <li id="sidebar-release-item"><a href="#" class="sidebar-link" onclick="switchDoc('doc-release', this, event)"><span data-lang="el">Σημειώσεις Έκδοσης</span><span data-lang="en">Release Notes</span></a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <div class="docs-content" id="docsScrollArea">
+    <div class="docs-content-inner">
+      <div id="doc-intro" class="doc-section active">
+        <div class="section-label"><span data-lang="el">Καλώς Ήρθατε</span><span data-lang="en">Welcome</span></div>
+        <h2 class="section-title">
+          <span data-lang="el">Τι είναι το HelloMac;</span>
+          <span data-lang="en">What is HelloMac?</span>
+        </h2>
+        <p class="section-sub">
+          <span data-lang="el">Το HelloMac είναι μια προηγμένη εφαρμογή τηλεφώνου για το Mac σας. Σχεδιάστηκε για να καλύψει την έλλειψη μιας αυτόνομης εφαρμογής κλήσεων στο macOS, προσφέροντας ένα καθαρό, αποκλειστικό περιβάλλον.<br><br>Χρησιμοποιώντας την τεχνολογία Handoff του iPhone σας, το HelloMac γεφυρώνει τη συσκευή σας με τον υπολογιστή, επιτρέποντάς σας να διαχειρίζεστε τις κλήσεις σας.</span>
+          <span data-lang="en">HelloMac is an advanced phone app for your Mac. It was designed to fill the gap of a missing standalone calling app on macOS, offering a clean, dedicated environment<br><br>Leveraging your iPhone's Handoff technology, HelloMac bridges your device with your computer, allowing you to manage your calls.</span>
+        </p>
+
+        <div class="banner-wrap">
+          <img id="docs-banner" src="" alt="HelloMac Banner" style="display:none" />
+        </div>
+
+        <div class="download-card">
+          <h2><span data-lang="el">Ξεκινήστε να χρησιμοποιείτε το HelloMac σήμερα</span><span data-lang="en">Start using HelloMac today</span></h2>
+          <p><span data-lang="el">Δωρεάν, ανοιχτού κώδικα, απόλυτα ασφαλές και φιλικό προς το σύστημά σας.</span><span data-lang="en">Free, open-source, completely secure, and system-friendly.</span></p>
+          <a class="btn-primary" id="download-btn-main" href="https://github.com/Konstantinos2106/HelloMac/releases">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+            <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
+          </a>
+          <div class="req-list" style="margin-top: 32px; justify-content: center;">
+            <div class="req-item"><span data-lang="el">iPhone και Mac στο ίδιο Apple ID</span><span data-lang="en">iPhone and Mac on the same Apple ID</span></div>
+            <div class="req-item"><span data-lang="el">Ίδιο Wi-Fi δίκτυο</span><span data-lang="en">Same Wi-Fi network</span></div>
+            <div class="req-item"><span data-lang="el">Συμβατό με macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia</span><span data-lang="en">Compatible with macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia</span></div>
+            <div class="req-item"><span data-lang="el">Ενεργοποιημένο iPhone Handoff</span><span data-lang="en">iPhone Handoff Enabled</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="doc-features" class="doc-section">
+        <div class="section-label"><span data-lang="el">Λειτουργίες</span><span data-lang="en">Capabilities</span></div>
+        <h2 class="section-title">
+          <span data-lang="el">Χαρακτηριστικά της Εφαρμογής</span>
+          <span data-lang="en">Application Features</span>
+        </h2>
+        <div class="features-grid">
+         <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <h3><span data-lang="el">Ανοιχτόχρωμη & Σκουρόχρωμη Λειτουργία</span><span data-lang="en">Light & Dark Mode</span></h3>
+            <p><span data-lang="el">Ενσωματώνεται άψογα στο περιβάλλον του macOS με πλήρη υποστήριξη ανοιχτόχρωμης & σκουρόχρωμης λειτουργίας.</span><span data-lang="en">Integrates flawlessly into the macOS environment with full Light & Dark Mode support.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          </div>
+          <h3><span data-lang="el">Menu Bar & Απόρρητο</span><span data-lang="en">Menu Bar & Privacy</span></h3>
+          <p><span data-lang="el"> Κλήσεις με ένα κλικ από την πάνω μπάρα εργασιών του macOS.<br>Η "Λειτουργία Απορρήτου" κρύβει ευαίσθητα δεδομένα κατά την κοινή χρήση οθόνης σε meetings. </span><span data-lang="en">One-click calling from the macOS menu bar.<br>'Privacy Mode' hides sensitive data while screen sharing during meetings.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M20.4 14.5L16 10 4 20"/></svg>
+          </div>
+          <h3><span data-lang="el">Φωτογραφίες & Σημειώσεις</span><span data-lang="en">Photos & Notes</span></h3>
+          <p><span data-lang="el">Δώστε ζωή στις επαφές σας.<br>Προσθέστε εικόνες με δυνατότητα έξυπνου ζουμ και κρατήστε προσωπικές σημειώσεις για την κάθε σας κλήση.</span><span data-lang="en">Bring your contacts to life.<br>Add profile pictures with smart zoom capabilities and keep custom text notes for every caller.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3><span data-lang="el">SMS & iMessage</span><span data-lang="en">SMS & iMessage</span></h3>
+          <p><span data-lang="el">Άμεση αποστολή μηνυμάτων μέσω της εγγενούς εφαρμογής του macOS.</span><span data-lang="en">Instantly send messages directly via the native macOS Messages app.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <h3><span data-lang="el">Αγαπημένα</span><span data-lang="en">Favorites</span></h3>
+          <p><span data-lang="el">Άμεση πρόσβαση με drag & drop στις πιο σημαντικές επαφές σας.</span><span data-lang="en">Quick access with drag & drop reordering for your most important contacts.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <h3><span data-lang="el">Λίστα Επαφών</span><span data-lang="en">Contacts List</span></h3>
+          <p><span data-lang="el">Προσθήκη, επεξεργασία και γρήγορη πρόσβαση με ένα κλικ.</span><span data-lang="en">Add, edit, and quickly access everyone with just one click.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </div>
+          <h3><span data-lang="el">Έξυπνη Αναζήτηση</span><span data-lang="en">Smart Search</span></h3>
+          <p><span data-lang="el">Αναζήτηση στις επαφές, στο ιστορικό και γρήγορη εύρεση με συντομεύσεις.</span><span data-lang="en">Search in contacts, history, and find quickly using shortcuts.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+          </div>
+          <h3><span data-lang="el">Ιστορικό Κλήσεων</span><span data-lang="en">Call History</span></h3>
+          <p><span data-lang="el">Πλήρες ιστορικό των κλήσεών σας με ημερομηνία και αυτόματη διαχείριση.</span><span data-lang="en">Full history of your calls with date, time, and automatic management.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="7" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="7" cy="10" r="1.5" fill="var(--green)"/><circle cx="12" cy="10" r="1.5" fill="var(--green)"/><circle cx="17" cy="10" r="1.5" fill="var(--green)"/><circle cx="7" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="21" r="1.5" fill="var(--green)"/></svg>
+          </div>
+          <h3><span data-lang="el">Κλασικό Πληκτρολόγιο</span><span data-lang="en">Classic Keypad</span></h3>
+          <p><span data-lang="el">Καντράν για γρήγορη πληκτρολόγηση αριθμών.</span><span data-lang="en">Dialpad for quick number entry.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"><circle cx="7" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="4.5" r="1.5" fill="var(--green)"/><circle cx="7" cy="10" r="1.5" fill="var(--green)"/><circle cx="12" cy="10" r="1.5" fill="var(--green)"/><circle cx="17" cy="10" r="1.5" fill="var(--green)"/><circle cx="7" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="17" cy="15.5" r="1.5" fill="var(--green)"/><circle cx="12" cy="21" r="1.5" fill="var(--green)"/></svg>
+          </div>
+          <h3><span data-lang="el">Ταχεία Κλήση</span><span data-lang="en">Speed Dial Keypad</span></h3>
+          <p><span data-lang="el">Αναθέστε επαφές στα πλήκτρα 1-9 για γρήγορη κλήση κατευθείαν από το καντράν.</span><span data-lang="en">Assign contacts to keys 1-9 for rapid calling right from the dialpad.</span></p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon" style="font-size:0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <h3><span data-lang="el">Επαφές macOS (iCloud)</span><span data-lang="en">macOS Contacts (iCloud)</span></h3>
+            <p><span data-lang="el">Άμεση ανάγνωση και προβολή των επαφών σας από το iCloud μέσω του native Contacts framework της Apple.</span><span data-lang="en">Directly read and view your iCloud contacts using Apple's native Contacts framework.</span></p>
+        </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+        </div>
+        <h3><span data-lang="el">Κλήση από Παντού</span><span data-lang="en">Call from Anywhere</span></h3>
+        <p><span data-lang="el">Μαρκάρετε οποιονδήποτε αριθμό στο Mac και καλέστε τον άμεσα μέσω του μενού Υπηρεσιών (System Service).</span><span data-lang="en">Highlight any phone number on your Mac and call instantly via the System Services menu.</span></p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <h3><span data-lang="el">Υπενθυμίσεις Κλήσεων</span><span data-lang="en">Call Reminders</span></h3>
+        <p><span data-lang="el">Ορίστε ειδοποιήσεις με προσαρμοσμένα μηνύματα για να μην ξεχάσετε ποτέ μια σημαντική μελλοντική κλήση.</span><span data-lang="en">Set alerts with custom notes so you never miss an important future call.</span></p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg>
+        </div>
+        <h3><span data-lang="el">Επιλογή Ζώνης Ώρας</span><span data-lang="en">Time Zone Selection</span></h3>
+        <p><span data-lang="el">Αλλάξτε τη ζώνη ώρας στις ρυθμίσεις για να προσαρμόζονται αυτόματα όλες οι ενδείξεις χρόνου στην εφαρμογή.</span><span data-lang="en">Change your time zone in settings to automatically adjust all time displays across the app.</span></p>
+    </div>
+
+    <div class="feature-card">
+        <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        </div>
+        <h3><span data-lang="el">Προσβασιμότητα</span><span data-lang="en">Accessibility</span></h3>
+        <p><span data-lang="el">Πλήρης υποστήριξη για υψηλή αντίθεση, μεγέθυνση κειμένου και ασπρόμαυρη προβολή.</span><span data-lang="en">Full support for high contrast, text scaling, and black & white viewing modes.</span></p>
+    </div>
+    
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <h3><span data-lang="el">Αντίγραφα Ασφαλείας</span><span data-lang="en">Data Backups</span></h3>
+          <p><span data-lang="el">Τα δεδομένα σας ανήκουν σε εσάς.<br>Δημιουργήστε πλήρη τοπικά αντίγραφα ασφαλείας (επαφές, ιστορικό, φωτογραφίες) και μεταφέρετέ τα εύκολα σε άλλο Mac.</span><span data-lang="en">Your data belongs to you.<br>Create full local backups (contacts, history, photos) and seamlessly migrate them to any other Mac.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="23 4 23 10 17 10"></polyline>
+  <polyline points="1 20 1 14 7 14"></polyline>
+  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+</svg>g>
+          </div>
+          <h3><span data-lang="el">Αυτόματες Ενημερώσεις</span><span data-lang="en">Auto-Updates</span></h3>
+          <p><span data-lang="el">Έξυπνος μηχανισμός στο παρασκήνιο που εγκαθιστά τις νέες εκδόσεις.</span><span data-lang="en">Smart background mechanism that automatically downloads and installs new versions.</span></p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+          </div>
+          <h3><span data-lang="el">Ελαφρύ & Γρήγορο</span><span data-lang="en">Lightweight & Fast</span></h3>
+          <p><span data-lang="el">Minimal αποτύπωμα, ανοίγει σε δευτερόλεπτα.</span><span data-lang="en">Minimal footprint, opens in seconds.</span></p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </div>
+          <h3><span data-lang="el">Συμβατότητα</span><span data-lang="en">Compatibility</span></h3>
+          <p>macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia.</p>
+        </div>
+
+        <div class="feature-card license-card">
+          <div class="feature-icon" style="font-size:0">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3 class="license-card-title"><span class="spinner"></span></h3>
+          <p class="license-card-body"><span data-lang="el">Φόρτωση από GitHub…</span><span data-lang="en">Loading from GitHub…</span></p>
+        </div>
+      </div>
+        </div>
+      </div>
+      
+      <div id="doc-screenshots" class="doc-section">
+        <div class="section-label"><span data-lang="el">Διεπαφή</span><span data-lang="en">Interface</span></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+          <h2 class="section-title" style="margin-bottom:0;">
+            <span data-lang="el">Στιγμιότυπα Εφαρμογής</span>
+            <span data-lang="en">Application Screenshots</span>
+          </h2>
+          <button class="icon-btn" id="shots-theme-toggle" title="Toggle Screenshots Theme" style="margin-bottom: 24px;">
+            <svg id="shots-icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg id="shots-icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          </button>
+        </div>
+        <!-- Το νέο πλέγμα 3 στηλών με τις σταθερές εικόνες -->
+        <div class="screenshots-grid" id="screenshots-grid">
+          <!-- 1: Αγαπημένα -->
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1el" alt="Αγαπημένα" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac1en" alt="Favorites" loading="lazy"></div>
+          
+          <!-- 2: Ιστορικό -->
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2el" alt="Ιστορικό" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac2en" alt="History" loading="lazy"></div>
+          
+          <!-- 3: Επαφές -->
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3el" alt="Επαφές" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac3en" alt="Contacts" loading="lazy"></div>
+          
+          <!-- 4: Πλήκτρα -->
+          <div class="screenshot-card" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac4el" alt="Πληκτρολόγιο" loading="lazy"></div>
+          <div class="screenshot-card" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac4en" alt="Keypad" loading="lazy"></div>
+          
+          <!-- 5: Λεπτομέρειες Επαφής -->
+          <div class="screenshot-card span-2" data-lang="el"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac5el" alt="Λεπτομέρειες Επαφής" loading="lazy"></div>
+          <div class="screenshot-card span-2" data-lang="en"><img class="theme-shot" data-base="https://raw.githubusercontent.com/Konstantinos2106/HelloMac/main/Icns_Photos/HelloMac5en" alt="Contact Details" loading="lazy"></div>
+        </div>
+      </div>
+
+      <div id="doc-install" class="doc-section">
+        <div class="section-label"><span data-lang="el">Οδηγός</span><span data-lang="en">Guide</span></div>
+        <h2 class="section-title">
+          <span data-lang="el">Πώς λειτουργεί & Εγκατάσταση</span>
+          <span data-lang="en">How it works & Installation</span>
+        </h2>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h3><span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span></h3>
+              <p style="margin-bottom: 12px;">
+                <span data-lang="el">Κατεβάστε την τελευταία έκδοση (.dmg):</span>
+                <span data-lang="en">Download the latest version (.dmg):</span>
+              </p>
+              <a class="btn-primary" id="download-btn-step" href="https://github.com/Konstantinos2106/HelloMac/releases" style="padding: 10px 24px; font-size: 14px; margin-bottom: 12px; display: inline-flex;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                <span data-lang="el">Κατεβάστε το HelloMac</span><span data-lang="en">Download HelloMac</span>
+              </a>
+              <p>
+                <span data-lang="el">ή από τα <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank" class="step-link">Releases</a>.</span>
+                <span data-lang="en">or from <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank" class="step-link">Releases</a>.</span>
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h3><span data-lang="el">Σύρετε στις Εφαρμογές</span><span data-lang="en">Drag to Applications</span></h3>
+              <p>
+                <span data-lang="el">Ανοίξτε το <code>.dmg</code> και σύρετε το HelloMac στις <code>Εφαρμογές</code>.<br><br> Αν εμφανιστεί στην πρώτη εκκίνηση <code>"Μη Αναγνωρισμένος Δημιουργός"</code>, πηγαίνετε στο <code>Finder → Εφαρμογές </code> (⇧⌘A), κάντε δεξί κλικ στο HelloMac και επιλέξτε <code>Άνοιγμα</code> ή κρατήστε πατημένο το <code>Control</code> και κάντε κλικ στην εφαρμογή. Στο παράθυρο που θα εμφανιστεί, πατήστε ξανά <code>Άνοιγμα</code></span>
+                <span data-lang="en">Open the <code>.dmg</code> and drag HelloMac to <code>Applications</code>.<br><br> If <code>"Unidentified Developer"</code> appears on first launch, go to <code>Finder → Applications</code> (⇧⌘A), right-click HelloMac and choose <code>Open</code>, or hold down <code>Control</code> and click the app. In the dialog that appears, click <code>Open</code> again</span>
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h3><span data-lang="el">Ενεργοποιήστε το iPhone Handoff</span><span data-lang="en">Enable iPhone Handoff</span></h3>
+              <p><span data-lang="el">Στο iPhone: <code>Ρυθμίσεις → Τηλέφωνο → Κλήσεις σε άλλες συσκευές</code>.<br> Το Mac και το iPhone πρέπει να είναι στο ίδιο Wi-Fi και Apple ID.</span><span data-lang="en">On iPhone: <code>Settings → Phone → Calls on Other Devices</code>.<br> The Mac and iPhone must be on the same Wi-Fi and Apple ID.</span></p>
+            </div>
+          </div>
+        </div>
+        <div class="notice">
+          <strong><span data-lang="el">Συμβατό με:</span><span data-lang="en">Compatible with:</span></strong><br>
+          <span data-lang="el">macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia</span>
+          <span data-lang="en">macOS Big Sur, Monterey, Ventura, Sonoma, Sequoia</span>
+        </div>
+        <div class="notice">
+          <strong><span data-lang="el">Πώς λειτουργεί το FaceTime workaround:</span><span data-lang="en">How the FaceTime workaround works:</span></strong><br>
+          <span data-lang="el">Το HelloMac προωθεί την κλήση μέσω <code>tel://</code> χρησιμοποιώντας το FaceTime στο παρασκήνιο. Κρύβει αυτόματα το παράθυρο του FaceTime για καθαρή εμπειρία.</span>
+          <span data-lang="en">HelloMac routes calls through <code>tel://</code> using FaceTime in the background. It automatically hides the FaceTime window for a clean experience.</span>
+        </div>
+      </div>
+
+      <div id="doc-release" class="doc-section">
+        <div class="section-label"><span data-lang="el">Ενημερώσεις</span><span data-lang="en">Updates</span></div>
+        <h2 class="section-title">
+          <span data-lang="el">Σημειώσεις Έκδοσης</span>
+          <span data-lang="en">Release Notes</span>
+        </h2>
+        <div class="release-box" id="release-box" style="display: block;">
+          <div class="release-box-header">
+            <span class="release-tag" id="release-tag">vX.X.X</span>
+            <span class="release-date" id="release-date">---</span>
+          </div>
+          <div class="release-body" id="release-body"><span class="spinner"></span> Φόρτωση...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="scroll-top-btn" id="scrollTopBtn" onclick="scrollToTop()" title="Go to top">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;display:block;margin:auto;"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+</button>
+
+<footer>
+  <div class="footer-left">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;">
+      <div id="footer-logo" class="logo-icon-fallback" style="width:22px;height:22px;font-size:12px;color:#fff;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+      </div>
+      HelloMac
+    </div>
+    <span style="color:var(--text-tertiary)">·</span>
+    <span><span data-lang="el">Σχεδιασμένο για παλαιότερα macOS</span><span data-lang="en">Built for older macOS</span></span>
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/Konstantinos2106/HelloMac" target="_blank">GitHub</a>
+    <a href="https://github.com/Konstantinos2106/HelloMac/releases" target="_blank">Releases</a>
+    <a id="footer-license-link" href="https://github.com/Konstantinos2106/HelloMac/blob/main/LICENSE" target="_blank">
+      <span id="footer-license-name">License</span>
+    </a>
+    <a href="mailto:hellomac.support@gmail.com"><span data-lang="el">Επικοινωνία</span><span data-lang="en">Contact</span></a>
+    <a href="https://github.com/Konstantinos2106" target="_blank">Konstantinos2106</a>
+  </div>
+</footer>
+
+<script>
+const REPO = 'Konstantinos2106/HelloMac';
+const RAW  = `https://raw.githubusercontent.com/${REPO}/main`;
+const API  = `https://api.github.com/repos/${REPO}`;
+
+// ── ΜΗΧΑΝΙΣΜΟΣ ANTI-RATE LIMIT (LOCALSTORAGE CACHE) ──
+async function fetchWithCache(url, cacheTimeMins = 15) {
+  const cachedData = localStorage.getItem(url);
+  const cachedTime = localStorage.getItem(url + '_time');
+  
+  if (cachedData && cachedTime && (Date.now() - cachedTime < cacheTimeMins * 60 * 1000)) {
+    return JSON.parse(cachedData);
+  }
+  
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("GitHub API Error: " + response.status);
+  const data = await response.json();
+  
+  localStorage.setItem(url, JSON.stringify(data));
+  localStorage.setItem(url + '_time', Date.now().toString());
+  return data;
+}
+
+// ── Πράσινη Λάμψη Ποντικιού ──
+const glow = document.getElementById('mouse-glow');
+window.addEventListener('mousemove', (e) => {
+  glow.style.opacity = '1';
+  glow.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%)`;
+});
+window.addEventListener('mouseout', () => { glow.style.opacity = '0'; });
+
+// ── Scroll to Top Functionality ──
+const scrollBtn = document.getElementById("scrollTopBtn");
+const docsScrollArea = document.getElementById("docsScrollArea");
+
+function toggleScrollBtn(scrollAmount) {
+  if (scrollAmount > 200) {
+    scrollBtn.classList.add('show');
+  } else {
+    scrollBtn.classList.remove('show');
+  }
+}
+
+window.addEventListener('scroll', () => {
+  if (!document.body.classList.contains('is-docs-view')) {
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    toggleScrollBtn(scrollTop);
+    
+    const windowHeight = window.innerHeight;
+    const documentHeight = document.documentElement.scrollHeight;
+    const footerHeight = document.querySelector('footer').offsetHeight || 100;
+    
+    if (scrollTop + windowHeight >= documentHeight - footerHeight + 20) {
+      scrollBtn.classList.add('above-footer');
+    } else {
+      scrollBtn.classList.remove('above-footer');
+    }
+  }
+});
+
+docsScrollArea.addEventListener('scroll', () => {
+  if (document.body.classList.contains('is-docs-view')) {
+    toggleScrollBtn(docsScrollArea.scrollTop);
+  }
+});
+
+function scrollToTop() {
+  if (document.body.classList.contains('is-docs-view')) {
+    docsScrollArea.scrollTo({top: 0, behavior: 'smooth'});
+  } else {
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+}
+
+// ── Εναλλαγή Σελίδων (Home <-> Docs) ──
+function showDocs() {
+  document.body.classList.add('is-docs-view');
+  document.getElementById('page-home').style.display = 'none';
+  scrollBtn.classList.remove('show'); 
+  scrollBtn.classList.remove('above-footer');
+}
+function showHome() {
+  document.body.classList.remove('is-docs-view');
+  document.getElementById('page-home').style.display = 'block';
+  window.scrollTo({top: 0});
+  scrollBtn.classList.remove('show');
+  scrollBtn.classList.remove('above-footer');
+}
+
+// ── Εναλλαγή Καρτελών (Docs View) ──
+function switchDoc(sectionId, element, event) {
+  if(event) event.preventDefault();
+  
+  document.querySelectorAll('.doc-section').forEach(sec => sec.classList.remove('active'));
+  document.getElementById(sectionId).classList.add('active');
+  
+  document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+  element.classList.add('active');
+  
+  docsScrollArea.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Γλώσσα ──
+const pageTitles = {
+  el: "HelloMac | Εφαρμογή Κλήσεων για παλαιότερα macOS",
+  en: "HelloMac | Phone Calling App for older macOS"
+};
+
+function setLang(lang) {
+  document.body.className = document.body.className.replace(/lang-\w+/g, '') + ' lang-' + lang;
+  document.querySelectorAll('#lang-switch button').forEach(b => b.classList.remove('active'));
+  document.querySelector('#lang-switch button:' + (lang==='el'?'first-child':'last-child')).classList.add('active');
+  document.documentElement.lang = lang;
+  document.title = pageTitles[lang] || pageTitles.en;
+}
+
+// ── ΑΥΤΟΜΑΤΗ ΑΝΙΧΝΕΥΣΗ ΓΛΩΣΣΑΣ ΠΕΡΙΗΓΗΤΗ ──
+const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+const defaultLang = browserLang.startsWith('el') ? 'el' : 'en';
+setLang(defaultLang);
+
+// ── Screenshots (ανεξάρτητο light/dark toggle, μόνο για τις εικόνες) ──
+// Το υπόλοιπο retro θέμα της σελίδας παραμένει σταθερό. Μόνο οι εικόνες στιγμιότυπων αλλάζουν.
+let shotsTheme = 'dark';
+
+function updateThemeShots() {
+  const theme = shotsTheme === 'light' ? 'lm' : 'dm';
+  document.querySelectorAll('img.theme-shot').forEach(img => {
+    const base = img.getAttribute('data-base');
+    if (base) img.src = `${base}_${theme}.png`;
+  });
+}
+
+const shotsThemeToggle = document.getElementById('shots-theme-toggle');
+const shotsIconSun = document.getElementById('shots-icon-sun');
+const shotsIconMoon = document.getElementById('shots-icon-moon');
+
+if (shotsThemeToggle) {
+  shotsThemeToggle.addEventListener('click', () => {
+    shotsTheme = shotsTheme === 'dark' ? 'light' : 'dark';
+    if (shotsTheme === 'light') {
+      shotsIconSun.style.display = 'block';
+      shotsIconMoon.style.display = 'none';
+    } else {
+      shotsIconSun.style.display = 'none';
+      shotsIconMoon.style.display = 'block';
+    }
+    updateThemeShots();
+  });
+}
+
+// Αρχική εφαρμογή κατά το φόρτωμα της σελίδας
+updateThemeShots();
+
+// ── Markdown Parser για το Release Notes ──
+function parseMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/^(\s*)(?:\*|\-) (.*)$/gm, function(match, spaces, content) {
+      // Αλλαγή: Θεωρούμε nested αν έχει 2 ή περισσότερα κενά
+      let isNested = spaces.length >= 2; 
+      let marginLeft = isNested ? '40px' : '20px';
+      let listStyle = isNested ? 'circle' : 'disc'; 
+      return `<div style="display:list-item; list-style-type:${listStyle}; margin-left:${marginLeft}; margin-bottom:6px;">${content}</div>`;
+    })
+    .replace(/^### (.*)$/gm, '<h3 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:16px;">$1</h3>')
+    .replace(/^## (.*)$/gm, '<h2 style="margin-top:16px; margin-bottom:8px; color:var(--text); font-size:18px;">$1</h2>')
+    .replace(/^---$/gm, '<hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">')
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text);">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:var(--surface2); padding:2px 4px; border-radius:4px; font-size:90%; color:var(--green);">$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--green); text-decoration:none;">$1</a>')
+    .replace(/\n/g, '<br>');
+}
+
+// ── API Φόρτωση ──
+async function loadAll() {
+  const logoUrl = "Icns_Photos/phone.png"; 
+  const bannerUrl = "Icns_Photos/banner.png"; 
+
+  // Εφαρμογή Logo
+  if (logoUrl) {
+    document.getElementById('nav-logo-wrap').innerHTML = `<img src="${logoUrl}" alt="logo">`;
+    document.getElementById('footer-logo').innerHTML = `<img src="${logoUrl}" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover;">`;
+    document.getElementById('footer-logo').style.background = 'none';
+    document.getElementById('main-logo-wrap').innerHTML = `<img src="${logoUrl}" alt="HelloMac">`;
+  }
+
+  // Εφαρμογή Banner
+  if (bannerUrl) {
+    const bannerImg = document.getElementById('docs-banner');
+    bannerImg.src = bannerUrl;
+    bannerImg.onerror = () => { bannerImg.style.display = 'none'; };
+    bannerImg.onload = () => { bannerImg.style.display = 'block'; };
+  }
+
+  // Repo Info (Αστέρια)
+  try {
+    const repo = await fetchWithCache(API);
+    if (repo.stargazers_count !== undefined && Number.isInteger(repo.stargazers_count)) {
+      document.getElementById('stars-count').textContent = repo.stargazers_count;
+      document.getElementById('nav-stars').style.display = 'flex';
+    }
+  } catch {}
+
+  // Total Downloads
+  try {
+    const allReleases = await fetchWithCache(`${API}/releases`);
+    let totalDownloads = 0;
+    if (Array.isArray(allReleases)) {
+      allReleases.forEach(rel => {
+        if (rel.assets) {
+          rel.assets.forEach(asset => {
+            totalDownloads += asset.download_count;
+          });
+        }
+      });
+      if (Number.isInteger(totalDownloads) && totalDownloads > 0) {
+        document.getElementById('downloads-count').textContent = totalDownloads;
+        document.getElementById('nav-downloads').style.display = 'flex';
+      }
+    }
+  } catch {}
+
+  // Release Info
+  try {
+    const rel = await fetchWithCache(`${API}/releases/latest`);
+    const tag  = rel.tag_name || rel.name || '';
+    const date = new Date(rel.published_at).toLocaleDateString('el-GR',{year:'numeric',month:'long',day:'numeric'});
+
+    const badge = document.getElementById('hero-badge');
+    badge.innerHTML = `● <span data-lang="el">Νέο — ${tag}</span><span data-lang="en">New — ${tag}</span>`;
+    badge.style.display = 'inline-flex';
+    setLang(document.body.classList.contains('lang-en') ? 'en' : 'el');
+
+    const dmg = rel.assets?.find(a => /\.dmg$/i.test(a.name));
+    const dlUrl = dmg ? dmg.browser_download_url : 'https://github.com/Konstantinos2106/HelloMac/releases';
+    document.getElementById('download-btn-main').href = dlUrl;
+    if (document.getElementById('download-btn-step')) {
+      document.getElementById('download-btn-step').href = dlUrl;
+    }
+
+    if (rel.body?.trim()) {
+      document.getElementById('release-tag').textContent  = tag;
+      document.getElementById('release-date').textContent = date;
+      
+      let parts = rel.body.split('---');
+      let englishMarkdown = parts[0] ? parts[0].trim() : '';
+      
+      let greekMarkdown = parts.length > 1 ? parts[1].trim() : englishMarkdown; 
+      
+      let englishHtml = parseMarkdown(englishMarkdown);
+      let greekHtml = parseMarkdown(greekMarkdown);
+      
+      document.getElementById('release-body').innerHTML = `
+        <div data-lang="en">${englishHtml}</div>
+        <div data-lang="el">${greekHtml}</div>
+      `;
+    } else {
+      document.getElementById('release-body').innerHTML = "<span data-lang='el'>Δεν υπάρχουν σημειώσεις για αυτή την έκδοση.</span><span data-lang='en'>No notes for this release.</span>";
+    }
+  } catch {
+    const badge = document.getElementById('hero-badge');
+    if (badge) badge.style.display = 'none';
+    
+    const relItem = document.getElementById('sidebar-release-item');
+    if (relItem) relItem.style.display = 'none';
+    
+    const fallbackUrl = 'https://github.com/Konstantinos2106/HelloMac/releases';
+    document.getElementById('download-btn-main').href = fallbackUrl;
+    if (document.getElementById('download-btn-step')) {
+      document.getElementById('download-btn-step').href = fallbackUrl;
+    }
+  }
+
+  // License
+  try {
+    const lic = await fetchWithCache(`${API}/license`);
+    const name = lic.license?.spdx_id || lic.license?.name || 'Open Source';
+    const url  = lic.html_url || `https://github.com/${REPO}/blob/main/LICENSE`;
+
+    document.querySelectorAll('.license-card-title').forEach(el => el.textContent = name + ' License');
+    document.querySelectorAll('.license-card-body').forEach(el => {
+      el.innerHTML = `<span data-lang="el">Ανοιχτός κώδικας υπό άδεια ${name}.</span><span data-lang="en">Open source under ${name} license.</span>`;
+    });
+    setLang(document.body.classList.contains('lang-en') ? 'en' : 'el');
+
+    document.getElementById('footer-license-name').textContent = name + ' License';
+    document.getElementById('footer-license-link').href = url;
+  } catch {
+    document.querySelectorAll('.license-card-title').forEach(el => el.textContent = 'Open Source');
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
