@@ -1,0 +1,16 @@
+/* VT323 — τοπικά φιλοξενούμενη γραμματοσειρά (self-hosted), αντικαθιστά το Google Fonts CDN.
+   Πηγή αρχείου: fontsource/font-files (Google Fonts mirror), SIL Open Font License 1.1.
+
+   Σημείωση: το "Tahoma" στο παλιό Google Fonts query string δεν αντιστοιχούσε ποτέ σε
+   πραγματική Google Font — το Tahoma είναι ιδιόκτητη γραμματοσειρά της Microsoft και δεν
+   διανέμεται από το Google Fonts. Στην πράξη ο browser έκανε πάντα fallback στο τοπικά
+   εγκατεστημένο (system) Tahoma, όποτε αυτό υπήρχε, οπότε δεν χρειάζεται download εδώ —
+   απλά παραμένει ως system-font fallback στο font-family stack του CSS. */
+
+@font-face {
+  font-family: 'VT323';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('VT323-Regular.woff2') format('woff2');
+}
