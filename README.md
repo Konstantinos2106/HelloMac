@@ -39,29 +39,29 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 ### 📸 Screenshots (Dark Mode)
 
 <p align="center">
-  <img src="Icns_Photos/HelloMac1en_dm.png" alt="HelloMac Favorites" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac1en_dm.png" alt="HelloMac Favorites" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac2en_dm.png" alt="HelloMac Contacts" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac2en_dm.png" alt="HelloMac Contacts" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac3en_dm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac3en_dm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac4en_dm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac4en_dm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac5en_dm.png" alt="HelloMac Keypad" width="62%">
+  <img src="Icns_Photos/Screenshots/HelloMac5en_dm.png" alt="HelloMac Keypad" width="62%">
 </p>
 
 ### 📸 Screenshots (Light Mode)
 
 <p align="center">
-  <img src="Icns_Photos/HelloMac1en_lm.png" alt="HelloMac Favorites" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac1en_lm.png" alt="HelloMac Favorites" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac2en_lm.png" alt="HelloMac Contacts" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac2en_lm.png" alt="HelloMac Contacts" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac3en_lm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac3en_lm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac4en_lm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac4en_lm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac5en_lm.png" alt="HelloMac Keypad" width="62%">
+  <img src="Icns_Photos/Screenshots/HelloMac5en_lm.png" alt="HelloMac Keypad" width="62%">
 </p>
 
 ### 📥 Installation
@@ -118,29 +118,29 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 ### 📸 Στιγμιότυπα (Σκουρόχρωμη Λειτουργία)
 
 <p align="center">
-  <img src="Icns_Photos/HelloMac1el_dm.png" alt="HelloMac Favorites" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac1el_dm.png" alt="HelloMac Favorites" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac2el_dm.png" alt="HelloMac Contacts" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac2el_dm.png" alt="HelloMac Contacts" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac3el_dm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac3el_dm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac4el_dm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac4el_dm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac5el_dm.png" alt="HelloMac Keypad" width="62%">
+  <img src="Icns_Photos/Screenshots/HelloMac5el_dm.png" alt="HelloMac Keypad" width="62%">
 </p>
 
 ### 📸 Στιγμιότυπα (Ανοιχτόχρωμη Λειτουργία)
 
 <p align="center">
-  <img src="Icns_Photos/HelloMac1el_lm.png" alt="HelloMac Favorites" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac1el_lm.png" alt="HelloMac Favorites" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac2el_lm.png" alt="HelloMac Contacts" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac2el_lm.png" alt="HelloMac Contacts" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac3el_lm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac3el_lm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac4el_lm.png" alt="HelloMac Keypad" width="30%">
+  <img src="Icns_Photos/Screenshots/HelloMac4el_lm.png" alt="HelloMac Keypad" width="30%">
   &nbsp;
-  <img src="Icns_Photos/HelloMac5el_lm.png" alt="HelloMac Keypad" width="62%">
+  <img src="Icns_Photos/Screenshots/HelloMac5el_lm.png" alt="HelloMac Keypad" width="62%">
 </p>
 
 
@@ -175,5 +175,5 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 _Για αυτόματες ενημερώσεις πρέπει να έχετε τουλάχιστον την έκδοση 2.0. Οι προηγούμενες εκδόσεις δεν διαθέτουν μηχανισμό αυτόματου ελέγχου και ενημέρωσης._
 
 <p align="center">
-  <img src="Icns_Photos/Banner.png" alt="HelloMac Banner" width="100%">
+  <img src="Icns_Photos/Banner.webp" alt="HelloMac Banner" width="100%">
 </p>
