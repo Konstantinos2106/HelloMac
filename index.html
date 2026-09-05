@@ -104,6 +104,9 @@
     .hero-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--green-dim);border:1px solid rgba(48,209,88,.25);border-radius:100px;padding:6px 14px;font-size:13px;font-weight:500;color:var(--green);margin-bottom:28px;min-height:34px;}
     .hero h1{font-size:clamp(42px,8vw,80px);font-weight:700;letter-spacing:-2.5px;line-height:1.05;margin-bottom:22px;}
     .hero h1 .accent{color:var(--green); text-shadow: 0 0 25px rgba(48,209,88,0.25);}
+    .hero h1 .typing-cursor{display:inline-block;width:0.05em;margin-left:2px;border-right:3px solid var(--green);animation:blink-cursor 0.85s step-end infinite;vertical-align:baseline;}
+    .hero h1 .typing-cursor.done{animation:none;opacity:0;}
+    @keyframes blink-cursor{0%,100%{border-color:var(--green);}50%{border-color:transparent;}}
     .hero-sub{font-size:clamp(16px,2.5vw,20px);color:var(--text-secondary);max-width:580px;margin:0 auto 42px;line-height:1.55;}
     body.lang-el .hero-sub { max-width: 690px; }
     .hero-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
@@ -344,9 +347,10 @@
     </div>
 
     <div class="hero-eyebrow" id="hero-badge" style="display: none;"><span class="spinner"></span></div>
-    <h1>
-      <span data-lang="el">Εφαρμογή κλήσεων<br>για <span class="accent">παλαιότερα macOS</span></span>
-      <span data-lang="en">Calling app<br>for <span class="accent">older macOS</span></span>
+    <h1 id="hero-title">
+      <span data-lang="el" id="hero-title-src-el" style="display:none !important;">Εφαρμογή κλήσεων<br>για <span class="accent">παλαιότερα macOS</span></span>
+      <span data-lang="en" id="hero-title-src-en" style="display:none !important;">Calling app<br>for <span class="accent">older macOS</span></span>
+      <span id="hero-title-typed"></span><span class="typing-cursor" id="hero-title-cursor"></span>
     </h1>
     <p class="hero-sub" id="hero-desc">
       <span data-lang="el">Πραγματοποιήστε κλήσεις απευθείας από το Mac σας μέσω του iPhone.<br>Μια ταχύτατη, κομψή και ελαφριά εφαρμογή, ειδικά σχεδιασμένη για να προσφέρει το απόλυτο τηλεφωνικό κέντρο σε παλαιότερα macOS.</span>
@@ -1035,6 +1039,77 @@ function setLang(lang) {
   document.querySelector('#lang-switch button:' + (lang==='el'?'first-child':'last-child')).classList.add('active');
   document.documentElement.lang = lang;
   document.title = pageTitles[lang] || pageTitles.en;
+  typeHeroTitle(lang);
+}
+
+// ── Typewriter εφέ για τον κύριο τίτλο (hero h1) ──
+// Λειτουργεί 100% τοπικά, χωρίς καμία εξωτερική σύνδεση/βιβλιοθήκη.
+let heroTypingToken = 0; // ακυρώνει προηγούμενο typing αν αλλάξει ξανά η γλώσσα στη μέση
+
+function typeHeroTitle(lang) {
+  const target = document.getElementById('hero-title-typed');
+  const cursor = document.getElementById('hero-title-cursor');
+  const srcEl  = document.getElementById('hero-title-src-' + lang);
+  if (!target || !cursor || !srcEl) return;
+
+  const myToken = ++heroTypingToken;
+
+  // Μετατρέπουμε το HTML πηγή (με <br> και <span class="accent">) σε ακολουθία "βημάτων":
+  // κάθε βήμα είναι είτε ένας χαρακτήρας κειμένου είτε ένα ολόκληρο tag.
+  const html = srcEl.innerHTML;
+  const steps = [];
+  let i = 0;
+  while (i < html.length) {
+    if (html[i] === '<') {
+      const close = html.indexOf('>', i);
+      if (close === -1) { steps.push(html[i]); i++; continue; }
+      steps.push(html.slice(i, close + 1)); // ολόκληρο το tag ως ένα βήμα
+      i = close + 1;
+    } else {
+      steps.push(html[i]);
+      i++;
+    }
+  }
+
+  target.innerHTML = '';
+  cursor.classList.remove('done');
+  let idx = 0;
+  const speed = 38; // ms ανά χαρακτήρα — αίσθηση πληκτρολόγησης
+  const openTags = []; // στοίβα ανοιχτών tags (π.χ. "span") για να κλείνουμε σωστά σε κάθε ενδιάμεσο render
+
+  function tick() {
+    if (myToken !== heroTypingToken) return; // ακυρώθηκε (π.χ. γρήγορη αλλαγή γλώσσας)
+    if (idx >= steps.length) {
+      cursor.classList.add('done');
+      return;
+    }
+    const step = steps[idx];
+
+    if (step[0] === '<') {
+      const isClosing = step[1] === '/';
+      const isSelfClosing = /\/>$/.test(step) || /^<br\s*\/?>$/i.test(step);
+      if (isClosing) {
+        openTags.pop();
+      } else if (!isSelfClosing) {
+        const tagName = step.match(/^<\s*([a-zA-Z0-9]+)/)[1];
+        openTags.push(tagName);
+      }
+    }
+
+    idx++;
+
+    // Ξαναχτίζουμε: όλα τα βήματα μέχρι τώρα + κλείσιμο τυχόν ανοιχτών tags,
+    // ώστε το HTML να είναι πάντα έγκυρο (π.χ. το πράσινο span να μη "σπάει" ενώ γράφεται).
+    let renderedHtml = steps.slice(0, idx).join('');
+    for (let t = openTags.length - 1; t >= 0; t--) {
+      renderedHtml += '</' + openTags[t] + '>';
+    }
+    target.innerHTML = renderedHtml;
+
+    const delay = /[.,·]/.test(step) ? speed * 4 : speed;
+    setTimeout(tick, delay);
+  }
+  tick();
 }
 
 // ── ΑΥΤΟΜΑΤΗ ΑΝΙΧΝΕΥΣΗ ΓΛΩΣΣΑΣ ΠΕΡΙΗΓΗΤΗ ──
@@ -1097,7 +1172,7 @@ function parseMarkdown(text) {
 // ── API Φόρτωση ──
 async function loadAll() {
   const logoUrl = "Icns_Photos/phone.png"; 
-  const bannerUrl = "Icns_Photos/banner.webp"; 
+  const bannerUrl = "Icns_Photos/Banner.webp"; 
 
   // Εφαρμογή Logo
   if (logoUrl) {
