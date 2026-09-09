@@ -1042,6 +1042,18 @@ function setLang(lang) {
   typeHeroTitle(lang);
 }
 
+// Ενημερώνει μόνο ποια γλωσσικά στοιχεία (data-lang) είναι ορατά, ΧΩΡΙΣ να ξαναπαίξει
+// το typewriter effect του hero τίτλου. Χρησιμοποιείται όταν φτάνουν νέα δεδομένα
+// από το GitHub (badge, license κ.λπ.) και θέλουμε απλώς να δείξουμε/κρύψουμε τα
+// αντίστοιχα data-lang="el"/"en" στοιχεία που μόλις μπήκαν στο DOM.
+function refreshLangVisibility(lang) {
+  document.body.className = document.body.className.replace(/lang-\w+/g, '') + ' lang-' + lang;
+  document.querySelectorAll('#lang-switch button').forEach(b => b.classList.remove('active'));
+  document.querySelector('#lang-switch button:' + (lang==='el'?'first-child':'last-child')).classList.add('active');
+  document.documentElement.lang = lang;
+  document.title = pageTitles[lang] || pageTitles.en;
+}
+
 // ── Typewriter εφέ για τον κύριο τίτλο (hero h1) ──
 // Λειτουργεί 100% τοπικά, χωρίς καμία εξωτερική σύνδεση/βιβλιοθήκη.
 let heroTypingToken = 0; // ακυρώνει προηγούμενο typing αν αλλάξει ξανά η γλώσσα στη μέση
@@ -1227,7 +1239,7 @@ async function loadAll() {
     const badge = document.getElementById('hero-badge');
     badge.innerHTML = `● <span data-lang="el">Νέο — ${tag}</span><span data-lang="en">New — ${tag}</span>`;
     badge.style.display = 'inline-flex';
-    setLang(document.body.classList.contains('lang-en') ? 'en' : 'el');
+    refreshLangVisibility(document.body.classList.contains('lang-en') ? 'en' : 'el');
 
     const dmg = rel.assets?.find(a => /\.dmg$/i.test(a.name));
     const dlUrl = dmg ? dmg.browser_download_url : 'https://github.com/Konstantinos2106/HelloMac/releases';
@@ -1279,7 +1291,7 @@ async function loadAll() {
     document.querySelectorAll('.license-card-body').forEach(el => {
       el.innerHTML = `<span data-lang="el">Ανοιχτός κώδικας υπό άδεια ${name}.</span><span data-lang="en">Open source under ${name} license.</span>`;
     });
-    setLang(document.body.classList.contains('lang-en') ? 'en' : 'el');
+    refreshLangVisibility(document.body.classList.contains('lang-en') ? 'en' : 'el');
 
     document.getElementById('footer-license-name').textContent = name + ' License';
     document.getElementById('footer-license-link').href = url;
