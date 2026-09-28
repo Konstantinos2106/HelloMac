@@ -92,8 +92,6 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
 
-_For automatic updates you must have at least version 2.0. Previous versions do not have an automatic checking and updating mechanism._
-
 ---
 
 ## Σχετικά με το HelloMac
@@ -171,8 +169,6 @@ _For automatic updates you must have at least version 2.0. Previous versions do 
 Το HelloMac είναι ένα project ανοιχτού κώδικα και δεν σχετίζεται, δεν υποστηρίζεται ούτε χρηματοδοτείται από την Apple Inc ή κάποια άλλη πηγή. Τα ονόματα iPhone, Mac, macOS και FaceTime είναι εμπορικά σήματα της Apple Inc.
 
 [![Latest Release](https://img.shields.io/github/v/release/Konstantinos2106/HelloMac)](https://github.com/Konstantinos2106/HelloMac/releases/latest) [![Total Downloads](https://img.shields.io/github/downloads/Konstantinos2106/HelloMac/total)](https://github.com/Konstantinos2106/HelloMac/releases)
-
-_Για αυτόματες ενημερώσεις πρέπει να έχετε τουλάχιστον την έκδοση 2.0. Οι προηγούμενες εκδόσεις δεν διαθέτουν μηχανισμό αυτόματου ελέγχου και ενημέρωσης._
 
 <p align="center">
   <img src="Icns_Photos/Banner.webp" alt="HelloMac Banner" width="100%">
