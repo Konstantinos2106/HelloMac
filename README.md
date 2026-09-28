@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Icns_Photos/phone.png" alt="HelloMac Icon" width="200" height="200">
+  <img src="images/phone.png" alt="HelloMac Icon" width="200" height="200">
 </p>
 
 <h1 align="center">HelloMac</h1>
@@ -39,12 +39,12 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 ### Dark Mode
 | Favorites | History | Contacts | Keypad |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1en_dm.webp" width="220" height="450" alt="Favorites"> | <img src="Icns_Photos/Screenshots/HelloMac2en_dm.webp" width="220" height="450" alt="History"> | <img src="Icns_Photos/Screenshots/HelloMac3en_dm.webp" width="220" height="450" alt="Contacts"> | <img src="Icns_Photos/Screenshots/HelloMac4en_dm.webp" width="220" height="450" alt="Keypad"> |
+| <img src="images/Screenshots/HelloMac1en_dm.webp" width="220" height="450" alt="Favorites"> | <img src="images/Screenshots/HelloMac2en_dm.webp" width="220" height="450" alt="History"> | <img src="images/Screenshots/HelloMac3en_dm.webp" width="220" height="450" alt="Contacts"> | <img src="images/Screenshots/HelloMac4en_dm.webp" width="220" height="450" alt="Keypad"> |
 
 ### Light Mode
 | Favorites | History | Contacts | Keypad |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1en_lm.webp" width="220" height="450" alt="Favorites"> | <img src="Icns_Photos/Screenshots/HelloMac2en_lm.webp" width="220" height="450" alt="History"> | <img src="Icns_Photos/Screenshots/HelloMac3en_lm.webp" width="220" height="450" alt="Contacts"> | <img src="Icns_Photos/Screenshots/HelloMac4en_lm.webp" width="220" height="450" alt="Keypad"> |
+| <img src="images/Screenshots/HelloMac1en_lm.webp" width="220" height="450" alt="Favorites"> | <img src="images/Screenshots/HelloMac2en_lm.webp" width="220" height="450" alt="History"> | <img src="images/Screenshots/HelloMac3en_lm.webp" width="220" height="450" alt="Contacts"> | <img src="images/Screenshots/HelloMac4en_lm.webp" width="220" height="450" alt="Keypad"> |
 
 </details>
 

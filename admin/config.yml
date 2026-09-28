@@ -3,8 +3,8 @@ backend:
   repo: Konstantinos2106/HelloMac
   branch: main
 
-media_folder: "Icns_Photos"
-public_folder: "Icns_Photos"
+media_folder: "images"
+public_folder: "images"
 
 collections:
   - name: "settings"

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Icns_Photos/phone.png" alt="HelloMac Icon" width="200" height="200">
+  <img src="images/phone.png" alt="HelloMac Icon" width="200" height="200">
 </p>
 
 <h1 align="center">HelloMac</h1>
@@ -39,13 +39,13 @@
 ### Σκουρόχρωμη Λειτουργία
 | Αγαπημένα | Ιστορικό | Επαφές | Πλήκτρα |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1el_dm.webp" width="220" height="450" alt="Αγαπημένα"> | <img src="Icns_Photos/Screenshots/HelloMac2el_dm.webp" width="220" height="450" alt="Ιστορικό"> | <img src="Icns_Photos/Screenshots/HelloMac3el_dm.webp" width="220" height="450" alt="Επαφές"> | <img src="Icns_Photos/Screenshots/HelloMac4el_dm.webp" width="220" height="450" alt="Πλήκτρα"> |
+| <img src="images/Screenshots/HelloMac1el_dm.webp" width="220" height="450" alt="Αγαπημένα"> | <img src="images/Screenshots/HelloMac2el_dm.webp" width="220" height="450" alt="Ιστορικό"> | <img src="images/Screenshots/HelloMac3el_dm.webp" width="220" height="450" alt="Επαφές"> | <img src="images/Screenshots/HelloMac4el_dm.webp" width="220" height="450" alt="Πλήκτρα"> |
 
 
 ### Ανοιχτόχρωμη Λειτουργία
 | Αγαπημένα | Ιστορικό | Επαφές | Πλήκτρα |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1el_lm.webp" width="220" height="450" alt="Αγαπημένα"> | <img src="Icns_Photos/Screenshots/HelloMac2el_lm.webp" width="220" height="450" alt="Ιστορικό"> | <img src="Icns_Photos/Screenshots/HelloMac3el_lm.webp" width="220" height="450" alt="Επαφές"> | <img src="Icns_Photos/Screenshots/HelloMac4el_lm.webp" width="220" height="450" alt="Πλήκτρα"> |
+| <img src="images/Screenshots/HelloMac1el_lm.webp" width="220" height="450" alt="Αγαπημένα"> | <img src="images/Screenshots/HelloMac2el_lm.webp" width="220" height="450" alt="Ιστορικό"> | <img src="images/Screenshots/HelloMac3el_lm.webp" width="220" height="450" alt="Επαφές"> | <img src="images/Screenshots/HelloMac4el_lm.webp" width="220" height="450" alt="Πλήκτρα"> |
 
 </details>
 
