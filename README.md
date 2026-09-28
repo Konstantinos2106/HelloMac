@@ -39,12 +39,12 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 ### Dark Mode
 | Favorites | History | Contacts | Keypad |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1en_dm.webp" width="250" alt="Favorites"> | <img src="Icns_Photos/Screenshots/HelloMac2en_dm.webp" width="250" alt="Contacts"> | <img src="Icns_Photos/Screenshots/HelloMac3en_dm.webp" width="250" alt="Keypad"> | <img src="Icns_Photos/Screenshots/HelloMac4en_dm.webp" width="250" alt="Keypad">
+| <img src="Icns_Photos/Screenshots/HelloMac1en_dm.webp" width="220" height="450" alt="Favorites"> | <img src="Icns_Photos/Screenshots/HelloMac2en_dm.webp" width="220" height="450" alt="History"> | <img src="Icns_Photos/Screenshots/HelloMac3en_dm.webp" width="220" height="450" alt="Contacts"> | <img src="Icns_Photos/Screenshots/HelloMac4en_dm.webp" width="220" height="450" alt="Keypad"> |
 
 ### Light Mode
 | Favorites | History | Contacts | Keypad |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1en_lm.webp" width="250" alt="Favorites"> | <img src="Icns_Photos/Screenshots/HelloMac2en_lm.webp" width="250" alt="Contacts"> | <img src="Icns_Photos/Screenshots/HelloMac3en_lm.webp" width="250" alt="Keypad"> | <img src="Icns_Photos/Screenshots/HelloMac4en_lm.webp" width="250" alt="Keypad">
+| <img src="Icns_Photos/Screenshots/HelloMac1en_lm.webp" width="220" height="450" alt="Favorites"> | <img src="Icns_Photos/Screenshots/HelloMac2en_lm.webp" width="220" height="450" alt="History"> | <img src="Icns_Photos/Screenshots/HelloMac3en_lm.webp" width="220" height="450" alt="Contacts"> | <img src="Icns_Photos/Screenshots/HelloMac4en_lm.webp" width="220" height="450" alt="Keypad"> |
 
 </details>
 
