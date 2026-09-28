@@ -78,6 +78,12 @@ In older versions of macOS (before version 26 'Tahoe'), there is no standalone '
 
 HelloMac uses a clever background mechanism. It routes calls via the `tel://` protocol using FaceTime. However, to provide the experience of a truly standalone application, HelloMac automatically hides the FaceTime window, allowing you to manage your call undisturbed in a clean UI.
 
+## 🛠️ Documentation & Building
+
+The codebase and the build process are fully open and accessible. You don't need to be a developer to compile HelloMac yourself. All the details can be found in our documentation files:
+* [🗂️ Project Structure & Architecture](docs/STRUCTURE.md)
+* [🛠️ Build from Source Guide](docs/BUILD.md)
+
 ## ✉️ Support & Contact
 
 HelloMac is an active project and is constantly evolving. If you encounter any bugs or have feature suggestions, feel free to open an [Issue](https://github.com/Konstantinos2106/HelloMac/issues) or contact me directly at:
