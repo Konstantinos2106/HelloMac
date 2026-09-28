@@ -39,12 +39,13 @@
 ### Σκουρόχρωμη Λειτουργία
 | Αγαπημένα | Ιστορικό | Επαφές | Πλήκτρα |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1el_dm.webp" width="250" alt="Αγαπημένα"> | <img src="Icns_Photos/Screenshots/HelloMac2el_dm.webp" width="250" alt="Επαφές"> | <img src="Icns_Photos/Screenshots/HelloMac3el_dm.webp" width="250" alt="Επαφές"> | <img src="Icns_Photos/Screenshots/HelloMac4el_dm.webp" width="250" alt="Πλήκτρα">
+| <img src="Icns_Photos/Screenshots/HelloMac1el_dm.webp" width="220" height="450" alt="Αγαπημένα"> | <img src="Icns_Photos/Screenshots/HelloMac2el_dm.webp" width="220" height="450" alt="Ιστορικό"> | <img src="Icns_Photos/Screenshots/HelloMac3el_dm.webp" width="220" height="450" alt="Επαφές"> | <img src="Icns_Photos/Screenshots/HelloMac4el_dm.webp" width="220" height="450" alt="Πλήκτρα"> |
+
 
 ### Ανοιχτόχρωμη Λειτουργία
 | Αγαπημένα | Ιστορικό | Επαφές | Πλήκτρα |
 | :---: | :---: | :---: | :---: |
-| <img src="Icns_Photos/Screenshots/HelloMac1el_lm.webp" width="250" alt="Αγαπημένα"> | <img src="Icns_Photos/Screenshots/HelloMac2el_lm.webp" width="250" alt="Επαφές"> | <img src="Icns_Photos/Screenshots/HelloMac3el_lm.webp" width="250" alt="Πληκτρολόγιο"> | <img src="Icns_Photos/Screenshots/HelloMac4el_lm.webp" width="250" alt="Πλήκτρα">
+| <img src="Icns_Photos/Screenshots/HelloMac1el_lm.webp" width="220" height="450" alt="Αγαπημένα"> | <img src="Icns_Photos/Screenshots/HelloMac2el_lm.webp" width="220" height="450" alt="Ιστορικό"> | <img src="Icns_Photos/Screenshots/HelloMac3el_lm.webp" width="220" height="450" alt="Επαφές"> | <img src="Icns_Photos/Screenshots/HelloMac4el_lm.webp" width="220" height="450" alt="Πλήκτρα"> |
 
 </details>
 
