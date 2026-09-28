@@ -94,6 +94,9 @@ HelloMac is an open-source project and is not affiliated with, endorsed by, or s
 
 ---
 
+
+---
+
 ## Σχετικά με το HelloMac
 
 Στις παλαιότερες εκδόσεις του macOS (πριν την έκδοση 26 'Tahoe') δεν υπάρχει αυτόνομη εφαρμογή "Τηλέφωνο", με αποτέλεσμα οι χρήστες να πρέπει να ανοίγουν το FaceTime ή τις Επαφές τους για μια απλή κλήση.<br>
